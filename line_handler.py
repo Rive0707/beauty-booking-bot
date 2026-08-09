@@ -150,7 +150,7 @@ class LineHandler:
         
         # キャロセルで時間を表示（LINEの制約：最大10個のボタン）
         columns = []
-        for i in 0; i < len(business_hours); i += 5:
+        for i in range(0, len(business_hours), 5):
             time_group = business_hours[i:i+5]
             actions = []
             for time_str in time_group:
