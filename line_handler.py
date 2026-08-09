@@ -10,8 +10,7 @@ from linebot.models import (
     DatetimePickerAction,
     CarouselTemplate,
     CarouselColumn,
-    FlexMessage,
-    FlexContainer
+    FlexSendMessage
 )
 from datetime import datetime, date, timedelta
 import json
@@ -52,7 +51,7 @@ class LineHandler:
     def send_flex_message(self, user_id: str, flex_json: dict):
         """Flex Message送信"""
         try:
-            message = FlexMessage(
+            message = FlexSendMessage(
                 alt_text="メッセージ",
                 contents=flex_json
             )
