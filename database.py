@@ -266,6 +266,25 @@ class Database:
         results = cursor.fetchall()
         conn.close()
         return results
+
+    def get_booked_times_in_range(self, start_date_str: str, end_date_str: str):
+        """
+        指定期間内の予約済み時間を取得
+        戻り値: { "2026-08-10": ["10:00", "14:00"], ... }
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT booking_date, booking_time FROM bookings
+            WHERE booking_date >= ? AND booking_date <= ? AND status = 'confirmed'
+        ''', (start_date_str, end_date_str))
+        results = cursor.fetchall()
+        conn.close()
+
+        booked = {}
+        for row in results:
+            booked.setdefault(row["booking_date"], []).append(row["booking_time"])
+        return booked
     
     def get_upcoming_bookings(self, days_ahead: int = 7):
         """今後N日間の予約取得"""

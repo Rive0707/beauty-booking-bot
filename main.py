@@ -7,6 +7,7 @@ FastAPI + LINE Messaging API + SQLite + APScheduler
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent
@@ -22,6 +23,7 @@ import atexit
 from database import Database
 from line_handler import LineHandler
 from reminder import ReminderScheduler
+from config import BUSINESS_HOURS_START, BUSINESS_HOURS_END, SLOT_INTERVAL_MINUTES, CLOSED_WEEKDAYS
 
 # ロギング設定
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +49,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 静的ファイル配信（LIFFページ用）
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # LINE Bot初期化
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
@@ -638,6 +643,67 @@ async def get_bookings_by_date(date_str: str):
         bookings = db.get_bookings_by_date(date)
         return JSONResponse({"bookings": bookings})
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def generate_time_slots():
+    """営業時間・予約間隔から時間枠のリストを生成"""
+    slots = []
+    start = datetime.strptime(BUSINESS_HOURS_START, "%H:%M")
+    end = datetime.strptime(BUSINESS_HOURS_END, "%H:%M")
+    current = start
+    while current < end:
+        slots.append(current.strftime("%H:%M"))
+        current += timedelta(minutes=SLOT_INTERVAL_MINUTES)
+    return slots
+
+WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
+
+@app.get("/api/availability")
+async def get_availability(start_date: str, days: int = 7):
+    """
+    指定日から指定日数分の空き状況を返す
+    定休日・営業時間・既存予約を踏まえて ○/✕/- を判定する
+    """
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = start + timedelta(days=days - 1)
+
+        booked_times = db.get_booked_times_in_range(
+            start.isoformat(), end.isoformat()
+        )
+        time_slots = generate_time_slots()
+
+        date_list = []
+        availability = {}
+
+        for i in range(days):
+            current_date = start + timedelta(days=i)
+            date_str = current_date.isoformat()
+            weekday_index = current_date.weekday()
+
+            date_list.append({
+                "date": date_str,
+                "day": current_date.day,
+                "weekday": WEEKDAY_LABELS_JA[weekday_index],
+                "is_closed": weekday_index in CLOSED_WEEKDAYS
+            })
+
+            if weekday_index in CLOSED_WEEKDAYS:
+                availability[date_str] = {slot: "closed" for slot in time_slots}
+            else:
+                booked_for_date = booked_times.get(date_str, [])
+                availability[date_str] = {
+                    slot: ("booked" if slot in booked_for_date else "available")
+                    for slot in time_slots
+                }
+
+        return JSONResponse({
+            "time_slots": time_slots,
+            "dates": date_list,
+            "availability": availability
+        })
+    except Exception as e:
+        logger.error(f"Error getting availability: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ===============================
