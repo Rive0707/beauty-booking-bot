@@ -36,6 +36,17 @@ class Database:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # 既存DBに対する追加カラムのマイグレーション（フリガナ・性別・誕生日）
+        for column_def in [
+            "ALTER TABLE customers ADD COLUMN furigana TEXT",
+            "ALTER TABLE customers ADD COLUMN gender TEXT",
+            "ALTER TABLE customers ADD COLUMN birthdate TEXT",
+        ]:
+            try:
+                cursor.execute(column_def)
+            except sqlite3.OperationalError:
+                pass  # 既にカラムが存在する場合はスキップ
         
         # メニューテーブル
         cursor.execute('''
@@ -142,6 +153,30 @@ class Database:
             cursor.execute('UPDATE customers SET phone = ? WHERE user_id = ?', (phone, user_id))
         conn.commit()
         conn.close()
+
+    def save_customer_profile(self, user_id: str, name: str, furigana: str = None,
+                              gender: str = None, birthdate: str = None, phone: str = None):
+        """予約フォームから送信されたお客様情報を保存（新規なら作成、既存なら更新）"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                INSERT INTO customers (user_id, name, furigana, gender, birthdate, phone)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    name = excluded.name,
+                    furigana = excluded.furigana,
+                    gender = excluded.gender,
+                    birthdate = excluded.birthdate,
+                    phone = excluded.phone
+            ''', (user_id, name, furigana, gender, birthdate, phone))
+            conn.commit()
+            logger.info(f"Customer profile saved: {user_id}")
+        except Exception as e:
+            logger.error(f"Error saving customer profile: {e}")
+            raise
+        finally:
+            conn.close()
     
     # =======================================
     # メニュー管理
