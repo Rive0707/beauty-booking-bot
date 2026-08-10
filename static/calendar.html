@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ご予約日時の選択</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --paper:#FBF6F0;
+    --paper-line:#EAE1D6;
+    --ink:#3B322C;
+    --ink-soft:#8A7F74;
+    --plum:#A8556B;
+    --plum-soft:#F1DEE3;
+    --closed:#D8CFC4;
+    --booked:#C9BFB4;
+    --radius-brush: 42% 58% 61% 39% / 48% 41% 59% 52%;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    padding:20px 20px 14px;
+    border-bottom:1px solid var(--paper-line);
+    position:sticky;
+    top:0;
+    background:var(--paper);
+    z-index:10;
+  }
+  h1{
+    font-family:'Shippori Mincho', serif;
+    font-weight:700;
+    font-size:20px;
+    margin:0 0 2px;
+    letter-spacing:.02em;
+  }
+  .sub{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0;
+  }
+  .month-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:14px;
+  }
+  .month-nav button{
+    background:none;
+    border:1px solid var(--paper-line);
+    border-radius:999px;
+    width:32px;
+    height:32px;
+    font-size:15px;
+    color:var(--plum);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .month-label{
+    font-family:'Shippori Mincho', serif;
+    font-size:15px;
+    font-weight:500;
+  }
+  .legend{
+    display:flex;
+    gap:16px;
+    padding:12px 20px;
+    font-size:11.5px;
+    color:var(--ink-soft);
+  }
+  .legend span{display:flex; align-items:center; gap:5px;}
+  .dot{width:11px;height:11px;border-radius:var(--radius-brush);display:inline-block;}
+  .dot.avail{border:1.6px solid var(--plum);}
+  .dot.booked{background:var(--booked);}
+  .dot.closed{background:transparent;}
+
+  .scroll-wrap{
+    overflow-x:auto;
+    padding:0 20px 32px;
+    -webkit-overflow-scrolling:touch;
+  }
+  table{
+    border-collapse:collapse;
+    min-width:100%;
+  }
+  th, td{
+    text-align:center;
+    padding:0;
+  }
+  thead th{
+    padding:10px 4px 8px;
+    font-weight:500;
+    position:sticky;
+    top:96px;
+    background:var(--paper);
+  }
+  thead th.time-col{ left:0; z-index:3; }
+  .day-num{
+    font-family:'Shippori Mincho', serif;
+    font-size:16px;
+    display:block;
+  }
+  .weekday{
+    font-size:10.5px;
+    color:var(--ink-soft);
+    display:block;
+    margin-top:1px;
+  }
+  .weekday.sat{color:#6E8FA3;}
+  .weekday.sun{color:#B36B5E;}
+
+  td.time-col{
+    position:sticky;
+    left:0;
+    background:var(--paper);
+    font-size:12px;
+    color:var(--ink-soft);
+    padding:0 12px 0 0;
+    white-space:nowrap;
+    border-right:1px solid var(--paper-line);
+    z-index:2;
+  }
+  tbody tr{border-top:1px solid var(--paper-line);}
+
+  .cell{
+    width:52px;
+    height:46px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .mark{
+    width:22px;
+    height:22px;
+    border-radius:var(--radius-brush);
+  }
+  .mark.available{border:1.8px solid var(--plum); background:transparent;}
+  .mark.booked{background:var(--booked);}
+  .mark.closed::after{content:"";}
+
+  button.slot-btn{
+    all:unset;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    height:100%;
+    cursor:pointer;
+  }
+  button.slot-btn:active .mark.available{
+    background:var(--plum-soft);
+  }
+  button.slot-btn.selected .mark.available{
+    background:var(--plum);
+  }
+
+  .status-bar{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    background:var(--paper);
+    border-top:1px solid var(--paper-line);
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+    display:none;
+  }
+  .status-bar.show{display:block;}
+  .status-bar .chosen{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+  }
+  .status-bar .chosen b{color:var(--ink); font-weight:700;}
+  .confirm-btn{
+    all:unset;
+    display:block;
+    width:100%;
+    text-align:center;
+    background:var(--plum);
+    color:#fff;
+    padding:13px;
+    border-radius:10px;
+    font-size:14.5px;
+    font-weight:700;
+    letter-spacing:.03em;
+  }
+  .loading, .error{
+    padding:40px 20px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ご来店日時を選択</h1>
+  <p class="sub">カレンダーからご希望の日時をお選びください</p>
+  <div class="month-nav">
+    <button id="prevWeek" aria-label="前の週へ">‹</button>
+    <span class="month-label" id="monthLabel"></span>
+    <button id="nextWeek" aria-label="次の週へ">›</button>
+  </div>
+</header>
+
+<div class="legend">
+  <span><i class="dot avail"></i>空きあり</span>
+  <span><i class="dot booked"></i>ご予約済み</span>
+  <span>ー 休業日</span>
+</div>
+
+<div id="content">
+  <div class="loading">読み込み中…</div>
+</div>
+
+<div class="status-bar" id="statusBar">
+  <div class="chosen" id="chosenText"></div>
+  <button class="confirm-btn" id="confirmBtn">この日時で予約に進む</button>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const DAYS_PER_VIEW = 7;
+let rangeStart = new Date();
+rangeStart.setHours(0,0,0,0);
+let selected = null;
+
+function toDateStr(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+async function loadAvailability(){
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading">読み込み中…</div>';
+  try{
+    const res = await fetch(`${API_BASE}/api/availability?start_date=${toDateStr(rangeStart)}&days=${DAYS_PER_VIEW}`);
+    if(!res.ok) throw new Error('failed');
+    const data = await res.json();
+    render(data);
+  }catch(e){
+    content.innerHTML = '<div class="error">空き状況を取得できませんでした。<br>時間をおいて再度お試しください。</div>';
+  }
+}
+
+function render(data){
+  const { time_slots, dates, availability } = data;
+
+  const first = dates[0], last = dates[dates.length-1];
+  document.getElementById('monthLabel').textContent =
+    `${first.date.slice(0,7).replace('-','年')}月 ${first.day}日〜${last.day}日`;
+
+  let html = '<div class="scroll-wrap"><table><thead><tr><th class="time-col"></th>';
+  for(const d of dates){
+    const wd = d.weekday;
+    const cls = wd === '土' ? 'sat' : (wd === '日' ? 'sun' : '');
+    html += `<th><span class="day-num">${d.day}</span><span class="weekday ${cls}">${wd}</span></th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  for(const slot of time_slots){
+    html += `<tr><td class="time-col">${slot}</td>`;
+    for(const d of dates){
+      const status = availability[d.date][slot];
+      if(status === 'closed'){
+        html += `<td><div class="cell">ー</div></td>`;
+      }else if(status === 'booked'){
+        html += `<td><div class="cell"><div class="mark booked"></div></div></td>`;
+      }else{
+        html += `<td><div class="cell"><button class="slot-btn" data-date="${d.date}" data-time="${slot}" data-day="${d.day}" data-weekday="${d.weekday}"><div class="mark available"></div></button></div></td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+
+  document.getElementById('content').innerHTML = html;
+
+  document.querySelectorAll('.slot-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.slot-btn.selected').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selected = {
+        date: btn.dataset.date,
+        time: btn.dataset.time,
+        day: btn.dataset.day,
+        weekday: btn.dataset.weekday
+      };
+      showStatusBar();
+    });
+  });
+}
+
+function showStatusBar(){
+  const bar = document.getElementById('statusBar');
+  const text = document.getElementById('chosenText');
+  text.innerHTML = `<b>${selected.day}日（${selected.weekday}）${selected.time}</b> を選択中`;
+  bar.classList.add('show');
+}
+
+document.getElementById('confirmBtn').addEventListener('click', ()=>{
+  if(!selected) return;
+  const payload = JSON.stringify(selected);
+  if(window.liff && liff.isInClient && liff.isInClient()){
+    liff.sendMessages([{ type: 'text', text: `日時選択: ${selected.date} ${selected.time}` }])
+      .then(()=> liff.closeWindow())
+      .catch(()=>{ /* LIFF送信に失敗した場合は何もしない（後続フェーズで調整） */ });
+  }else{
+    alert(`選択内容: ${selected.date} ${selected.time}\n（次のフェーズで予約フォームに接続します）`);
+  }
+});
+
+document.getElementById('prevWeek').addEventListener('click', ()=>{
+  rangeStart.setDate(rangeStart.getDate() - DAYS_PER_VIEW);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(rangeStart < today) rangeStart = today;
+  loadAvailability();
+});
+document.getElementById('nextWeek').addEventListener('click', ()=>{
+  rangeStart.setDate(rangeStart.getDate() + DAYS_PER_VIEW);
+  loadAvailability();
+});
+
+(async function init(){
+  try{
+    if(window.liff){
+      await liff.init({ liffId: new URLSearchParams(location.search).get('liffId') || '' });
+    }
+  }catch(e){ /* LIFF外（通常ブラウザ）での動作テストも許容する */ }
+  loadAvailability();
+})();
+</script>
+
+</body>
+</html>
