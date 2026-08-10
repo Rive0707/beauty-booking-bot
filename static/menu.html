@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>メニューを選択</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --paper:#FBF6F0;
+    --paper-line:#EAE1D6;
+    --ink:#3B322C;
+    --ink-soft:#8A7F74;
+    --plum:#A8556B;
+    --plum-soft:#F1DEE3;
+    --radius-brush: 42% 58% 61% 39% / 48% 41% 59% 52%;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:24px;
+  }
+  header{
+    padding:22px 20px 16px;
+    border-bottom:1px solid var(--paper-line);
+  }
+  h1{
+    font-family:'Shippori Mincho', serif;
+    font-weight:700;
+    font-size:20px;
+    margin:0 0 3px;
+    letter-spacing:.02em;
+  }
+  .sub{ font-size:12.5px; color:var(--ink-soft); margin:0; }
+
+  .steps{
+    display:flex;
+    gap:6px;
+    padding:14px 20px 0;
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+  .steps .cur{ color:var(--plum); font-weight:700; }
+
+  .list{ padding:16px 20px 0; }
+  .menu-card{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    background:#fff;
+    border:1px solid var(--paper-line);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:12px;
+  }
+  .menu-name{
+    font-family:'Shippori Mincho', serif;
+    font-size:16px;
+    font-weight:700;
+    margin:0 0 5px;
+  }
+  .menu-meta{
+    font-size:12px;
+    color:var(--ink-soft);
+    display:flex;
+    gap:10px;
+  }
+  .select-btn{
+    all:unset;
+    flex-shrink:0;
+    background:var(--plum);
+    color:#fff;
+    font-size:12.5px;
+    font-weight:700;
+    padding:9px 14px;
+    border-radius:999px;
+    cursor:pointer;
+  }
+  .select-btn:active{ background:#8f4359; }
+
+  .loading, .error, .empty{
+    padding:40px 20px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+  .brush{
+    width:16px; height:16px;
+    border:1.6px solid var(--plum);
+    border-radius:var(--radius-brush);
+    display:inline-block;
+    margin-bottom:10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>メニューを選択</h1>
+  <p class="sub">ご希望の施術内容をお選びください</p>
+</header>
+
+<div class="steps"><span class="cur">① メニュー</span> ・ ② 日時 ・ ③ お客様情報</div>
+
+<div class="list" id="list">
+  <div class="loading">読み込み中…</div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+
+async function loadMenus(){
+  const list = document.getElementById('list');
+  try{
+    const res = await fetch(`${API_BASE}/api/menus`);
+    if(!res.ok) throw new Error('failed');
+    const data = await res.json();
+    render(data.menus);
+  }catch(e){
+    list.innerHTML = '<div class="error">メニューを取得できませんでした。<br>時間をおいて再度お試しください。</div>';
+  }
+}
+
+function render(menus){
+  const list = document.getElementById('list');
+  if(!menus.length){
+    list.innerHTML = '<div class="empty"><span class="brush"></span><br>現在ご案内できるメニューがありません</div>';
+    return;
+  }
+  list.innerHTML = menus.map(m => `
+    <div class="menu-card">
+      <div>
+        <p class="menu-name">${escapeHtml(m.name)}</p>
+        <div class="menu-meta">
+          <span>¥${m.price.toLocaleString()}</span>
+          <span>${m.duration_minutes}分</span>
+        </div>
+      </div>
+      <button class="select-btn" data-id="${m.id}" data-name="${escapeHtml(m.name)}">選択する</button>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.select-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const params = new URLSearchParams({
+        menu_id: btn.dataset.id,
+        menu_name: btn.dataset.name
+      });
+      window.location.href = `calendar.html?${params.toString()}`;
+    });
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+(async function init(){
+  try{
+    if(window.liff){
+      await liff.init({ liffId: new URLSearchParams(location.search).get('liffId') || '' });
+    }
+  }catch(e){ /* LIFF外での動作テストも許容する */ }
+  loadMenus();
+})();
+</script>
+
+</body>
+</html>
