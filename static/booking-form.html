@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>お客様情報入力</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --paper:#FBF6F0;
+    --paper-line:#EAE1D6;
+    --ink:#3B322C;
+    --ink-soft:#8A7F74;
+    --plum:#A8556B;
+    --plum-soft:#F1DEE3;
+    --error:#B3413B;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:100px;
+  }
+  header{
+    padding:22px 20px 16px;
+    border-bottom:1px solid var(--paper-line);
+  }
+  h1{
+    font-family:'Shippori Mincho', serif;
+    font-weight:700;
+    font-size:20px;
+    margin:0 0 3px;
+  }
+  .sub{ font-size:12.5px; color:var(--ink-soft); margin:0; }
+  .steps{ padding:14px 20px 0; font-size:11px; color:var(--ink-soft); }
+  .steps .cur{ color:var(--plum); font-weight:700; }
+
+  .summary{
+    margin:16px 20px 0;
+    background:#fff;
+    border:1px solid var(--paper-line);
+    border-radius:14px;
+    padding:14px 16px;
+    font-size:13px;
+  }
+  .summary .menu{ font-family:'Shippori Mincho', serif; font-weight:700; font-size:15px; margin:0 0 4px; }
+  .summary .dt{ color:var(--ink-soft); }
+
+  form{ padding:20px; }
+  .field{ margin-bottom:18px; }
+  label{
+    display:block;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  input[type="text"], input[type="tel"], select{
+    width:100%;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    border-radius:10px;
+    padding:12px 13px;
+    font-size:15px;
+    color:var(--ink);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+  }
+  input:focus, select:focus{
+    outline:none;
+    border-color:var(--plum);
+  }
+  .hint{ font-size:11px; color:var(--ink-soft); margin-top:5px; }
+  .radio-row{ display:flex; gap:20px; padding:4px 0; }
+  .radio-row label{
+    display:flex; align-items:center; gap:6px;
+    font-size:14px; color:var(--ink);
+    margin:0;
+  }
+  .birth-row{ display:flex; gap:8px; }
+  .birth-row select{ flex:1; }
+  .err-text{
+    display:none;
+    color:var(--error);
+    font-size:11.5px;
+    margin-top:5px;
+  }
+  .field.invalid input, .field.invalid select{ border-color:var(--error); }
+  .field.invalid .err-text{ display:block; }
+
+  .status-bar{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    background:var(--paper);
+    border-top:1px solid var(--paper-line);
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+  }
+  .submit-btn{
+    all:unset;
+    display:block;
+    width:100%;
+    text-align:center;
+    background:var(--plum);
+    color:#fff;
+    padding:13px;
+    border-radius:10px;
+    font-size:14.5px;
+    font-weight:700;
+    letter-spacing:.03em;
+    cursor:pointer;
+  }
+  .submit-btn[disabled]{ opacity:.55; }
+  .submit-note{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:8px;
+  }
+  .toast{
+    position:fixed;
+    left:20px; right:20px; top:16px;
+    background:var(--error);
+    color:#fff;
+    padding:12px 16px;
+    border-radius:10px;
+    font-size:13px;
+    display:none;
+    z-index:20;
+  }
+  .toast.show{ display:block; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header>
+  <h1>お客様情報のご入力</h1>
+  <p class="sub">ご予約の確定に必要な情報をご入力ください</p>
+</header>
+
+<div class="steps">✓ メニュー ・ ✓ 日時 ・ <span class="cur">③ お客様情報</span></div>
+
+<div class="summary" id="summary"></div>
+
+<form id="bookingForm">
+  <div class="field">
+    <label for="name">氏名</label>
+    <input type="text" id="name" placeholder="山田 太郎" autocomplete="name">
+    <p class="hint">姓名の間にスペースを入れてください</p>
+    <p class="err-text">氏名をご入力ください</p>
+  </div>
+
+  <div class="field">
+    <label for="furigana">フリガナ</label>
+    <input type="text" id="furigana" placeholder="ヤマダ タロウ" autocomplete="off">
+    <p class="hint">姓名の間にスペースを入れてください</p>
+    <p class="err-text">フリガナをご入力ください</p>
+  </div>
+
+  <div class="field">
+    <label>性別</label>
+    <div class="radio-row">
+      <label><input type="radio" name="gender" value="女性"> 女性</label>
+      <label><input type="radio" name="gender" value="男性"> 男性</label>
+      <label><input type="radio" name="gender" value="回答しない"> 回答しない</label>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>誕生日</label>
+    <div class="birth-row">
+      <select id="birthYear"></select>
+      <select id="birthMonth"></select>
+      <select id="birthDay"></select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="phone">電話番号</label>
+    <input type="tel" id="phone" placeholder="09012345678" autocomplete="tel" inputmode="numeric">
+    <p class="err-text">電話番号をご入力ください</p>
+  </div>
+</form>
+
+<div class="status-bar">
+  <button class="submit-btn" id="submitBtn">この内容で予約を確定する</button>
+  <p class="submit-note">確定後、LINEに予約完了のご連絡をお送りします</p>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const params = new URLSearchParams(location.search);
+const bookingInfo = {
+  menu_id: params.get('menu_id'),
+  menu_name: params.get('menu_name'),
+  date: params.get('date'),
+  time: params.get('time'),
+  day: params.get('day'),
+  weekday: params.get('weekday')
+};
+
+document.getElementById('summary').innerHTML = `
+  <p class="menu">${bookingInfo.menu_name || 'メニュー未選択'}</p>
+  <p class="dt">${bookingInfo.date || ''}（${bookingInfo.weekday || ''}）${bookingInfo.time || ''}〜</p>
+`;
+
+// 誕生日プルダウンの初期化
+const yearSel = document.getElementById('birthYear');
+const monthSel = document.getElementById('birthMonth');
+const daySel = document.getElementById('birthDay');
+const thisYear = new Date().getFullYear();
+for(let y = thisYear; y >= thisYear - 90; y--){
+  yearSel.innerHTML += `<option value="${y}">${y}年</option>`;
+}
+for(let m = 1; m <= 12; m++){
+  monthSel.innerHTML += `<option value="${m}">${m}月</option>`;
+}
+for(let d = 1; d <= 31; d++){
+  daySel.innerHTML += `<option value="${d}">${d}日</option>`;
+}
+
+let liffUserId = null;
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 3200);
+}
+
+function validate(){
+  let ok = true;
+  const nameField = document.getElementById('name').closest('.field');
+  const furiganaField = document.getElementById('furigana').closest('.field');
+  const phoneField = document.getElementById('phone').closest('.field');
+
+  nameField.classList.toggle('invalid', !document.getElementById('name').value.trim());
+  furiganaField.classList.toggle('invalid', !document.getElementById('furigana').value.trim());
+  phoneField.classList.toggle('invalid', !document.getElementById('phone').value.trim());
+
+  if(nameField.classList.contains('invalid')) ok = false;
+  if(furiganaField.classList.contains('invalid')) ok = false;
+  if(phoneField.classList.contains('invalid')) ok = false;
+
+  return ok;
+}
+
+document.getElementById('submitBtn').addEventListener('click', async ()=>{
+  if(!bookingInfo.menu_id || !bookingInfo.date || !bookingInfo.time){
+    showToast('メニューまたは日時が選択されていません。前の画面からやり直してください。');
+    return;
+  }
+  if(!validate()){
+    showToast('未入力の項目があります');
+    return;
+  }
+  if(!liffUserId){
+    showToast('LINEアカウントの確認ができませんでした。LINEアプリ内でお試しください。');
+    return;
+  }
+
+  const gender = document.querySelector('input[name="gender"]:checked');
+  const birthdate = `${yearSel.value}-${String(monthSel.value).padStart(2,'0')}-${String(daySel.value).padStart(2,'0')}`;
+
+  const payload = {
+    user_id: liffUserId,
+    menu_id: parseInt(bookingInfo.menu_id, 10),
+    booking_date: bookingInfo.date,
+    booking_time: bookingInfo.time,
+    name: document.getElementById('name').value.trim(),
+    furigana: document.getElementById('furigana').value.trim(),
+    gender: gender ? gender.value : null,
+    birthdate: birthdate,
+    phone: document.getElementById('phone').value.trim()
+  };
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '予約を確定しています…';
+
+  try{
+    const res = await fetch(`${API_BASE}/api/booking/create`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('failed');
+
+    btn.textContent = '予約が完了しました';
+    if(window.liff && liff.isInClient && liff.isInClient()){
+      setTimeout(()=> liff.closeWindow(), 900);
+    }
+  }catch(e){
+    showToast('予約の確定に失敗しました。時間をおいて再度お試しください。');
+    btn.disabled = false;
+    btn.textContent = 'この内容で予約を確定する';
+  }
+});
+
+(async function init(){
+  try{
+    if(window.liff){
+      await liff.init({ liffId: new URLSearchParams(location.search).get('liffId') || '' });
+      if(liff.isLoggedIn()){
+        const profile = await liff.getProfile();
+        liffUserId = profile.userId;
+        if(profile.displayName && !document.getElementById('name').value){
+          // 表示名は参考程度。氏名欄には自動入力しない（本名と異なる場合があるため）
+        }
+      }
+    }
+  }catch(e){
+    console.error('LIFF init failed', e);
+  }
+})();
+</script>
+
+</body>
+</html>
