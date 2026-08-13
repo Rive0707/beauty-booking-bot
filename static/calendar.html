@@ -83,6 +83,13 @@
   .dot.booked{background:var(--booked);}
   .dot.closed{background:transparent;}
 
+  .steps{
+    padding:0 20px 14px;
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+  .steps .cur{ color:var(--plum); font-weight:700; }
+
   .scroll-wrap{
     overflow-x:auto;
     padding:0 20px 32px;
@@ -203,7 +210,7 @@
 
 <header>
   <h1>ご来店日時を選択</h1>
-  <p class="sub">カレンダーからご希望の日時をお選びください</p>
+  <p class="sub" id="menuLabel">カレンダーからご希望の日時をお選びください</p>
   <div class="month-nav">
     <button id="prevWeek" aria-label="前の週へ">‹</button>
     <span class="month-label" id="monthLabel"></span>
@@ -216,6 +223,7 @@
   <span><i class="dot booked"></i>ご予約済み</span>
   <span>ー 休業日</span>
 </div>
+<div class="steps" id="stepsBar"></div>
 
 <div id="content">
   <div class="loading">読み込み中…</div>
@@ -232,6 +240,16 @@ const DAYS_PER_VIEW = 7;
 let rangeStart = new Date();
 rangeStart.setHours(0,0,0,0);
 let selected = null;
+
+const urlParams = new URLSearchParams(location.search);
+const menuId = urlParams.get('menu_id');
+const menuName = urlParams.get('menu_name');
+
+document.getElementById('stepsBar').innerHTML =
+  `✓ メニュー ・ <span class="cur">② 日時</span> ・ ③ お客様情報`;
+if(menuName){
+  document.getElementById('menuLabel').textContent = `「${menuName}」のご希望日時をお選びください`;
+}
 
 function toDateStr(d){
   const y = d.getFullYear();
@@ -310,14 +328,15 @@ function showStatusBar(){
 
 document.getElementById('confirmBtn').addEventListener('click', ()=>{
   if(!selected) return;
-  const payload = JSON.stringify(selected);
-  if(window.liff && liff.isInClient && liff.isInClient()){
-    liff.sendMessages([{ type: 'text', text: `日時選択: ${selected.date} ${selected.time}` }])
-      .then(()=> liff.closeWindow())
-      .catch(()=>{ /* LIFF送信に失敗した場合は何もしない（後続フェーズで調整） */ });
-  }else{
-    alert(`選択内容: ${selected.date} ${selected.time}\n（次のフェーズで予約フォームに接続します）`);
-  }
+  const params = new URLSearchParams({
+    menu_id: menuId || '',
+    menu_name: menuName || '',
+    date: selected.date,
+    time: selected.time,
+    day: selected.day,
+    weekday: selected.weekday
+  });
+  window.location.href = `booking-form.html?${params.toString()}`;
 });
 
 document.getElementById('prevWeek').addEventListener('click', ()=>{
