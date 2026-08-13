@@ -192,6 +192,7 @@
 </div>
 
 <script>
+const LIFF_ID = '2011089215-ukQbC5x5'; // 開発用LIFF ID
 const API_BASE = window.location.origin;
 const params = new URLSearchParams(location.search);
 const bookingInfo = {
@@ -304,7 +305,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
 (async function init(){
   try{
     if(window.liff){
-      await liff.init({ liffId: new URLSearchParams(location.search).get('liffId') || '' });
+      await liff.init({ liffId: LIFF_ID });
       if(liff.isLoggedIn()){
         const profile = await liff.getProfile();
         liffUserId = profile.userId;
