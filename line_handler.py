@@ -299,7 +299,7 @@ class LineHandler:
 
 📅 日時：{booking_date} {booking_time}
 🎨 メニュー：{menu_name}
-💰 料金：¥{menu_price:,}
+💰 料金：B{menu_price:,}
 ⏱️  所要時間：{menu_duration}分
 
 この内容でよろしいですか？
