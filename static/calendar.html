@@ -103,27 +103,39 @@
     text-align:center;
     padding:0;
   }
-  thead th{
-    padding:8px 4px 6px;
-    font-weight:500;
+  thead{
     position:sticky;
-    top:96px;
+    top:0;
     background:var(--paper);
-    height:auto;
+    z-index:5;
   }
-  thead th.time-col{ left:0; z-index:3; }
+  thead tr:first-child th{
+    padding:12px 4px 8px;
+    font-weight:500;
+    border-bottom:none;
+  }
+  thead tr:last-child th{
+    padding:6px 4px 8px;
+    font-weight:400;
+    border-bottom:1px solid var(--paper-line);
+  }
+  thead th.time-col{ 
+    left:0; 
+    z-index:6;
+    position:sticky;
+  }
   .day-num{
     font-family:'Shippori Mincho', serif;
     font-size:18px;
     display:block;
     font-weight:700;
-    line-height:1.2;
+    line-height:1.3;
   }
   .weekday{
     font-size:10px;
     color:var(--ink-soft);
     display:block;
-    margin-top:3px;
+    margin-top:4px;
     line-height:1;
   }
   .weekday.sat{color:#6E8FA3;}
@@ -256,7 +268,7 @@ const menuName = urlParams.get('menu_name');
 document.getElementById('stepsBar').innerHTML =
   `✓ メニュー ・ <span class="cur">② 日時</span> ・ ③ お客様情報`;
 if(menuName){
-  document.getElementById('menuLabel').textContent = `「${menuName}」のご希望日時をお選びください`;
+  document.getElementById('menuLabel').textContent = `「${menuName}」の��希望日時をお選びください`;
 }
 
 function toDateStr(d){
@@ -286,13 +298,29 @@ function render(data){
   document.getElementById('monthLabel').textContent =
     `${first.date.slice(0,7).replace('-','年')}月 ${first.day}日〜${last.day}日`;
 
-  let html = '<div class="scroll-wrap"><table><thead><tr><th class="time-col"></th>';
+  let html = '<div class="scroll-wrap"><table><thead>';
+  
+  // 第1行：日付
+  html += '<tr>';
+  html += '<th class="time-col"></th>';
   for(const d of dates){
     const wd = d.weekday;
     const cls = wd === '土' ? 'sat' : (wd === '日' ? 'sun' : '');
-    html += `<th><span class="day-num">${d.day}</span><span class="weekday ${cls}">${wd}</span></th>`;
+    html += `<th><span class="day-num">${d.day}</span></th>`;
   }
-  html += '</tr></thead><tbody>';
+  html += '</tr>';
+  
+  // 第2行：曜日
+  html += '<tr>';
+  html += '<th class="time-col"></th>';
+  for(const d of dates){
+    const wd = d.weekday;
+    const cls = wd === '土' ? 'sat' : (wd === '日' ? 'sun' : '');
+    html += `<th><span class="weekday ${cls}">${wd}</span></th>`;
+  }
+  html += '</tr>';
+  
+  html += '</thead><tbody>';
 
   for(const slot of time_slots){
     html += `<tr><td class="time-col">${slot}</td>`;
