@@ -111,9 +111,77 @@ class Database:
             )
         ''')
         
+        # 予約変更・キャンセル履歴テーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS booking_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                booking_id INTEGER NOT NULL,
+                user_id TEXT,
+                action TEXT NOT NULL,
+                before_date TEXT,
+                before_time TEXT,
+                after_date TEXT,
+                after_time TEXT,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
+
+    def add_booking_history(self, booking_id: int, action: str, user_id: str = None,
+                            before_date: str = None, before_time: str = None,
+                            after_date: str = None, after_time: str = None, note: str = None):
+        """予約の作成・変更・キャンセルの履歴を記録する"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                INSERT INTO booking_history
+                (booking_id, user_id, action, before_date, before_time, after_date, after_time, note)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (booking_id, user_id, action, before_date, before_time, after_date, after_time, note))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error adding booking history: {e}")
+        finally:
+            conn.close()
+
+    def get_booking_history(self, limit: int = 50):
+        """予約変更・キャンセルの履歴一覧を新しい順で取得"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT h.*, c.name as customer_name, m.name as menu_name
+            FROM booking_history h
+            LEFT JOIN bookings b ON h.booking_id = b.id
+            LEFT JOIN customers c ON h.user_id = c.user_id
+            LEFT JOIN menus m ON b.menu_id = m.id
+            ORDER BY h.created_at DESC
+            LIMIT ?
+        ''', (limit,))
+        results = cursor.fetchall()
+        conn.close()
+        return results
+
+    def get_all_upcoming_bookings(self):
+        """今後すべての確定予約を日時順で取得（ダッシュボード全件表示用）"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        today = date.today().isoformat()
+        cursor.execute('''
+            SELECT b.*, c.name as customer_name, c.phone as customer_phone, m.name as menu_name
+            FROM bookings b
+            LEFT JOIN customers c ON b.user_id = c.user_id
+            LEFT JOIN menus m ON b.menu_id = m.id
+            WHERE b.booking_date >= ? AND b.status = 'confirmed'
+            ORDER BY b.booking_date, b.booking_time
+        ''', (today,))
+        results = cursor.fetchall()
+        conn.close()
+        return results
     
     # =======================================
     # 顧客管理

@@ -340,6 +340,12 @@ class LineHandler:
             self.db.update_booking(modify_booking_id, booking_date=booking_date,
                                    booking_time=booking_time, menu_id=menu_id)
 
+            self.db.add_booking_history(
+                booking_id=modify_booking_id, action="modified", user_id=user_id,
+                before_date=original_date, before_time=original_time,
+                after_date=booking_date, after_time=booking_time
+            )
+
             self.send_text(user_id, f"""
 ✅ ご予約を変更しました
 
@@ -365,6 +371,11 @@ class LineHandler:
         booking_id = self.db.add_booking(user_id, booking_date, booking_time, menu_id)
         
         if booking_id:
+            self.db.add_booking_history(
+                booking_id=booking_id, action="created", user_id=user_id,
+                after_date=booking_date, after_time=booking_time
+            )
+
             self.send_text(user_id, f"""
 🎉 ご予約ありがとうございます！
 
@@ -543,6 +554,11 @@ class LineHandler:
             return
         
         self.db.cancel_booking(booking_id)
+
+        self.db.add_booking_history(
+            booking_id=booking_id, action="cancelled", user_id=user_id,
+            before_date=booking["booking_date"], before_time=booking["booking_time"]
+        )
 
         # オーナーへ通知
         customer = self.db.get_customer(user_id)

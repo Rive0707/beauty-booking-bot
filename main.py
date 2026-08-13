@@ -10,9 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent
+from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent, TextSendMessage
 from pydantic import BaseModel
 import os
+import uuid
 import logging
 from datetime import datetime, timedelta
 import json
@@ -106,6 +107,21 @@ class BookingCreateFromLiffRequest(BaseModel):
     gender: str = None
     birthdate: str = None
     phone: str = None
+
+class ManualBookingRequest(BaseModel):
+    """ダッシュボードからの手動予約登録（紙の予約帳からの移行用。LINE未連携でも登録可能）"""
+    name: str
+    phone: str = None
+    booking_date: str
+    booking_time: str
+    menu_id: int
+    note: str = None
+
+class BookingUpdateRequest(BaseModel):
+    """ダッシュボードからの予約変更"""
+    booking_date: str = None
+    booking_time: str = None
+    menu_id: int = None
 
 # ===============================
 # LINE Webhook エンドポイント
@@ -436,6 +452,91 @@ async def dashboard():
                     </tbody>
                 </table>
             </div>
+
+            <!-- 予約を手動登録（紙の予約帳からの移行用） -->
+            <div class="section">
+                <h2>✍️ 予約を手動登録</h2>
+                <p style="color: #999; font-size: 0.9em; margin-bottom: 15px;">
+                    紙の予約帳のお客様など、LINE未連携でも登録できます。<br>
+                    ※LINE未連携のお客様にはリマインダー・変更通知は届きません。
+                </p>
+                <div style="background: #f0f4ff; padding: 20px; border-radius: 5px;">
+                    <form id="manualBookingForm" style="display: grid; gap: 15px;">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="manualName">お客様名 *</label>
+                                <input type="text" id="manualName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="manualPhone">電話番号</label>
+                                <input type="text" id="manualPhone">
+                            </div>
+                            <div class="form-group">
+                                <label for="manualDate">日付 *</label>
+                                <input type="date" id="manualDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="manualTime">時間 *</label>
+                                <input type="time" id="manualTime" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="manualMenu">メニュー *</label>
+                                <select id="manualMenu" required>
+                                    <option value="">選択してください</option>
+                                    {menu_options}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="manualNote">メモ</label>
+                                <input type="text" id="manualNote">
+                            </div>
+                        </div>
+                        <button type="submit">この内容で登録する</button>
+                    </form>
+                    <div id="manualBookingMessage"></div>
+                </div>
+            </div>
+
+            <!-- 今後の予約一覧（変更・キャンセル） -->
+            <div class="section">
+                <h2>📋 今後の予約一覧</h2>
+                <p style="color: #999; font-size: 0.9em; margin-bottom: 15px;">本日以降の確定予約です。変更・キャンセルができます。</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>時間</th>
+                            <th>顧客</th>
+                            <th>電話番号</th>
+                            <th>メニュー</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="upcomingBookingsBody">
+                        <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 変更・キャンセル履歴 -->
+            <div class="section">
+                <h2>🕓 変更・キャンセル履歴</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日時</th>
+                            <th>種別</th>
+                            <th>顧客</th>
+                            <th>変更前</th>
+                            <th>変更後</th>
+                            <th>備考</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
             
             <!-- メニュー管理 -->
             <div class="section">
@@ -556,6 +657,140 @@ async def dashboard():
                     }}
                 }}
             }}
+
+            // 手動予約登録
+            document.getElementById('manualBookingForm').addEventListener('submit', async (e) => {{
+                e.preventDefault();
+                const messageDiv = document.getElementById('manualBookingMessage');
+                messageDiv.innerHTML = '<p style="color: #999;">登録中...</p>';
+
+                const data = {{
+                    name: document.getElementById('manualName').value,
+                    phone: document.getElementById('manualPhone').value || null,
+                    booking_date: document.getElementById('manualDate').value,
+                    booking_time: document.getElementById('manualTime').value,
+                    menu_id: parseInt(document.getElementById('manualMenu').value),
+                    note: document.getElementById('manualNote').value || null
+                }};
+
+                try {{
+                    const response = await fetch('/api/booking/manual', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify(data)
+                    }});
+                    if (response.ok) {{
+                        messageDiv.innerHTML = '<div class="message success">✅ 登録しました</div>';
+                        document.getElementById('manualBookingForm').reset();
+                        loadUpcomingBookings();
+                        loadHistory();
+                    }} else {{
+                        const result = await response.json();
+                        messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + result.detail + '</div>';
+                    }}
+                }} catch (error) {{
+                    messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + error + '</div>';
+                }}
+            }});
+
+            // 今後の予約一覧を読み込み
+            async function loadUpcomingBookings() {{
+                const tbody = document.getElementById('upcomingBookingsBody');
+                try {{
+                    const res = await fetch('/api/bookings/upcoming/all');
+                    const data = await res.json();
+                    if (!data.bookings.length) {{
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">今後の予約はありません</td></tr>';
+                        return;
+                    }}
+                    tbody.innerHTML = data.bookings.map(b => `
+                        <tr>
+                            <td>${{b.booking_date}}</td>
+                            <td>${{b.booking_time}}</td>
+                            <td>${{b.customer_name || '不明'}}</td>
+                            <td>${{b.customer_phone || '-'}}</td>
+                            <td>${{b.menu_name || '不明'}}</td>
+                            <td>
+                                <button onclick="editBooking(${{b.id}}, '${{b.booking_date}}', '${{b.booking_time}}')" style="padding: 6px 10px; font-size: 0.85em;">変更</button>
+                                <button class="danger" onclick="cancelBookingFromDashboard(${{b.id}})" style="padding: 6px 10px; font-size: 0.85em;">キャンセル</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }} catch (error) {{
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #c00;">読み込みに失敗しました</td></tr>';
+                }}
+            }}
+
+            // 予約変更
+            async function editBooking(bookingId, currentDate, currentTime) {{
+                const newDate = prompt('新しい日付 (YYYY-MM-DD)', currentDate);
+                if (newDate === null) return;
+                const newTime = prompt('新しい時間 (HH:MM)', currentTime);
+                if (newTime === null) return;
+
+                try {{
+                    const response = await fetch(`/api/booking/${{bookingId}}`, {{
+                        method: 'PUT',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify({{ booking_date: newDate, booking_time: newTime }})
+                    }});
+                    if (response.ok) {{
+                        alert('変更しました');
+                        loadUpcomingBookings();
+                        loadHistory();
+                    }} else {{
+                        alert('エラーが発生しました');
+                    }}
+                }} catch (error) {{
+                    alert('エラー: ' + error);
+                }}
+            }}
+
+            // 予約キャンセル
+            async function cancelBookingFromDashboard(bookingId) {{
+                if (!confirm('この予約をキャンセルしますか？')) return;
+                try {{
+                    const response = await fetch(`/api/booking/${{bookingId}}/cancel`, {{ method: 'POST' }});
+                    if (response.ok) {{
+                        alert('キャンセルしました');
+                        loadUpcomingBookings();
+                        loadHistory();
+                    }} else {{
+                        alert('エラーが発生しました');
+                    }}
+                }} catch (error) {{
+                    alert('エラー: ' + error);
+                }}
+            }}
+
+            // 変更・キャンセル履歴を読み込み
+            async function loadHistory() {{
+                const tbody = document.getElementById('historyBody');
+                try {{
+                    const res = await fetch('/api/bookings/history');
+                    const data = await res.json();
+                    if (!data.history.length) {{
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">履歴はまだありません</td></tr>';
+                        return;
+                    }}
+                    const actionLabels = {{ created: '🆕 新規', modified: '📝 変更', cancelled: '❌ キャンセル' }};
+                    tbody.innerHTML = data.history.map(h => `
+                        <tr>
+                            <td>${{h.created_at}}</td>
+                            <td>${{actionLabels[h.action] || h.action}}</td>
+                            <td>${{h.customer_name || '不明'}}</td>
+                            <td>${{h.before_date ? h.before_date + ' ' + (h.before_time || '') : '-'}}</td>
+                            <td>${{h.after_date ? h.after_date + ' ' + (h.after_time || '') : '-'}}</td>
+                            <td>${{h.note || '-'}}</td>
+                        </tr>
+                    `).join('');
+                }} catch (error) {{
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #c00;">読み込みに失敗しました</td></tr>';
+                }}
+            }}
+
+            loadUpcomingBookings();
+            loadHistory();
         </script>
     </body>
     </html>
@@ -626,6 +861,151 @@ async def add_booking_with_customer(data: BookingAddWithCustomerRequest):
         logger.error(f"Error adding booking with customer: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/bookings/upcoming/all")
+async def get_all_upcoming_bookings():
+    """今後すべての確定予約を取得（ダッシュボードの一覧表示用）"""
+    try:
+        bookings = db.get_all_upcoming_bookings()
+        result = [dict(b) for b in bookings]
+        return JSONResponse({"bookings": result})
+    except Exception as e:
+        logger.error(f"Error getting all upcoming bookings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bookings/history")
+async def get_booking_history(limit: int = 50):
+    """予約の変更・キャンセル履歴を取得"""
+    try:
+        history = db.get_booking_history(limit=limit)
+        result = [dict(h) for h in history]
+        return JSONResponse({"history": result})
+    except Exception as e:
+        logger.error(f"Error getting booking history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/booking/manual")
+async def create_manual_booking(data: ManualBookingRequest):
+    """
+    ダッシュボードからの手動予約登録
+    紙の予約帳のお客様など、LINE未連携でも登録できる（仮のuser_idを発行する）
+    """
+    try:
+        manual_user_id = f"manual-{uuid.uuid4().hex[:16]}"
+        db.save_customer_profile(user_id=manual_user_id, name=data.name, phone=data.phone)
+
+        booking_id = db.add_booking(
+            user_id=manual_user_id,
+            booking_date=data.booking_date,
+            booking_time=data.booking_time,
+            menu_id=data.menu_id,
+            notes=data.note
+        )
+        if not booking_id:
+            raise Exception("予約の保存に失敗しました")
+
+        db.add_booking_history(
+            booking_id=booking_id, action="created", user_id=manual_user_id,
+            after_date=data.booking_date, after_time=data.booking_time, note="手動登録"
+        )
+
+        return JSONResponse({"status": "ok", "booking_id": booking_id})
+    except Exception as e:
+        logger.error(f"Error creating manual booking: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/booking/{booking_id}")
+async def update_booking_from_dashboard(booking_id: int, data: BookingUpdateRequest):
+    """ダッシュボードからの予約変更"""
+    try:
+        booking = db.get_booking(booking_id)
+        if not booking:
+            raise HTTPException(status_code=404, detail="予約が見つかりません")
+
+        before_date = booking["booking_date"]
+        before_time = booking["booking_time"]
+
+        db.update_booking(
+            booking_id,
+            booking_date=data.booking_date,
+            booking_time=data.booking_time,
+            menu_id=data.menu_id
+        )
+
+        db.add_booking_history(
+            booking_id=booking_id, action="modified", user_id=booking["user_id"],
+            before_date=before_date, before_time=before_time,
+            after_date=data.booking_date or before_date,
+            after_time=data.booking_time or before_time,
+            note="ダッシュボードから変更"
+        )
+
+        # LINE連携済みのお客様には通知する（手動登録で未連携の場合はスキップされる）
+        try:
+            line_bot_api.push_message(
+                booking["user_id"],
+                TextSendMessage(text=f"📝 ご予約内容が変更されました\n\n変更後の日時: {data.booking_date or before_date} {data.booking_time or before_time}\n予約ID: {booking_id}")
+            )
+        except Exception:
+            pass  # LINE未連携（手動登録）のお客様は送信できないため無視
+
+        return JSONResponse({"status": "ok"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating booking from dashboard: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/booking/{booking_id}/cancel")
+async def cancel_booking_from_dashboard(booking_id: int):
+    """ダッシュボードからの予約キャンセル"""
+    try:
+        booking = db.get_booking(booking_id)
+        if not booking:
+            raise HTTPException(status_code=404, detail="予約が見つかりません")
+
+        db.cancel_booking(booking_id)
+
+        db.add_booking_history(
+            booking_id=booking_id, action="cancelled", user_id=booking["user_id"],
+            before_date=booking["booking_date"], before_time=booking["booking_time"],
+            note="ダッシュボードからキャンセル"
+        )
+
+        try:
+            line_bot_api.push_message(
+                booking["user_id"],
+                TextSendMessage(text=f"❌ ご予約がキャンセルされました\n\n予約日時: {booking['booking_date']} {booking['booking_time']}\n予約ID: {booking_id}\n\nご不明な点があればお問い合わせください。")
+            )
+        except Exception:
+            pass  # LINE未連携（手動登録）のお客様は送信できないため無視
+
+        return JSONResponse({"status": "ok"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling booking from dashboard: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/customer/{user_id}")
+async def get_customer_profile(user_id: str):
+    """お客様の登録済み情報を取得（2回目以降の予約フォーム自動入力用）"""
+    try:
+        customer = db.get_customer(user_id)
+        if not customer:
+            return JSONResponse({"customer": None})
+        return JSONResponse({
+            "customer": {
+                "name": customer["name"],
+                "furigana": customer["furigana"] if "furigana" in customer.keys() else None,
+                "gender": customer["gender"] if "gender" in customer.keys() else None,
+                "birthdate": customer["birthdate"] if "birthdate" in customer.keys() else None,
+                "phone": customer["phone"],
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting customer profile: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/menus")
 async def get_menus():
     """メニュー一覧取得（LIFF画面用）"""
@@ -664,6 +1044,11 @@ async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
 
         if not booking_id:
             raise Exception("予約の保存に失敗しました")
+
+        db.add_booking_history(
+            booking_id=booking_id, action="created", user_id=data.user_id,
+            after_date=data.booking_date, after_time=data.booking_time, note="Web予約"
+        )
 
         menu = db.get_menu(data.menu_id)
         menu_name = menu["name"] if menu else "不明"
