@@ -12,6 +12,7 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent, TextSendMessage
 from pydantic import BaseModel
+from typing import Optional
 import os
 import uuid
 import logging
@@ -90,7 +91,7 @@ class BookingAddWithCustomerRequest(BaseModel):
     booking_date: str
     booking_time: str
     menu_id: int
-    notes: str = None
+    notes: Optional[str] = None
 
 class MenuAddRequest(BaseModel):
     name: str
@@ -103,25 +104,25 @@ class BookingCreateFromLiffRequest(BaseModel):
     booking_date: str
     booking_time: str
     name: str
-    furigana: str = None
-    gender: str = None
-    birthdate: str = None
-    phone: str = None
+    furigana: Optional[str] = None
+    gender: Optional[str] = None
+    birthdate: Optional[str] = None
+    phone: Optional[str] = None
 
 class ManualBookingRequest(BaseModel):
     """ダッシュボードからの手動予約登録（紙の予約帳からの移行用。LINE未連携でも登録可能）"""
     name: str
-    phone: str = None
+    phone: Optional[str] = None
     booking_date: str
     booking_time: str
     menu_id: int
-    note: str = None
+    note: Optional[str] = None
 
 class BookingUpdateRequest(BaseModel):
     """ダッシュボードからの予約変更"""
-    booking_date: str = None
-    booking_time: str = None
-    menu_id: int = None
+    booking_date: Optional[str] = None
+    booking_time: Optional[str] = None
+    menu_id: Optional[int] = None
 
 # ===============================
 # LINE Webhook エンドポイント
@@ -686,7 +687,10 @@ async def dashboard():
                         loadHistory();
                     }} else {{
                         const result = await response.json();
-                        messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + result.detail + '</div>';
+                        const errText = Array.isArray(result.detail)
+                            ? result.detail.map(d => d.msg || JSON.stringify(d)).join(' / ')
+                            : (result.detail || '不明なエラー');
+                        messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + errText + '</div>';
                     }}
                 }} catch (error) {{
                     messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + error + '</div>';
