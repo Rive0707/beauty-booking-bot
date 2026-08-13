@@ -21,7 +21,7 @@ class ReminderScheduler:
     
     def check_and_send_reminders(self):
         """
-        定期的に実行：7日以内の予約でリマインド未送信のものを検索して送信
+        定期的に実行：7日前・3日前のリマインドをそれぞれ1回だけ送信する
         APSchedulerから1時間ごとに呼ばれる
         """
         logger.info("Checking for reminders to send...")
@@ -38,11 +38,8 @@ class ReminderScheduler:
                 user_id = booking[2]
                 booking_time = booking[3]
                 menu_id = booking[4]
-                reminder_sent = booking[7]
-                
-                # リマインド送信済みはスキップ
-                if reminder_sent:
-                    continue
+                reminder_7d_sent = booking["reminder_7d_sent"] if "reminder_7d_sent" in booking.keys() else 0
+                reminder_3d_sent = booking["reminder_3d_sent"] if "reminder_3d_sent" in booking.keys() else 0
                 
                 # 日付パース
                 try:
@@ -54,17 +51,21 @@ class ReminderScheduler:
                 # 予約日と今日の差分
                 days_until_booking = (booking_date - today).days
                 
-                # 正確に7日前、またはそれより前でまだ送信していない場合
-                if 0 <= days_until_booking <= 7:
-                    self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id)
-                    # リマインド送信完了をマーク
-                    self.db.mark_reminder_sent(booking_id)
+                # 7日前（7日以内に入った時点でまだ送っていなければ送信）
+                if days_until_booking <= 7 and not reminder_7d_sent:
+                    self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id, days_label="7日前")
+                    self.db.mark_reminder_7d_sent(booking_id)
+
+                # 3日前（3日以内に入った時点でまだ送っていなければ送信）
+                if days_until_booking <= 3 and not reminder_3d_sent:
+                    self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id, days_label="3日前")
+                    self.db.mark_reminder_3d_sent(booking_id)
         
         except Exception as e:
             logger.error(f"Error in check_and_send_reminders: {e}")
     
     def send_reminder(self, user_id: str, booking_id: int, booking_date: str, 
-                     booking_time: str, menu_id: int):
+                     booking_time: str, menu_id: int, days_label: str = ""):
         """リマインドメッセージ送信"""
         try:
             menu = self.db.get_menu(menu_id)
@@ -76,7 +77,7 @@ class ReminderScheduler:
             
             # テキストメッセージ
             reminder_text = f"""
-🔔 ご予約のリマインド
+🔔 ご予約のリマインド（{days_label}）
 
 お疲れ様です！ご予約いただいたご来店日が近づいてきました。
 
@@ -91,7 +92,7 @@ class ReminderScheduler:
 
 ご質問やご不明な点がございましたら、いつでもお気軽にお問い合わせください。
 
-本日のご来店をお待ちしております！
+ご来店をお待ちしております！
 """
             
             message = TextSendMessage(text=reminder_text)

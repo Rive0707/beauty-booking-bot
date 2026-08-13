@@ -62,7 +62,7 @@ db = Database()
 db.init_db()
 
 # LINE ハンドラー初期化
-line_handler = LineHandler(line_bot_api, db)
+line_handler = LineHandler(line_bot_api, db, owner_user_id=OWNER_USER_ID)
 
 # リマインダー初期化
 reminder_scheduler = ReminderScheduler(line_bot_api, db)
@@ -681,6 +681,21 @@ async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
             line_bot_api.push_message(data.user_id, TextSendMessage(text=confirmation_message))
         except Exception as e:
             logger.warning(f"Failed to send confirmation message: {e}")
+
+        # オーナーへ通知
+        if OWNER_USER_ID:
+            try:
+                owner_message = (
+                    f"🆕 新規予約が入りました（Web予約）\n\n"
+                    f"お客様: {data.name}\n"
+                    f"予約日時: {data.booking_date} {data.booking_time}\n"
+                    f"メニュー: {menu_name}\n"
+                    f"電話番号: {data.phone or '未入力'}\n"
+                    f"予約ID: {booking_id}"
+                )
+                line_bot_api.push_message(OWNER_USER_ID, TextSendMessage(text=owner_message))
+            except Exception as e:
+                logger.warning(f"Failed to notify owner: {e}")
 
         logger.info(f"Booking created via LIFF: {booking_id} ({data.user_id})")
 

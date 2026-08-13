@@ -75,6 +75,16 @@ class Database:
                 FOREIGN KEY (menu_id) REFERENCES menus(id)
             )
         ''')
+
+        # 既存DBに対する追加カラムのマイグレーション（7日前・3日前リマインドを個別管理）
+        for column_def in [
+            "ALTER TABLE bookings ADD COLUMN reminder_7d_sent INTEGER DEFAULT 0",
+            "ALTER TABLE bookings ADD COLUMN reminder_3d_sent INTEGER DEFAULT 0",
+        ]:
+            try:
+                cursor.execute(column_def)
+            except sqlite3.OperationalError:
+                pass  # 既にカラムが存在する場合はスキップ
         
         # 顧客メモテーブル
         cursor.execute('''
@@ -322,7 +332,7 @@ class Database:
         return booked
     
     def get_upcoming_bookings(self, days_ahead: int = 7):
-        """今後N日間の予約取得"""
+        """今後N日間の予約取得（確定済みのみ）"""
         conn = self.get_connection()
         cursor = conn.cursor()
         from datetime import datetime, timedelta
@@ -337,6 +347,30 @@ class Database:
         results = cursor.fetchall()
         conn.close()
         return results
+
+    def mark_reminder_7d_sent(self, booking_id: int):
+        """7日前リマインド送信完了をマーク"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('UPDATE bookings SET reminder_7d_sent = 1 WHERE id = ?', (booking_id,))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error marking 7d reminder sent: {e}")
+        finally:
+            conn.close()
+
+    def mark_reminder_3d_sent(self, booking_id: int):
+        """3日前リマインド送信完了をマーク"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('UPDATE bookings SET reminder_3d_sent = 1 WHERE id = ?', (booking_id,))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error marking 3d reminder sent: {e}")
+        finally:
+            conn.close()
     
     def cancel_booking(self, booking_id: int):
         """予約キャンセル"""

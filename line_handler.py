@@ -19,11 +19,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 class LineHandler:
-    def __init__(self, line_bot_api, db):
+    def __init__(self, line_bot_api, db, owner_user_id: str = None):
         self.line_bot_api = line_bot_api
         self.db = db
+        self.owner_user_id = owner_user_id
         # セッション管理（簡易版）
         self.user_sessions = {}
+
+    def notify_owner(self, text: str):
+        """オーナーへの通知（未設定の場合は何もしない）"""
+        if not self.owner_user_id:
+            logger.warning("OWNER_USER_ID未設定のためオーナー通知をスキップしました")
+            return
+        try:
+            self.line_bot_api.push_message(self.owner_user_id, TextSendMessage(text=text))
+        except Exception as e:
+            logger.error(f"Error notifying owner: {e}")
     
     # =======================================
     # ユーティリティ
@@ -305,7 +316,7 @@ class LineHandler:
         self.send_template_message(user_id, template)
     
     def confirm_booking(self, user_id: str):
-        """予約確定"""
+        """予約確定（新規予約 または 予約変更の反映）"""
         session = self.user_sessions.get(user_id)
         if not session:
             self.send_text(user_id, "エラーが発生しました")
@@ -314,8 +325,43 @@ class LineHandler:
         booking_date = session['booking_date']
         booking_time = session['booking_time']
         menu_id = session['menu_id']
-        
-        # DB保存
+        modify_booking_id = session.get('modify_booking_id')
+
+        menu = self.db.get_menu(menu_id)
+        menu_name = menu["name"] if menu else "不明"
+        customer = self.db.get_customer(user_id)
+        customer_name = customer["name"] if customer and customer["name"] else user_id[:10] + "..."
+
+        if modify_booking_id:
+            # ===== 予約変更の場合：既存予約を更新 =====
+            original_date = session.get('original_date')
+            original_time = session.get('original_time')
+
+            self.db.update_booking(modify_booking_id, booking_date=booking_date,
+                                   booking_time=booking_time, menu_id=menu_id)
+
+            self.send_text(user_id, f"""
+✅ ご予約を変更しました
+
+📅 変更後の日時: {booking_date} {booking_time}
+📍 予約ID: {modify_booking_id}
+
+ご来店をお待ちしております！
+""")
+
+            self.notify_owner(
+                f"📝 予約変更がありました\n\n"
+                f"お客様: {customer_name}\n"
+                f"変更前: {original_date} {original_time}\n"
+                f"変更後: {booking_date} {booking_time}\n"
+                f"メニュー: {menu_name}\n"
+                f"予約ID: {modify_booking_id}"
+            )
+
+            del self.user_sessions[user_id]
+            return
+
+        # ===== 新規予約の場合 =====
         booking_id = self.db.add_booking(user_id, booking_date, booking_time, menu_id)
         
         if booking_id:
@@ -326,10 +372,18 @@ class LineHandler:
 📍 予約ID: {booking_id}
 
 予約確定メールをお送りしました。
-7日前にリマインダーをお送りいたします。
+ご来店の7日前・3日前にリマインダーをお送りいたします。
 
 📞 ご質問やご変更は、いつでもお気軽にお連絡ください。
 """)
+
+            self.notify_owner(
+                f"🆕 新規予約が入りました\n\n"
+                f"お客様: {customer_name}\n"
+                f"予約日時: {booking_date} {booking_time}\n"
+                f"メニュー: {menu_name}\n"
+                f"予約ID: {booking_id}"
+            )
             
             # セッション削除
             del self.user_sessions[user_id]
@@ -460,8 +514,12 @@ class LineHandler:
         
         self.user_sessions[user_id] = {
             'modify_booking_id': booking_id,
-            'original_date': booking[1],
-            'original_time': booking[3]
+            'original_date': booking['booking_date'],
+            'original_time': booking['booking_time'],
+            # 変更しなかった項目もそのまま予約に反映できるよう、現在の内容で初期化しておく
+            'booking_date': booking['booking_date'],
+            'booking_time': booking['booking_time'],
+            'menu_id': booking['menu_id'],
         }
         
         template = ButtonsTemplate(
@@ -485,6 +543,19 @@ class LineHandler:
             return
         
         self.db.cancel_booking(booking_id)
+
+        # オーナーへ通知
+        customer = self.db.get_customer(user_id)
+        menu = self.db.get_menu(booking["menu_id"])
+        customer_name = customer["name"] if customer and customer["name"] else user_id[:10] + "..."
+        menu_name = menu["name"] if menu else "不明"
+        self.notify_owner(
+            f"❌ 予約キャンセルがありました\n\n"
+            f"お客様: {customer_name}\n"
+            f"予約日時: {booking['booking_date']} {booking['booking_time']}\n"
+            f"メニュー: {menu_name}\n"
+            f"予約ID: {booking_id}"
+        )
         
         template = ButtonsTemplate(
             title="✅ キャンセル完了",
