@@ -552,7 +552,7 @@ async def dashboard():
                                 <input type="text" id="menuName" name="name" placeholder="例: カット" required>
                             </div>
                             <div class="form-group">
-                                <label for="menuPrice">価格 (¥) *</label>
+                                <label for="menuPrice">価格 (B) *</label>
                                 <input type="number" id="menuPrice" name="price" placeholder="例: 3000" required>
                             </div>
                         </div>
