@@ -125,6 +125,7 @@ class ManualBookingRequest(BaseModel):
     booking_time: str
     menu_id: int
     note: Optional[str] = None
+    existing_user_id: Optional[str] = None  # 既存のLINE連携済みお客様を選んだ場合に指定
 
 class BookingUpdateRequest(BaseModel):
     """ダッシュボードからの予約変更"""
@@ -411,7 +412,14 @@ async def dashboard():
                         ※LINE未連携のお客様にはリマインダー・変更通知は届きません。
                     </p>
                     <div style="background: #f0f4ff; padding: 20px; border-radius: 5px;">
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label for="customerSearch">既存のお客様から選ぶ（任意）</label>
+                            <input type="text" id="customerSearch" list="customerList" placeholder="名前で検索…" autocomplete="off">
+                            <datalist id="customerList"></datalist>
+                            <p id="selectedCustomerNote" style="font-size: 0.82em; color: #667eea; margin-top: 6px; display: none;"></p>
+                        </div>
                         <form id="manualBookingForm" style="display: grid; gap: 14px;">
+                            <input type="hidden" id="existingUserId" value="">
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="manualName">お客様名 *</label>
@@ -553,6 +561,44 @@ async def dashboard():
                 }}
             }}
 
+            // 既存客検索（datalistで候補表示、選択すると自動連携）
+            let customersCache = [];
+            async function loadCustomersForSearch() {{
+                try {{
+                    const res = await fetch('/api/customers');
+                    const data = await res.json();
+                    customersCache = data.customers;
+                    const datalist = document.getElementById('customerList');
+                    datalist.innerHTML = customersCache.map(c =>
+                        `<option value="${{c.name}}${{c.phone ? ' (' + c.phone + ')' : ''}}">`
+                    ).join('');
+                }} catch (error) {{
+                    console.error('顧客一覧の取得に失敗しました', error);
+                }}
+            }}
+
+            document.getElementById('customerSearch').addEventListener('input', (e) => {{
+                const inputValue = e.target.value;
+                const match = customersCache.find(c =>
+                    inputValue === `${{c.name}}${{c.phone ? ' (' + c.phone + ')' : ''}}`
+                );
+                const note = document.getElementById('selectedCustomerNote');
+                if (match) {{
+                    document.getElementById('existingUserId').value = match.user_id;
+                    document.getElementById('manualName').value = match.name;
+                    if (match.phone) document.getElementById('manualPhone').value = match.phone;
+                    note.style.display = 'block';
+                    note.textContent = match.is_line_linked
+                        ? '✓ LINE連携済みのお客様として登録します（リマインダー・変更通知が届きます）'
+                        : '※このお客様はLINE未連携です（通知は届きません）';
+                }} else {{
+                    document.getElementById('existingUserId').value = '';
+                    note.style.display = 'none';
+                }}
+            }});
+
+            loadCustomersForSearch();
+
             // 手動予約登録
             document.getElementById('manualBookingForm').addEventListener('submit', async (e) => {{
                 e.preventDefault();
@@ -565,7 +611,8 @@ async def dashboard():
                     booking_date: document.getElementById('manualDate').value,
                     booking_time: document.getElementById('manualTime').value,
                     menu_id: parseInt(document.getElementById('manualMenu').value),
-                    note: document.getElementById('manualNote').value || null
+                    note: document.getElementById('manualNote').value || null,
+                    existing_user_id: document.getElementById('existingUserId').value || null
                 }};
 
                 try {{
@@ -577,6 +624,9 @@ async def dashboard():
                     if (response.ok) {{
                         messageDiv.innerHTML = '<div class="message success">✅ 登録しました</div>';
                         document.getElementById('manualBookingForm').reset();
+                        document.getElementById('customerSearch').value = '';
+                        document.getElementById('existingUserId').value = '';
+                        document.getElementById('selectedCustomerNote').style.display = 'none';
                         loadUpcomingBookings();
                         loadHistory();
                         loadBoard();
@@ -947,18 +997,52 @@ async def get_booking_history(limit: int = 50):
         logger.error(f"Error getting booking history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/customers")
+async def get_all_customers():
+    """
+    登録済みの全お客様を取得（手動登録フォームの「既存客から選ぶ」用）
+    LINE連携済み(本物のuser_id)・未連携(manual-から始まるuser_id)の両方を含む
+    """
+    try:
+        customers = db.get_all_customers()
+        result = [
+            {
+                "user_id": c["user_id"],
+                "name": c["name"],
+                "phone": c["phone"],
+                "is_line_linked": not c["user_id"].startswith("manual-")
+            }
+            for c in customers if c["name"]  # 名前未登録のデータは除外
+        ]
+        return JSONResponse({"customers": result})
+    except Exception as e:
+        logger.error(f"Error getting customers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/booking/manual")
 async def create_manual_booking(data: ManualBookingRequest):
     """
     ダッシュボードからの手動予約登録
-    紙の予約帳のお客様など、LINE未連携でも登録できる（仮のuser_idを発行する）
+    既存客(existing_user_id指定あり)ならその人に紐付け、
+    新規なら仮のuser_id（manual-から始まる）を発行してLINE未連携として登録する
     """
     try:
-        manual_user_id = f"manual-{uuid.uuid4().hex[:16]}"
-        db.save_customer_profile(user_id=manual_user_id, name=data.name, phone=data.phone)
+        if data.existing_user_id:
+            # 既存のお客様（LINE連携済み含む）に予約を追加する
+            existing_customer = db.get_customer(data.existing_user_id)
+            if not existing_customer:
+                raise HTTPException(status_code=404, detail="指定されたお客様が見つかりません")
+            target_user_id = data.existing_user_id
+            # 電話番号だけ、入力があれば更新しておく（名前は変更しない）
+            if data.phone:
+                db.update_customer(target_user_id, phone=data.phone)
+        else:
+            # 新規のお客様（LINE未連携の仮アカウント）として登録する
+            target_user_id = f"manual-{uuid.uuid4().hex[:16]}"
+            db.save_customer_profile(user_id=target_user_id, name=data.name, phone=data.phone)
 
         booking_id = db.add_booking(
-            user_id=manual_user_id,
+            user_id=target_user_id,
             booking_date=data.booking_date,
             booking_time=data.booking_time,
             menu_id=data.menu_id,
@@ -968,11 +1052,14 @@ async def create_manual_booking(data: ManualBookingRequest):
             raise Exception("予約の保存に失敗しました")
 
         db.add_booking_history(
-            booking_id=booking_id, action="created", user_id=manual_user_id,
-            after_date=data.booking_date, after_time=data.booking_time, note="手動登録"
+            booking_id=booking_id, action="created", user_id=target_user_id,
+            after_date=data.booking_date, after_time=data.booking_time,
+            note="手動登録（既存客）" if data.existing_user_id else "手動登録（新規）"
         )
 
         return JSONResponse({"status": "ok", "booking_id": booking_id})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating manual booking: {e}")
         raise HTTPException(status_code=500, detail=str(e))
