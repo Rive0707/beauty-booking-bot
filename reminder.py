@@ -4,6 +4,7 @@
 """
 
 from datetime import datetime, date, timedelta
+from urllib.parse import quote
 from linebot.models import (
     TextSendMessage,
     TemplateSendMessage,
@@ -104,7 +105,7 @@ class ReminderScheduler:
             if self.liff_id:
                 reschedule_url = (
                     f"https://liff.line.me/{self.liff_id}?"
-                    f"modify_booking_id={booking_id}&menu_id={menu_id}&menu_name={menu_name}"
+                    f"modify_booking_id={booking_id}&menu_id={menu_id}&menu_name={quote(menu_name)}"
                 )
                 actions.append(URIAction(label="📝 予約変更", uri=reschedule_url))
             actions.append(PostbackAction(label="✅ 予約変更なし", data=f"action=confirm_no_change&booking_id={booking_id}"))
