@@ -7,6 +7,7 @@ from linebot.models import (
     TemplateSendMessage,
     ButtonsTemplate,
     PostbackAction,
+    URIAction,
     DatetimePickerAction,
     CarouselTemplate,
     CarouselColumn,
@@ -19,10 +20,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 class LineHandler:
-    def __init__(self, line_bot_api, db, owner_user_id: str = None):
+    def __init__(self, line_bot_api, db, owner_user_id: str = None, liff_id: str = None):
         self.line_bot_api = line_bot_api
         self.db = db
         self.owner_user_id = owner_user_id
+        self.liff_id = liff_id
         # セッション管理（簡易版）
         self.user_sessions = {}
 
@@ -299,7 +301,7 @@ class LineHandler:
 
 📅 日時：{booking_date} {booking_time}
 🎨 メニュー：{menu_name}
-💰 料金：B{menu_price:,}
+💰 料金：¥{menu_price:,}
 ⏱️  所要時間：{menu_duration}分
 
 この内容でよろしいですか？
@@ -502,13 +504,30 @@ class LineHandler:
         
         self.send_flex_message(user_id, flex_json)
         
-        # 予約一覧
+        # 予約一覧（各予約に変更・キャンセルボタンを付ける）
         if bookings:
-            text = "\n📋 ご予約一覧\n\n"
-            for i, booking in enumerate(bookings[:3]):
-                menu = self.db.get_menu(booking[4])
-                text += f"{i+1}. {booking[1]} {booking[3]}\n   {menu[1] if menu else '不明'}\n"
-            self.send_text(user_id, text)
+            for booking in bookings[:5]:
+                booking_id = booking['id']
+                menu = self.db.get_menu(booking['menu_id'])
+                menu_name = menu['name'] if menu else '不明'
+
+                actions = []
+                if self.liff_id:
+                    reschedule_url = (
+                        f"https://liff.line.me/{self.liff_id}?"
+                        f"modify_booking_id={booking_id}&menu_id={booking['menu_id']}&menu_name={menu_name}"
+                    )
+                    actions.append(URIAction(label="📝 日時を変更する", uri=reschedule_url))
+                actions.append(PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"))
+
+                template = ButtonsTemplate(
+                    title=f"{booking['booking_date']} {booking['booking_time']}",
+                    text=f"メニュー: {menu_name}\n予約ID: {booking_id}",
+                    actions=actions
+                )
+                self.send_template_message(user_id, template)
+        else:
+            self.send_text(user_id, "現在ご予約はありません。「予約する」と送ると新規予約ができます。")
     
     # =======================================
     # 予約変更・キャンセル

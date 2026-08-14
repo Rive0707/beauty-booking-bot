@@ -8,16 +8,18 @@ from linebot.models import (
     TextSendMessage,
     TemplateSendMessage,
     ButtonsTemplate,
-    PostbackAction
+    PostbackAction,
+    URIAction
 )
 import logging
 
 logger = logging.getLogger(__name__)
 
 class ReminderScheduler:
-    def __init__(self, line_bot_api, db):
+    def __init__(self, line_bot_api, db, liff_id: str = None):
         self.line_bot_api = line_bot_api
         self.db = db
+        self.liff_id = liff_id
     
     def check_and_send_reminders(self):
         """
@@ -96,24 +98,30 @@ class ReminderScheduler:
 """
             
             message = TextSendMessage(text=reminder_text)
-            self.line_bot_api.push_message(user_id, message)
-            
-            # テンプレートメッセージで選択肢を提供
+
+            # テンプレートメッセージで選択肢を提供（7日前・3日前で共通）
+            actions = []
+            if self.liff_id:
+                reschedule_url = (
+                    f"https://liff.line.me/{self.liff_id}?"
+                    f"modify_booking_id={booking_id}&menu_id={menu_id}&menu_name={menu_name}"
+                )
+                actions.append(URIAction(label="📝 予約変更", uri=reschedule_url))
+            actions.append(PostbackAction(label="✅ 予約変更なし", data=f"action=confirm_no_change&booking_id={booking_id}"))
+
             template = ButtonsTemplate(
-                title="📞 ご変更・ご質問はこちら",
-                text="予約内容の変更やキャンセルはこちらからどうぞ",
-                actions=[
-                    PostbackAction(label="📝 予約を変更する", data=f"action=modify_booking&booking_id={booking_id}"),
-                    PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"),
-                    PostbackAction(label="✅ 予約確定", data="action=show_help"),
-                ]
+                title="📞 ご予約の確認",
+                text="変更がある場合はこちらから、なければ「予約変更なし」を選んでください",
+                actions=actions
             )
             
             template_message = TemplateSendMessage(
                 alt_text="ご予約のリマインド",
                 template=template
             )
-            self.line_bot_api.push_message(user_id, template_message)
+
+            # 1回の送信にまとめる（LINEの無料メッセージ通数を1通分に節約するため）
+            self.line_bot_api.push_message(user_id, [message, template_message])
             
             logger.info(f"Reminder sent to {user_id} for booking {booking_id}")
         

@@ -182,6 +182,22 @@ class Database:
         results = cursor.fetchall()
         conn.close()
         return results
+
+    def get_bookings_with_details_in_range(self, start_date_str: str, end_date_str: str):
+        """指定期間内の予約を、顧客名・メニュー名付きで取得（予約ボード表示用）"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT b.*, c.name as customer_name, c.phone as customer_phone, m.name as menu_name
+            FROM bookings b
+            LEFT JOIN customers c ON b.user_id = c.user_id
+            LEFT JOIN menus m ON b.menu_id = m.id
+            WHERE b.booking_date >= ? AND b.booking_date <= ? AND b.status = 'confirmed'
+            ORDER BY b.booking_date, b.booking_time
+        ''', (start_date_str, end_date_str))
+        results = cursor.fetchall()
+        conn.close()
+        return results
     
     # =======================================
     # 顧客管理
@@ -439,6 +455,13 @@ class Database:
             logger.error(f"Error marking 3d reminder sent: {e}")
         finally:
             conn.close()
+
+    def confirm_no_change(self, booking_id: int):
+        """
+        「予約変更なし」をお客様が選んだ場合に呼ぶ。
+        7日前リマインドで確認済みのため、3日前リマインドは省略する。
+        """
+        self.mark_reminder_3d_sent(booking_id)
     
     def cancel_booking(self, booking_id: int):
         """予約キャンセル"""

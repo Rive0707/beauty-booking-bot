@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 OWNER_USER_ID = os.getenv("OWNER_USER_ID")
+LIFF_ID = os.getenv("LIFF_ID")  # 予約変更用LIFF（未設定でも動作するが、変更ボタンが表示されなくなる）
 
 # チェック
 if not all([LINE_CHANNEL_ACCESS_TOKEN, LINE_CHANNEL_SECRET, OWNER_USER_ID]):
@@ -64,10 +65,10 @@ db = Database()
 db.init_db()
 
 # LINE ハンドラー初期化
-line_handler = LineHandler(line_bot_api, db, owner_user_id=OWNER_USER_ID)
+line_handler = LineHandler(line_bot_api, db, owner_user_id=OWNER_USER_ID, liff_id=LIFF_ID)
 
 # リマインダー初期化
-reminder_scheduler = ReminderScheduler(line_bot_api, db)
+reminder_scheduler = ReminderScheduler(line_bot_api, db, liff_id=LIFF_ID)
 
 # APScheduler 設定（バックグラウンドリマインド）
 scheduler = BackgroundScheduler()
@@ -108,6 +109,13 @@ class BookingCreateFromLiffRequest(BaseModel):
     gender: Optional[str] = None
     birthdate: Optional[str] = None
     phone: Optional[str] = None
+
+class RescheduleRequest(BaseModel):
+    """LIFF経由での予約変更（お客様自身が変更する場合）"""
+    user_id: str
+    booking_id: int
+    booking_date: str
+    booking_time: str
 
 class ManualBookingRequest(BaseModel):
     """ダッシュボードからの手動予約登録（紙の予約帳からの移行用。LINE未連携でも登録可能）"""
@@ -216,11 +224,17 @@ def handle_postback(event):
         booking_id = params.get("booking_id")
         line_handler.cancel_booking(user_id, booking_id)
     
-    # 予約変更
+    # 予約変更（今はLIFFカレンダーで直接行うため、このpostbackは古いリンクの互換用）
     elif action == "modify_booking":
         booking_id = params.get("booking_id")
         line_handler.start_modify_booking(user_id, booking_id)
-    
+
+    # 「予約変更なし」確認 → 3日前リマインドを省略
+    elif action == "confirm_no_change":
+        booking_id = params.get("booking_id")
+        line_handler.db.confirm_no_change(int(booking_id))
+        line_handler.send_text(user_id, "承知しました。ご来店をお待ちしております！")
+
     else:
         logger.warning(f"Unknown action: {action}")
 
@@ -236,44 +250,18 @@ def handle_follow(event):
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
-    """管理ダッシュボード"""
+    """管理ダッシュボード（予約タブ／メニュー設定タブ）"""
     today = datetime.now().date()
-    bookings = db.get_bookings_by_date(today)
-    customers = db.get_all_customers()
+    today_bookings = db.get_bookings_by_date(today)
+    upcoming_bookings = db.get_all_upcoming_bookings()
     menus = db.get_all_menus()
-    
-    # 顧客オプション生成
-    customer_options = ""
-    for customer in customers:
-        user_id, name = customer[1], customer[2]
-        display_name = name if name else user_id[:15] + "..."
-        customer_options += f'<option value="{user_id}">{display_name}</option>'
-    
-    if not customer_options:
-        customer_options = '<option value="">顧客がまだ登録されていません</option>'
-    
-    # メニューオプション生成
+
+    # メニューオプション生成（手動登録フォーム用）
     menu_options = ""
     for menu in menus:
         menu_id, name, price = menu[0], menu[1], menu[2]
         menu_options += f'<option value="{menu_id}">【{name}】 ¥{price:,}</option>'
-    
-    # 本日の予約 HTML 生成
-    bookings_html = ""
-    for booking in bookings:
-        customer = db.get_customer(booking[2])
-        menu = db.get_menu(booking[4])
-        status = "✅ 確定" if booking[6] == "confirmed" else "❌ キャンセル"
-        
-        bookings_html += f"""
-        <tr>
-            <td>{booking[3]}</td>
-            <td>{customer[1] if customer else "不明"}</td>
-            <td>{menu[1] if menu else "不明"}</td>
-            <td>{status}</td>
-        </tr>
-        """
-    
+
     # メニュー一覧 HTML 生成
     menus_html = ""
     for menu in menus:
@@ -287,7 +275,7 @@ async def dashboard():
             <button class="danger" onclick="deleteMenu({menu_id})" style="padding: 8px 15px; font-size: 0.9em;">削除</button>
         </div>
         """
-    
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -297,65 +285,78 @@ async def dashboard():
         <title>美容室予約管理</title>
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }}
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 16px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
-            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }}
-            .header h1 {{ font-size: 2.5em; margin-bottom: 10px; }}
-            .header p {{ font-size: 1.1em; opacity: 0.9; }}
-            
-            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }}
-            .stat-box {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-            .stat-box h3 {{ color: #667eea; margin-bottom: 10px; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }}
-            .stat-box .value {{ font-size: 2.5em; font-weight: bold; color: #333; }}
-            
-            .section {{ background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; }}
-            .section h2 {{ font-size: 1.8em; margin-bottom: 20px; color: #333; border-bottom: 3px solid #667eea; padding-bottom: 10px; }}
-            .section h3 {{ font-size: 1.3em; margin: 15px 0; color: #333; }}
-            
-            table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px; border-radius: 10px; margin-bottom: 20px; }}
+            .header h1 {{ font-size: 1.8em; margin-bottom: 6px; }}
+            .header p {{ font-size: 1em; opacity: 0.9; }}
+
+            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }}
+            .stat-box {{ background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+            .stat-box h3 {{ color: #667eea; margin-bottom: 8px; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px; }}
+            .stat-box .value {{ font-size: 2em; font-weight: bold; color: #333; }}
+
+            .tabs {{ display: flex; gap: 6px; margin-bottom: 20px; background: white; padding: 6px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+            .tab-btn {{ flex: 1; padding: 12px; border: none; border-radius: 6px; background: transparent; color: #666; font-weight: 600; cursor: pointer; }}
+            .tab-btn.active {{ background: #667eea; color: white; }}
+            .tab-panel {{ display: none; }}
+            .tab-panel.active {{ display: block; }}
+
+            .section {{ background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }}
+            .section h2 {{ font-size: 1.4em; margin-bottom: 16px; color: #333; border-bottom: 3px solid #667eea; padding-bottom: 8px; }}
+
+            table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
             table thead {{ background: #f9f9f9; }}
-            table th, table td {{ padding: 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }}
+            table th, table td {{ padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; font-size: 0.92em; }}
             table th {{ font-weight: 600; color: #333; }}
             table tr:hover {{ background: #f5f5f5; }}
-            
-            .button-group {{ display: flex; gap: 10px; flex-wrap: wrap; }}
-            button, input[type="text"], input[type="number"], input[type="date"], input[type="time"], select {{ 
-                padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; 
-                font-size: 1em; transition: all 0.3s ease;
+
+            button, input[type="text"], input[type="number"], input[type="date"], input[type="time"], select {{
+                padding: 12px 16px; border: none; border-radius: 5px; cursor: pointer;
+                font-size: 1em; transition: all 0.2s ease;
             }}
             button {{ background: #667eea; color: white; font-weight: 600; }}
-            button:hover {{ background: #764ba2; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3); }}
+            button:hover {{ background: #764ba2; }}
             button.danger {{ background: #e74c3c; }}
             button.danger:hover {{ background: #c0392b; }}
-            
-            input[type="text"], input[type="number"], input[type="date"], input[type="time"], select {{ 
+            button.small {{ padding: 6px 10px; font-size: 0.82em; }}
+
+            input[type="text"], input[type="date"], input[type="time"], select {{
                 border: 1px solid #ddd; background: white; color: #333; width: 100%;
             }}
-            input[type="text"]:focus, input[type="number"]:focus, input[type="date"]:focus, input[type="time"]:focus, select:focus {{ 
-                outline: none; border-color: #667eea; box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
-            }}
-            
-            .form-group {{ margin-bottom: 20px; }}
-            label {{ display: block; margin-bottom: 8px; font-weight: 600; color: #333; }}
-            small {{ color: #666; margin-top: 5px; display: block; }}
-            textarea {{ border: 1px solid #ddd; padding: 10px; border-radius: 5px; font-family: Arial; resize: vertical; }}
-            
-            .message {{ padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+            input:focus, select:focus {{ outline: none; border-color: #667eea; box-shadow: 0 0 5px rgba(102, 126, 234, 0.3); }}
+
+            .form-group {{ margin-bottom: 16px; }}
+            label {{ display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 0.9em; }}
+
+            .message {{ padding: 12px; border-radius: 5px; margin-top: 10px; }}
             .message.success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
             .message.error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
-            
+
             .menu-item {{ background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }}
-            .menu-item-info {{ flex: 1; }}
-            .menu-item-info strong {{ display: block; font-size: 1.1em; margin-bottom: 5px; }}
+            .menu-item-info strong {{ display: block; font-size: 1.05em; margin-bottom: 4px; }}
             .menu-item-info small {{ color: #666; }}
-            
-            .form-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }}
+
+            .form-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
+
+            /* 予約ボード */
+            .board-nav {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }}
+            .board-nav button {{ padding: 8px 14px; }}
+            .board-wrap {{ overflow-x: auto; }}
+            .board-table {{ border-collapse: collapse; min-width: 100%; }}
+            .board-table th, .board-table td {{ border: 1px solid #eee; padding: 0; text-align: center; }}
+            .board-table thead th {{ padding: 8px 4px; background: #f9f9f9; font-size: 0.85em; white-space: nowrap; }}
+            .board-table td.time-col {{ padding: 8px 10px; font-size: 0.82em; color: #666; white-space: nowrap; background: #fafafa; }}
+            .board-cell {{ width: 90px; height: 44px; cursor: default; font-size: 0.78em; }}
+            .board-cell.available {{ background: #fff; color: #ccc; }}
+            .board-cell.closed {{ background: #f0f0f0; color: #ccc; }}
+            .board-cell.booked {{ background: #e8ecff; color: #333; cursor: pointer; font-weight: 600; padding: 4px; line-height: 1.3; }}
+            .board-cell.booked:hover {{ background: #d4dbff; }}
+
             @media (max-width: 768px) {{
                 .form-grid {{ grid-template-columns: 1fr; }}
-                .header h1 {{ font-size: 1.8em; }}
-                .stats {{ grid-template-columns: 1fr; }}
-                table {{ font-size: 0.9em; }}
-                table th, table td {{ padding: 10px; }}
+                .header h1 {{ font-size: 1.4em; }}
+                .tab-btn {{ font-size: 0.9em; padding: 10px 6px; }}
             }}
         </style>
     </head>
@@ -365,258 +366,153 @@ async def dashboard():
                 <h1>✨ 美容室予約管理システム</h1>
                 <p>LINE連携リアルタイム管理ダッシュボード</p>
             </div>
-            
+
             <div class="stats">
                 <div class="stat-box">
                     <h3>本日の予約数</h3>
-                    <div class="value">{len(bookings)}</div>
+                    <div class="value">{len(today_bookings)}</div>
                 </div>
                 <div class="stat-box">
-                    <h3>登録顧客数</h3>
-                    <div class="value">{len(customers)}</div>
+                    <h3>今後の予約数</h3>
+                    <div class="value">{len(upcoming_bookings)}</div>
                 </div>
                 <div class="stat-box">
                     <h3>登録メニュー数</h3>
                     <div class="value">{len(menus)}</div>
                 </div>
             </div>
-            
-            <!-- 予約を追加（顧客選択型） -->
-            <div class="section">
-                <h2>📅 予約を追加（LINE登録顧客）</h2>
-                
-                <div style="background: #f0f4ff; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-                    <h3>LINE で接触済みの顧客から選択</h3>
-                    <form id="addBookingWithCustomerForm" style="display: grid; gap: 15px;">
-                        
-                        <div class="form-group">
-                            <label for="customerSelect">顧客を選択 *</label>
-                            <select id="customerSelect" name="customer_id" required>
-                                <option value="">-- 顧客を選択 --</option>
-                                {customer_options}
-                            </select>
-                            <small>LINE で一度でもメッセージを送信した顧客のみ表示されます</small>
-                        </div>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="bookingDate">予約日 *</label>
-                                <input type="date" id="bookingDate" name="booking_date" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="bookingTime">予約時間 *</label>
-                                <input type="time" id="bookingTime" name="booking_time" required>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="menuSelect">メニュー *</label>
-                            <select id="menuSelect" name="menu_id" required>
-                                <option value="">メニューを選択</option>
-                                {menu_options}
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="bookingNotes">メモ（オプション）</label>
-                            <textarea id="bookingNotes" name="notes" placeholder="例: 初回来店、敏感肌" style="height: 80px;"></textarea>
-                        </div>
-                        
-                        <div style="display: flex; gap: 10px;">
-                            <button type="submit">➕ 予約を追加</button>
-                            <button type="button" onclick="document.getElementById('addBookingWithCustomerForm').reset();" style="background: #999;">リセット</button>
-                        </div>
-                    </form>
-                    <div id="bookingMessage"></div>
-                </div>
-                
-                <div style="background: #fff5e6; padding: 15px; border-left: 4px solid #ff9800; border-radius: 5px;">
-                    <strong>📌 注意</strong><br>
-                    <small>新しい顧客は、まず LINE で BOT に何かメッセージを送信してもらう必要があります。その後、上のドロップダウンに表示されます。</small>
-                </div>
-            </div>
-            
-            <!-- 本日の予約 -->
-            <div class="section">
-                <h2>📅 本日の予約</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>時間</th>
-                            <th>顧客</th>
-                            <th>メニュー</th>
-                            <th>ステータス</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {bookings_html if bookings_html else '<tr><td colspan="4" style="text-align: center; color: #999;">本日の予約はありません</td></tr>'}
-                    </tbody>
-                </table>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('bookingTab', this)">📅 予約</button>
+                <button class="tab-btn" onclick="switchTab('menuTab', this)">🍽️ メニュー設定</button>
             </div>
 
-            <!-- 予約を手動登録（紙の予約帳からの移行用） -->
-            <div class="section">
-                <h2>✍️ 予約を手動登録</h2>
-                <p style="color: #999; font-size: 0.9em; margin-bottom: 15px;">
-                    紙の予約帳のお客様など、LINE未連携でも登録できます。<br>
-                    ※LINE未連携のお客様にはリマインダー・変更通知は届きません。
-                </p>
-                <div style="background: #f0f4ff; padding: 20px; border-radius: 5px;">
-                    <form id="manualBookingForm" style="display: grid; gap: 15px;">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="manualName">お客様名 *</label>
-                                <input type="text" id="manualName" required>
+            <!-- ============ 予約タブ ============ -->
+            <div id="bookingTab" class="tab-panel active">
+
+                <!-- 予約ボード -->
+                <div class="section">
+                    <h2>🗓️ 予約ボード</h2>
+                    <div class="board-nav">
+                        <button class="small" id="boardPrev">‹ 前の週</button>
+                        <span id="boardLabel" style="font-weight: 600;"></span>
+                        <button class="small" id="boardNext">次の週 ›</button>
+                    </div>
+                    <div class="board-wrap">
+                        <table class="board-table" id="boardTable"><tbody><tr><td style="padding:20px;">読み込み中…</td></tr></tbody></table>
+                    </div>
+                </div>
+
+                <!-- 予約を手動登録 -->
+                <div class="section">
+                    <h2>✍️ 予約を手動登録</h2>
+                    <p style="color: #999; font-size: 0.88em; margin-bottom: 15px;">
+                        紙の予約帳のお客様など、LINE未連携でも登録できます。
+                        ※LINE未連携のお客様にはリマインダー・変更通知は届きません。
+                    </p>
+                    <div style="background: #f0f4ff; padding: 20px; border-radius: 5px;">
+                        <form id="manualBookingForm" style="display: grid; gap: 14px;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="manualName">お客様名 *</label>
+                                    <input type="text" id="manualName" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualPhone">電話番号</label>
+                                    <input type="text" id="manualPhone">
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualDate">日付 *</label>
+                                    <input type="date" id="manualDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualTime">時間 *</label>
+                                    <input type="time" id="manualTime" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualMenu">メニュー *</label>
+                                    <select id="manualMenu" required>
+                                        <option value="">選択してください</option>
+                                        {menu_options}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualNote">メモ</label>
+                                    <input type="text" id="manualNote">
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="manualPhone">電話番号</label>
-                                <input type="text" id="manualPhone">
-                            </div>
-                            <div class="form-group">
-                                <label for="manualDate">日付 *</label>
-                                <input type="date" id="manualDate" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="manualTime">時間 *</label>
-                                <input type="time" id="manualTime" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="manualMenu">メニュー *</label>
-                                <select id="manualMenu" required>
-                                    <option value="">選択してください</option>
-                                    {menu_options}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="manualNote">メモ</label>
-                                <input type="text" id="manualNote">
-                            </div>
-                        </div>
-                        <button type="submit">この内容で登録する</button>
-                    </form>
-                    <div id="manualBookingMessage"></div>
+                            <button type="submit">この内容で登録する</button>
+                        </form>
+                        <div id="manualBookingMessage"></div>
+                    </div>
+                </div>
+
+                <!-- 今後の予約一覧 -->
+                <div class="section">
+                    <h2>📋 今後の予約一覧</h2>
+                    <table>
+                        <thead>
+                            <tr><th>日付</th><th>時間</th><th>顧客</th><th>電話番号</th><th>メニュー</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="upcomingBookingsBody">
+                            <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 変更・キャンセル履歴 -->
+                <div class="section">
+                    <h2>🕓 変更・キャンセル履歴</h2>
+                    <table>
+                        <thead>
+                            <tr><th>日時</th><th>種別</th><th>顧客</th><th>変更前</th><th>変更後</th><th>備考</th></tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- 今後の予約一覧（変更・キャンセル） -->
-            <div class="section">
-                <h2>📋 今後の予約一覧</h2>
-                <p style="color: #999; font-size: 0.9em; margin-bottom: 15px;">本日以降の確定予約です。変更・キャンセルができます。</p>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>日付</th>
-                            <th>時間</th>
-                            <th>顧客</th>
-                            <th>電話番号</th>
-                            <th>メニュー</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="upcomingBookingsBody">
-                        <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- 変更・キャンセル履歴 -->
-            <div class="section">
-                <h2>🕓 変更・キャンセル履歴</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>日時</th>
-                            <th>種別</th>
-                            <th>顧客</th>
-                            <th>変更前</th>
-                            <th>変更後</th>
-                            <th>備考</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyBody">
-                        <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- メニュー管理 -->
-            <div class="section">
-                <h2>🎨 メニュー管理</h2>
-                
-                <div style="background: #f0f4ff; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-                    <h3>新しいメニューを追加</h3>
+            <!-- ============ メニュー設定タブ ============ -->
+            <div id="menuTab" class="tab-panel">
+                <div class="section">
+                    <h2>➕ メニューを追加</h2>
                     <form id="addMenuForm" style="display: grid; gap: 15px;">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="menuName">メニュー名 *</label>
-                                <input type="text" id="menuName" name="name" placeholder="例: カット" required>
+                                <input type="text" id="menuName" required>
                             </div>
                             <div class="form-group">
-                                <label for="menuPrice">価格 (B) *</label>
-                                <input type="number" id="menuPrice" name="price" placeholder="例: 3000" required>
+                                <label for="menuPrice">料金（円） *</label>
+                                <input type="number" id="menuPrice" required min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="menuDuration">所要時間（分） *</label>
+                                <input type="number" id="menuDuration" required min="1">
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="menuDuration">施術時間 (分) *</label>
-                            <input type="number" id="menuDuration" name="duration_minutes" placeholder="例: 60" required>
-                        </div>
-                        <button type="submit">➕ メニューを追加</button>
+                        <button type="submit">メニューを追加</button>
                     </form>
                 </div>
-                
-                <h3>現在のメニュー一覧</h3>
-                <div id="menuList">
-                    {menus_html if menus_html else '<p style="color: #999;">メニューがまだ追加されていません</p>'}
+
+                <div class="section">
+                    <h2>📋 登録済みメニュー</h2>
+                    {menus_html if menus_html else '<p style="color: #999;">メニューがまだ登録されていません</p>'}
                 </div>
             </div>
         </div>
-        
+
         <script>
-            // 顧客選択型の予約追加
-            document.getElementById('addBookingWithCustomerForm').addEventListener('submit', async (e) => {{
-                e.preventDefault();
-                
-                const messageDiv = document.getElementById('bookingMessage');
-                messageDiv.innerHTML = '<p style="color: #999;">予約を追加中...</p>';
-                
-                const customerId = document.getElementById('customerSelect').value;
-                
-                if (!customerId) {{
-                    messageDiv.innerHTML = '<div class="message error">❌ 顧客を選択してください</div>';
-                    return;
-                }}
-                
-                const data = {{
-                    customer_id: customerId,
-                    booking_date: document.getElementById('bookingDate').value,
-                    booking_time: document.getElementById('bookingTime').value,
-                    menu_id: parseInt(document.getElementById('menuSelect').value),
-                    notes: document.getElementById('bookingNotes').value
-                }};
-                
-                try {{
-                    const response = await fetch('/api/booking/add-with-customer', {{
-                        method: 'POST',
-                        headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify(data)
-                    }});
-                    
-                    const result = await response.json();
-                    
-                    if (response.ok) {{
-                        messageDiv.innerHTML = '<div class="message success">✅ ' + result.message + '</div>';
-                        document.getElementById('addBookingWithCustomerForm').reset();
-                        setTimeout(() => {{
-                            location.reload();
-                        }}, 2000);
-                    }} else {{
-                        messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + result.detail + '</div>';
-                    }}
-                }} catch (error) {{
-                    messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + error + '</div>';
-                }}
-            }});
-            
+            // タブ切り替え
+            function switchTab(tabId, btn) {{
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById(tabId).classList.add('active');
+                btn.classList.add('active');
+            }}
+
             // メニュー追加
             document.getElementById('addMenuForm').addEventListener('submit', async (e) => {{
                 e.preventDefault();
@@ -625,14 +521,12 @@ async def dashboard():
                     price: parseInt(document.getElementById('menuPrice').value),
                     duration_minutes: parseInt(document.getElementById('menuDuration').value)
                 }};
-                
                 try {{
                     const response = await fetch('/api/menu/add', {{
                         method: 'POST',
                         headers: {{'Content-Type': 'application/json'}},
                         body: JSON.stringify(data)
                     }});
-                    
                     if (response.ok) {{
                         alert('メニューを追加しました！');
                         location.reload();
@@ -643,7 +537,7 @@ async def dashboard():
                     alert('エラー: ' + error);
                 }}
             }});
-            
+
             // メニュー削除
             async function deleteMenu(menuId) {{
                 if (confirm('このメニューを削除しますか？')) {{
@@ -685,6 +579,7 @@ async def dashboard():
                         document.getElementById('manualBookingForm').reset();
                         loadUpcomingBookings();
                         loadHistory();
+                        loadBoard();
                     }} else {{
                         const result = await response.json();
                         const errText = Array.isArray(result.detail)
@@ -697,7 +592,7 @@ async def dashboard():
                 }}
             }});
 
-            // 今後の予約一覧を読み込み
+            // 今後の予約一覧
             async function loadUpcomingBookings() {{
                 const tbody = document.getElementById('upcomingBookingsBody');
                 try {{
@@ -715,8 +610,8 @@ async def dashboard():
                             <td>${{b.customer_phone || '-'}}</td>
                             <td>${{b.menu_name || '不明'}}</td>
                             <td>
-                                <button onclick="editBooking(${{b.id}}, '${{b.booking_date}}', '${{b.booking_time}}')" style="padding: 6px 10px; font-size: 0.85em;">変更</button>
-                                <button class="danger" onclick="cancelBookingFromDashboard(${{b.id}})" style="padding: 6px 10px; font-size: 0.85em;">キャンセル</button>
+                                <button class="small" onclick="editBooking(${{b.id}}, '${{b.booking_date}}', '${{b.booking_time}}')">変更</button>
+                                <button class="small danger" onclick="cancelBookingFromDashboard(${{b.id}})">キャンセル</button>
                             </td>
                         </tr>
                     `).join('');
@@ -725,13 +620,11 @@ async def dashboard():
                 }}
             }}
 
-            // 予約変更
             async function editBooking(bookingId, currentDate, currentTime) {{
                 const newDate = prompt('新しい日付 (YYYY-MM-DD)', currentDate);
                 if (newDate === null) return;
                 const newTime = prompt('新しい時間 (HH:MM)', currentTime);
                 if (newTime === null) return;
-
                 try {{
                     const response = await fetch(`/api/booking/${{bookingId}}`, {{
                         method: 'PUT',
@@ -740,8 +633,7 @@ async def dashboard():
                     }});
                     if (response.ok) {{
                         alert('変更しました');
-                        loadUpcomingBookings();
-                        loadHistory();
+                        loadUpcomingBookings(); loadHistory(); loadBoard();
                     }} else {{
                         alert('エラーが発生しました');
                     }}
@@ -750,15 +642,13 @@ async def dashboard():
                 }}
             }}
 
-            // 予約キャンセル
             async function cancelBookingFromDashboard(bookingId) {{
                 if (!confirm('この予約をキャンセルしますか？')) return;
                 try {{
                     const response = await fetch(`/api/booking/${{bookingId}}/cancel`, {{ method: 'POST' }});
                     if (response.ok) {{
                         alert('キャンセルしました');
-                        loadUpcomingBookings();
-                        loadHistory();
+                        loadUpcomingBookings(); loadHistory(); loadBoard();
                     }} else {{
                         alert('エラーが発生しました');
                     }}
@@ -767,7 +657,7 @@ async def dashboard():
                 }}
             }}
 
-            // 変更・キャンセル履歴を読み込み
+            // 変更・キャンセル履歴
             async function loadHistory() {{
                 const tbody = document.getElementById('historyBody');
                 try {{
@@ -793,13 +683,76 @@ async def dashboard():
                 }}
             }}
 
+            // 予約ボード
+            let boardStart = new Date();
+            boardStart.setHours(0,0,0,0);
+
+            function boardDateStr(d) {{
+                const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+                return `${{y}}-${{m}}-${{day}}`;
+            }}
+
+            async function loadBoard() {{
+                const table = document.getElementById('boardTable');
+                try {{
+                    const res = await fetch(`/api/board?start_date=${{boardDateStr(boardStart)}}&days=7`);
+                    const data = await res.json();
+                    const {{ time_slots, dates, board }} = data;
+
+                    document.getElementById('boardLabel').textContent =
+                        `${{dates[0].date}} 〜 ${{dates[dates.length-1].date}}`;
+
+                    let thead = '<thead><tr><th></th>' + dates.map(d => `<th>${{d.day}}日(${{d.weekday}})</th>`).join('') + '</tr></thead>';
+                    let tbody = '<tbody>';
+                    for (const slot of time_slots) {{
+                        tbody += `<tr><td class="time-col">${{slot}}</td>`;
+                        for (const d of dates) {{
+                            const cell = board[d.date][slot];
+                            if (cell.status === 'closed') {{
+                                tbody += `<td class="board-cell closed">-</td>`;
+                            }} else if (cell.status === 'booked') {{
+                                tbody += `<td class="board-cell booked" onclick="showBookingDetail(${{cell.booking_id}}, '${{cell.customer_name}}', '${{cell.menu_name}}', '${{d.date}}', '${{slot}}')">${{cell.customer_name}}</td>`;
+                            }} else {{
+                                tbody += `<td class="board-cell available"></td>`;
+                            }}
+                        }}
+                        tbody += '</tr>';
+                    }}
+                    tbody += '</tbody>';
+                    table.innerHTML = thead + tbody;
+                }} catch (error) {{
+                    table.innerHTML = '<tr><td style="padding:20px; color:#c00;">読み込みに失敗しました</td></tr>';
+                }}
+            }}
+
+            function showBookingDetail(bookingId, customerName, menuName, date, time) {{
+                const action = prompt(`${{date}} ${{time}}\\n${{customerName}} 様 / ${{menuName}}\\n\\n「1」で変更、「2」でキャンセル、それ以外で閉じる`);
+                if (action === '1') {{
+                    editBooking(bookingId, date, time);
+                }} else if (action === '2') {{
+                    cancelBookingFromDashboard(bookingId);
+                }}
+            }}
+
+            document.getElementById('boardPrev').addEventListener('click', () => {{
+                boardStart.setDate(boardStart.getDate() - 7);
+                loadBoard();
+            }});
+            document.getElementById('boardNext').addEventListener('click', () => {{
+                boardStart.setDate(boardStart.getDate() + 7);
+                loadBoard();
+            }});
+
             loadUpcomingBookings();
             loadHistory();
+            loadBoard();
         </script>
     </body>
     </html>
     """
+
     return html
+
 
 # ===============================
 # API エンドポイント
@@ -863,6 +816,113 @@ async def add_booking_with_customer(data: BookingAddWithCustomerRequest):
     
     except Exception as e:
         logger.error(f"Error adding booking with customer: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/booking/reschedule")
+async def reschedule_booking_from_liff(data: RescheduleRequest):
+    """
+    お客様自身がLIFFカレンダーから予約日時を変更する
+    本人の予約かどうかを必ず確認してから更新する
+    """
+    try:
+        booking = db.get_booking(data.booking_id)
+        if not booking:
+            raise HTTPException(status_code=404, detail="予約が見つかりません")
+        if booking["user_id"] != data.user_id:
+            raise HTTPException(status_code=403, detail="この予約を変更する権限がありません")
+
+        before_date = booking["booking_date"]
+        before_time = booking["booking_time"]
+
+        db.update_booking(data.booking_id, booking_date=data.booking_date, booking_time=data.booking_time)
+
+        db.add_booking_history(
+            booking_id=data.booking_id, action="modified", user_id=data.user_id,
+            before_date=before_date, before_time=before_time,
+            after_date=data.booking_date, after_time=data.booking_time,
+            note="お客様がLIFFから変更"
+        )
+
+        menu = db.get_menu(booking["menu_id"])
+        menu_name = menu["name"] if menu else "不明"
+
+        # お客様への確認
+        try:
+            line_bot_api.push_message(
+                data.user_id,
+                TextSendMessage(text=f"✅ ご予約を変更しました\n\n📅 変更後: {data.booking_date} {data.booking_time}\n🎨 メニュー: {menu_name}\n予約ID: {data.booking_id}")
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send reschedule confirmation: {e}")
+
+        # オーナーへ通知
+        if OWNER_USER_ID:
+            try:
+                customer = db.get_customer(data.user_id)
+                customer_name = customer["name"] if customer and customer["name"] else data.user_id[:10] + "..."
+                line_bot_api.push_message(
+                    OWNER_USER_ID,
+                    TextSendMessage(text=f"📝 予約変更がありました\n\nお客様: {customer_name}\n変更前: {before_date} {before_time}\n変更後: {data.booking_date} {data.booking_time}\nメニュー: {menu_name}\n予約ID: {data.booking_id}")
+                )
+            except Exception as e:
+                logger.warning(f"Failed to notify owner of reschedule: {e}")
+
+        return JSONResponse({"status": "ok"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rescheduling booking: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/board")
+async def get_booking_board(start_date: str, days: int = 7):
+    """
+    予約ボード表示用：日付×時間のマス目に、予約が入っていれば顧客名・メニュー名を含めて返す
+    """
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = start + timedelta(days=days - 1)
+
+        detailed_bookings = db.get_bookings_with_details_in_range(start.isoformat(), end.isoformat())
+        booking_map = {}
+        for b in detailed_bookings:
+            key = f"{b['booking_date']}_{b['booking_time']}"
+            booking_map[key] = {
+                "booking_id": b["id"],
+                "customer_name": b["customer_name"] or "不明",
+                "customer_phone": b["customer_phone"],
+                "menu_name": b["menu_name"] or "不明",
+            }
+
+        time_slots = generate_time_slots()
+        date_list = []
+        board = {}
+
+        for i in range(days):
+            current_date = start + timedelta(days=i)
+            date_str = current_date.isoformat()
+            weekday_index = current_date.weekday()
+
+            date_list.append({
+                "date": date_str,
+                "day": current_date.day,
+                "weekday": WEEKDAY_LABELS_JA[weekday_index],
+                "is_closed": weekday_index in CLOSED_WEEKDAYS
+            })
+
+            board[date_str] = {}
+            for slot in time_slots:
+                key = f"{date_str}_{slot}"
+                if weekday_index in CLOSED_WEEKDAYS:
+                    board[date_str][slot] = {"status": "closed"}
+                elif key in booking_map:
+                    board[date_str][slot] = {"status": "booked", **booking_map[key]}
+                else:
+                    board[date_str][slot] = {"status": "available"}
+
+        return JSONResponse({"time_slots": time_slots, "dates": date_list, "board": board})
+    except Exception as e:
+        logger.error(f"Error getting booking board: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/bookings/upcoming/all")
