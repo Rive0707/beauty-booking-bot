@@ -103,40 +103,24 @@
     text-align:center;
     padding:0;
   }
-  thead{
-    position:sticky;
-    top:0;
-    background:var(--paper);
-    z-index:5;
-  }
-  thead tr:first-child th{
-    padding:12px 4px 8px;
+  thead th{
+    padding:10px 4px 8px;
     font-weight:500;
-    border-bottom:none;
-  }
-  thead tr:last-child th{
-    padding:6px 4px 8px;
-    font-weight:400;
-    border-bottom:1px solid var(--paper-line);
-  }
-  thead th.time-col{ 
-    left:0; 
-    z-index:6;
     position:sticky;
+    top:96px;
+    background:var(--paper);
   }
+  thead th.time-col{ left:0; z-index:3; }
   .day-num{
     font-family:'Shippori Mincho', serif;
-    font-size:18px;
+    font-size:16px;
     display:block;
-    font-weight:700;
-    line-height:1.3;
   }
   .weekday{
-    font-size:10px;
+    font-size:10.5px;
     color:var(--ink-soft);
     display:block;
-    margin-top:4px;
-    line-height:1;
+    margin-top:1px;
   }
   .weekday.sat{color:#6E8FA3;}
   .weekday.sun{color:#B36B5E;}
@@ -147,13 +131,10 @@
     background:var(--paper);
     font-size:12px;
     color:var(--ink-soft);
-    padding:0 8px;
+    padding:0 12px 0 0;
     white-space:nowrap;
     border-right:1px solid var(--paper-line);
     z-index:2;
-    width:60px;
-    height:46px;
-    vertical-align:middle;
   }
   tbody tr{border-top:1px solid var(--paper-line);}
 
@@ -264,11 +245,21 @@ let selected = null;
 const urlParams = new URLSearchParams(location.search);
 const menuId = urlParams.get('menu_id');
 const menuName = urlParams.get('menu_name');
+const modifyBookingId = urlParams.get('modify_booking_id'); // 予約変更モードかどうか
+let liffUserId = null;
 
-document.getElementById('stepsBar').innerHTML =
-  `✓ メニュー ・ <span class="cur">② 日時</span> ・ ③ お客様情報`;
-if(menuName){
-  document.getElementById('menuLabel').textContent = `「${menuName}」の��希望日時をお選びください`;
+if(modifyBookingId){
+  document.getElementById('stepsBar').innerHTML = `📝 予約変更 － 新しい日時をお選びください`;
+  if(menuName){
+    document.getElementById('menuLabel').textContent = `「${menuName}」の新しいご希望日時をお選びください`;
+  }
+  document.getElementById('confirmBtn').textContent = 'この日時に変更する';
+}else{
+  document.getElementById('stepsBar').innerHTML =
+    `✓ メニュー ・ <span class="cur">② 日時</span> ・ ③ お客様情報`;
+  if(menuName){
+    document.getElementById('menuLabel').textContent = `「${menuName}」のご希望日時をお選びください`;
+  }
 }
 
 function toDateStr(d){
@@ -298,29 +289,13 @@ function render(data){
   document.getElementById('monthLabel').textContent =
     `${first.date.slice(0,7).replace('-','年')}月 ${first.day}日〜${last.day}日`;
 
-  let html = '<div class="scroll-wrap"><table><thead>';
-  
-  // 第1行：日付
-  html += '<tr>';
-  html += '<th class="time-col"></th>';
+  let html = '<div class="scroll-wrap"><table><thead><tr><th class="time-col"></th>';
   for(const d of dates){
     const wd = d.weekday;
     const cls = wd === '土' ? 'sat' : (wd === '日' ? 'sun' : '');
-    html += `<th><span class="day-num">${d.day}</span></th>`;
+    html += `<th><span class="day-num">${d.day}</span><span class="weekday ${cls}">${wd}</span></th>`;
   }
-  html += '</tr>';
-  
-  // 第2行：曜日
-  html += '<tr>';
-  html += '<th class="time-col"></th>';
-  for(const d of dates){
-    const wd = d.weekday;
-    const cls = wd === '土' ? 'sat' : (wd === '日' ? 'sun' : '');
-    html += `<th><span class="weekday ${cls}">${wd}</span></th>`;
-  }
-  html += '</tr>';
-  
-  html += '</thead><tbody>';
+  html += '</tr></thead><tbody>';
 
   for(const slot of time_slots){
     html += `<tr><td class="time-col">${slot}</td>`;
@@ -362,8 +337,43 @@ function showStatusBar(){
   bar.classList.add('show');
 }
 
-document.getElementById('confirmBtn').addEventListener('click', ()=>{
+document.getElementById('confirmBtn').addEventListener('click', async ()=>{
   if(!selected) return;
+
+  if(modifyBookingId){
+    // ===== 予約変更モード：その場でAPIを呼んで確定する =====
+    if(!liffUserId){
+      alert('LINEアカウントの確認ができませんでした。LINEアプリ内でお試しください。');
+      return;
+    }
+    const btn = document.getElementById('confirmBtn');
+    btn.disabled = true;
+    btn.textContent = '変更しています…';
+    try{
+      const res = await fetch(`${API_BASE}/api/booking/reschedule`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          user_id: liffUserId,
+          booking_id: parseInt(modifyBookingId, 10),
+          booking_date: selected.date,
+          booking_time: selected.time
+        })
+      });
+      if(!res.ok) throw new Error('failed');
+      btn.textContent = '変更が完了しました';
+      if(window.liff && liff.isInClient && liff.isInClient()){
+        setTimeout(()=> liff.closeWindow(), 900);
+      }
+    }catch(e){
+      alert('変更に失敗しました。時間をおいて再度お試しください。');
+      btn.disabled = false;
+      btn.textContent = 'この日時に変更する';
+    }
+    return;
+  }
+
+  // ===== 新規予約モード：お客様情報フォームへ =====
   const params = new URLSearchParams({
     menu_id: menuId || '',
     menu_name: menuName || '',
@@ -390,6 +400,10 @@ document.getElementById('nextWeek').addEventListener('click', ()=>{
   try{
     if(window.liff){
       await liff.init({ liffId: LIFF_ID });
+      if(liff.isLoggedIn()){
+        const profile = await liff.getProfile();
+        liffUserId = profile.userId;
+      }
     }
   }catch(e){ /* LIFF外（通常ブラウザ）での動作テストも許容する */ }
   loadAvailability();
