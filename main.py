@@ -171,7 +171,7 @@ def handle_message(event):
         line_handler.start_booking(user_id)
     
     # マイページ
-    elif text in ["マイページ", "履歴"]:
+    elif text in ["予約確認", "マイページ", "履歴"]:
         line_handler.show_my_page(user_id)
     
     # ヘルプ
