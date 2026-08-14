@@ -413,9 +413,11 @@ async def dashboard():
                     </p>
                     <div style="background: #f0f4ff; padding: 20px; border-radius: 5px;">
                         <div class="form-group" style="margin-bottom: 20px;">
-                            <label for="customerSearch">既存のお客様から選ぶ（任意）</label>
-                            <input type="text" id="customerSearch" list="customerList" placeholder="名前で検索…" autocomplete="off">
-                            <datalist id="customerList"></datalist>
+                            <label for="customerFilter">既存のお客様から選ぶ（任意）</label>
+                            <input type="text" id="customerFilter" placeholder="名前で絞り込み…" autocomplete="off" style="margin-bottom: 8px;">
+                            <select id="customerSelect">
+                                <option value="">－ 新規のお客様として登録する －</option>
+                            </select>
                             <p id="selectedCustomerNote" style="font-size: 0.82em; color: #667eea; margin-top: 6px; display: none;"></p>
                         </div>
                         <form id="manualBookingForm" style="display: grid; gap: 14px;">
@@ -561,28 +563,48 @@ async def dashboard():
                 }}
             }}
 
-            // 既存客検索（datalistで候補表示、選択すると自動連携）
+            // 既存客選択（プルダウン形式。上の絞り込み欄で候補を絞れる）
             let customersCache = [];
+
+            function renderCustomerOptions(filterText) {{
+                const select = document.getElementById('customerSelect');
+                const filtered = filterText
+                    ? customersCache.filter(c => c.name && c.name.includes(filterText))
+                    : customersCache;
+
+                select.innerHTML = '<option value="">－ 新規のお客様として登録する －</option>' +
+                    filtered.map(c => {{
+                        const label = `${{c.name}}${{c.phone ? '（' + c.phone + '）' : ''}}${{c.is_line_linked ? ' ✓LINE連携' : ' （未連携）'}}`;
+                        return `<option value="${{c.user_id}}">${{label}}</option>`;
+                    }}).join('');
+            }}
+
             async function loadCustomersForSearch() {{
                 try {{
                     const res = await fetch('/api/customers');
                     const data = await res.json();
                     customersCache = data.customers;
-                    const datalist = document.getElementById('customerList');
-                    datalist.innerHTML = customersCache.map(c =>
-                        `<option value="${{c.name}}${{c.phone ? ' (' + c.phone + ')' : ''}}">`
-                    ).join('');
+                    renderCustomerOptions('');
                 }} catch (error) {{
                     console.error('顧客一覧の取得に失敗しました', error);
                 }}
             }}
 
-            document.getElementById('customerSearch').addEventListener('input', (e) => {{
-                const inputValue = e.target.value;
-                const match = customersCache.find(c =>
-                    inputValue === `${{c.name}}${{c.phone ? ' (' + c.phone + ')' : ''}}`
-                );
+            document.getElementById('customerFilter').addEventListener('input', (e) => {{
+                renderCustomerOptions(e.target.value.trim());
+            }});
+
+            document.getElementById('customerSelect').addEventListener('change', (e) => {{
+                const userId = e.target.value;
                 const note = document.getElementById('selectedCustomerNote');
+
+                if (!userId) {{
+                    document.getElementById('existingUserId').value = '';
+                    note.style.display = 'none';
+                    return;
+                }}
+
+                const match = customersCache.find(c => c.user_id === userId);
                 if (match) {{
                     document.getElementById('existingUserId').value = match.user_id;
                     document.getElementById('manualName').value = match.name;
@@ -591,9 +613,6 @@ async def dashboard():
                     note.textContent = match.is_line_linked
                         ? '✓ LINE連携済みのお客様として登録します（リマインダー・変更通知が届きます）'
                         : '※このお客様はLINE未連携です（通知は届きません）';
-                }} else {{
-                    document.getElementById('existingUserId').value = '';
-                    note.style.display = 'none';
                 }}
             }});
 
@@ -624,7 +643,8 @@ async def dashboard():
                     if (response.ok) {{
                         messageDiv.innerHTML = '<div class="message success">✅ 登録しました</div>';
                         document.getElementById('manualBookingForm').reset();
-                        document.getElementById('customerSearch').value = '';
+                        document.getElementById('customerFilter').value = '';
+                        document.getElementById('customerSelect').value = '';
                         document.getElementById('existingUserId').value = '';
                         document.getElementById('selectedCustomerNote').style.display = 'none';
                         loadUpcomingBookings();
