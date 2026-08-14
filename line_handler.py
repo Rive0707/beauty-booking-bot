@@ -14,6 +14,7 @@ from linebot.models import (
     FlexSendMessage
 )
 from datetime import datetime, date, timedelta
+from urllib.parse import quote
 import json
 import logging
 
@@ -99,14 +100,18 @@ class LineHandler:
     
     def show_help(self, user_id: str):
         """ヘルプメッセージ（メニュー表示）"""
+        actions = []
+        if self.liff_id:
+            actions.append(URIAction(label="📅 予約する", uri=f"https://liff.line.me/{self.liff_id}"))
+        else:
+            actions.append(PostbackAction(label="📅 予約する", data="action=start_booking"))
+        actions.append(PostbackAction(label="📋 予約確認", data="action=show_my_page"))
+        actions.append(PostbackAction(label="❓ ご質問", data="action=show_faq"))
+
         template = ButtonsTemplate(
             title="メニュー",
             text="ご希望の操作を選択してください",
-            actions=[
-                PostbackAction(label="📅 予約する", data="action=start_booking"),
-                PostbackAction(label="📋 マイページ", data="action=show_my_page"),
-                PostbackAction(label="❓ ご質問", data="action=show_faq"),
-            ]
+            actions=actions
         )
         self.send_template_message(user_id, template)
     
@@ -115,6 +120,24 @@ class LineHandler:
     # =======================================
     
     def start_booking(self, user_id: str):
+        """
+        予約フロー開始
+        LIFF（メニュー選択→カレンダー→お客様情報）が設定されていればそちらへ案内し、
+        未設定の場合のみ、従来のチャット形式の予約フローにフォールバックする
+        """
+        if self.liff_id:
+            template = ButtonsTemplate(
+                title="📅 ご予約はこちらから",
+                text="メニュー選択から日時の確認まで、簡単に進められます",
+                actions=[
+                    URIAction(label="予約画面を開く", uri=f"https://liff.line.me/{self.liff_id}")
+                ]
+            )
+            self.send_template_message(user_id, template)
+            return
+        self._start_booking_legacy(user_id)
+
+    def _start_booking_legacy(self, user_id: str):
         """予約開始"""
         self.user_sessions[user_id] = {}
         
@@ -515,7 +538,7 @@ class LineHandler:
                 if self.liff_id:
                     reschedule_url = (
                         f"https://liff.line.me/{self.liff_id}?"
-                        f"modify_booking_id={booking_id}&menu_id={booking['menu_id']}&menu_name={menu_name}"
+                        f"modify_booking_id={booking_id}&menu_id={booking['menu_id']}&menu_name={quote(menu_name)}"
                     )
                     actions.append(URIAction(label="📝 日時を変更する", uri=reschedule_url))
                 actions.append(PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"))
