@@ -1200,10 +1200,10 @@ def generate_time_slots():
 WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
 
 @app.get("/api/availability")
-async def get_availability(start_date: str, days: int = 7):
+async def get_availability(start_date: str, days: int = 7, duration_minutes: int = None):
     """
     指定日から指定日数分の空き状況を返す
-    定休日・営業時間・既存予約を踏まえて ○/✕/- を判定する
+    定休日・営業時間・既存予約・メニューの所要時間（最終受付時刻）を踏まえて判定する
     """
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -1213,6 +1213,13 @@ async def get_availability(start_date: str, days: int = 7):
             start.isoformat(), end.isoformat()
         )
         time_slots = generate_time_slots()
+
+        # メニューの所要時間を踏まえた最終受付時刻を計算
+        # （所要時間が営業終了時刻をまたぐ枠は選べないようにする）
+        business_end = datetime.strptime(BUSINESS_HOURS_END, "%H:%M")
+        last_valid_start = None
+        if duration_minutes:
+            last_valid_start = (business_end - timedelta(minutes=duration_minutes)).strftime("%H:%M")
 
         date_list = []
         availability = {}
@@ -1233,10 +1240,16 @@ async def get_availability(start_date: str, days: int = 7):
                 availability[date_str] = {slot: "closed" for slot in time_slots}
             else:
                 booked_for_date = booked_times.get(date_str, [])
-                availability[date_str] = {
-                    slot: ("booked" if slot in booked_for_date else "available")
-                    for slot in time_slots
-                }
+                day_avail = {}
+                for slot in time_slots:
+                    if slot in booked_for_date:
+                        day_avail[slot] = "booked"
+                    elif last_valid_start and slot > last_valid_start:
+                        # 所要時間を踏まえると営業終了までに終わらない枠
+                        day_avail[slot] = "too_late"
+                    else:
+                        day_avail[slot] = "available"
+                availability[date_str] = day_avail
 
         return JSONResponse({
             "time_slots": time_slots,
