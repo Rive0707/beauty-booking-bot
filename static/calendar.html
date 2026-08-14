@@ -106,8 +106,6 @@
   thead th{
     padding:10px 4px 8px;
     font-weight:500;
-    position:sticky;
-    top:96px;
     background:var(--paper);
   }
   thead th.time-col{ left:0; z-index:3; }
@@ -151,7 +149,15 @@
     border-radius:var(--radius-brush);
   }
   .mark.available{border:1.8px solid var(--plum); background:transparent;}
-  .mark.booked{background:var(--booked);}
+  .mark.booked{
+    background:transparent;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--booked);
+    font-size:16px;
+    font-weight:700;
+  }
   .mark.closed::after{content:"";}
 
   button.slot-btn{
@@ -245,6 +251,7 @@ let selected = null;
 const urlParams = new URLSearchParams(location.search);
 const menuId = urlParams.get('menu_id');
 const menuName = urlParams.get('menu_name');
+const menuDuration = urlParams.get('duration'); // メニューの所要時間（分）
 const modifyBookingId = urlParams.get('modify_booking_id'); // 予約変更モードかどうか
 let liffUserId = null;
 
@@ -273,7 +280,8 @@ async function loadAvailability(){
   const content = document.getElementById('content');
   content.innerHTML = '<div class="loading">読み込み中…</div>';
   try{
-    const res = await fetch(`${API_BASE}/api/availability?start_date=${toDateStr(rangeStart)}&days=${DAYS_PER_VIEW}`);
+    const durationParam = menuDuration ? `&duration_minutes=${menuDuration}` : '';
+    const res = await fetch(`${API_BASE}/api/availability?start_date=${toDateStr(rangeStart)}&days=${DAYS_PER_VIEW}${durationParam}`);
     if(!res.ok) throw new Error('failed');
     const data = await res.json();
     render(data);
@@ -304,7 +312,9 @@ function render(data){
       if(status === 'closed'){
         html += `<td><div class="cell">ー</div></td>`;
       }else if(status === 'booked'){
-        html += `<td><div class="cell"><div class="mark booked"></div></div></td>`;
+        html += `<td><div class="cell"><div class="mark booked">✕</div></div></td>`;
+      }else if(status === 'too_late'){
+        html += `<td><div class="cell"><div class="mark booked" style="opacity:.5;">✕</div></div></td>`;
       }else{
         html += `<td><div class="cell"><button class="slot-btn" data-date="${d.date}" data-time="${slot}" data-day="${d.day}" data-weekday="${d.weekday}"><div class="mark available"></div></button></div></td>`;
       }

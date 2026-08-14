@@ -144,7 +144,7 @@ function render(menus){
           <span>${m.duration_minutes}分</span>
         </div>
       </div>
-      <button class="select-btn" data-id="${m.id}" data-name="${escapeHtml(m.name)}">選択する</button>
+      <button class="select-btn" data-id="${m.id}" data-name="${escapeHtml(m.name)}" data-duration="${m.duration_minutes}">選択する</button>
     </div>
   `).join('');
 
@@ -152,7 +152,8 @@ function render(menus){
     btn.addEventListener('click', ()=>{
       const params = new URLSearchParams({
         menu_id: btn.dataset.id,
-        menu_name: btn.dataset.name
+        menu_name: btn.dataset.name,
+        duration: btn.dataset.duration
       });
       window.location.href = `calendar.html?${params.toString()}`;
     });
