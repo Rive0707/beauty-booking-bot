@@ -652,16 +652,6 @@ dashboard_html = """
   const timeSel = document.getElementById('form-time');
   times.forEach(function(t) { const o = document.createElement('option'); o.value = t; o.textContent = t; timeSel.appendChild(o); });
 
-  async function loadData() {
-    const [bRes, hRes, cRes, mRes] = await Promise.all([
-      fetch('/api/bookings/all').then(function(r){ return r.json(); }),
-      fetch('/api/history').then(function(r){ return r.json(); }),
-      fetch('/api/customers').then(function(r){ return r.json(); }),
-      fetch('/api/menus').then(function(r){ return r.json(); })
-    ]);
-    bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
-    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus();
-  }
   function populateMenus() {
     const sel = document.getElementById('form-menu');
     sel.innerHTML = '<option value="">選択</option>';
@@ -911,6 +901,7 @@ dashboard_html = """
     bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
     populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus();
   }
+  loadData();
 </script>
 </body>
 </html>
