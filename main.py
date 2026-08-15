@@ -1182,7 +1182,7 @@ try:
             "dates": date_list,
             "availability": availability
         })
-    except Exception as e:
+    　　　except Exception as e:
         logger.error(f"Error getting availability: {e}")
         raise HTTPException(status_code=500, detail=str(e))    """
     指定期間の予約可能状況を取得（LIFFカレンダー用）
