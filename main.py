@@ -895,7 +895,16 @@ dashboard_html = """
     if (res.ok) { toast('メニューを削除しました'); loadData(); }
   }
   
-  loadData();
+    async function loadData() {
+    const [bRes, hRes, cRes, mRes] = await Promise.all([
+      fetch('/api/bookings/all').then(function(r){ return r.json(); }),
+      fetch('/api/history').then(function(r){ return r.json(); }),
+      fetch('/api/customers').then(function(r){ return r.json(); }),
+      fetch('/api/menus').then(function(r){ return r.json(); })
+    ]);
+    bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
+    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus();
+  }
 </script>
 </body>
 </html>
