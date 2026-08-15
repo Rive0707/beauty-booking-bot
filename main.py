@@ -1192,7 +1192,7 @@ async def get_availability(start_date: str, days: int = 7, duration_minutes: int
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/liff/booking")
+@app.post("/api/booking/create")
 async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
     """LIFFからの予約確定（お客様情報付き）"""
     try:
