@@ -874,7 +874,7 @@ dashboard_html = """
     const price = parseInt(document.getElementById('menu-price').value);
     const duration = parseInt(document.getElementById('menu-duration').value);
     if (!name || !price || !duration) { toast('全項目を入力してください'); return; }
-    const res = await fetch('/api/menu', {
+    const res = await fetch('/api/menus', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({name: name, price: price, duration_minutes: duration})
@@ -891,7 +891,7 @@ dashboard_html = """
   }
   async function deleteMenu(id) {
     if (!confirm('このメニューを削除しますか？')) return;
-    const res = await fetch('/api/menu/' + id, {method: 'DELETE'});
+    const res = await fetch('/api/menus/' + id, {method: 'DELETE'});
     if (res.ok) { toast('メニューを削除しました'); loadData(); }
   }
   
@@ -900,7 +900,7 @@ dashboard_html = """
       fetch('/api/bookings/all').then(function(r){ return r.json(); }),
       fetch('/api/history').then(function(r){ return r.json(); }),
       fetch('/api/customers').then(function(r){ return r.json(); }),
-      fetch('/api/menu').then(function(r){ return r.json(); })
+      fetch('/api/menus').then(function(r){ return r.json(); })
     ]);
     bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
     populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus();
