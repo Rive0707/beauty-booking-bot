@@ -620,9 +620,14 @@ dashboard_html = """
   let currentDate = new Date();
   let editingId = null;
   const times = [];
-  for (let h = 10; h <= 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
-
-  function fmtDate(d) { return d.toISOString().split('T')[0]; }
+　for (let h = 9; h < 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
+　times.push("19:00");
+  function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
   function fmtDateJp(d) {
     const dt = new Date(d + 'T00:00:00');
     return (dt.getMonth()+1) + "月" + dt.getDate() + "日 (" + ['日','月','火','水','木','金','土'][dt.getDay()] + ")";
