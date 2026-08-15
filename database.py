@@ -11,22 +11,18 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self, db_path: str = "beauty_booking.db"):
-        """初期化"""
         self.db_path = db_path
         self.conn = None
 
     def get_connection(self):
-        """データベース接続取得"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
     def init_db(self):
-        """テーブル初期化"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        # 顧客テーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS customers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +33,6 @@ class Database:
             )
         ''')
 
-        # 既存DBに対する追加カラムのマイグレーション（フリガナ・性別・誕生日）
         for column_def in [
             "ALTER TABLE customers ADD COLUMN furigana TEXT",
             "ALTER TABLE customers ADD COLUMN gender TEXT",
@@ -46,9 +41,8 @@ class Database:
             try:
                 cursor.execute(column_def)
             except sqlite3.OperationalError:
-                pass  # 既にカラムが存在する場合はスキップ
+                pass
 
-        # メニューテーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS menus (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +53,6 @@ class Database:
             )
         ''')
 
-        # 予約テーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS bookings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +69,6 @@ class Database:
             )
         ''')
 
-        # 既存DBに対する追加カラムのマイグレーション（7日前・3日前リマインドを個別管理）
         for column_def in [
             "ALTER TABLE bookings ADD COLUMN reminder_7d_sent INTEGER DEFAULT 0",
             "ALTER TABLE bookings ADD COLUMN reminder_3d_sent INTEGER DEFAULT 0",
@@ -84,9 +76,8 @@ class Database:
             try:
                 cursor.execute(column_def)
             except sqlite3.OperationalError:
-                pass  # 既にカラムが存在する場合はスキップ
+                pass
 
-        # 顧客メモテーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS customer_notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,7 +88,6 @@ class Database:
             )
         ''')
 
-        # 来店履歴テーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS visit_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,7 +101,6 @@ class Database:
             )
         ''')
 
-        # 予約変更・キャンセル履歴テーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS booking_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,7 +123,6 @@ class Database:
     def add_booking_history(self, booking_id: int, action: str, user_id: str = None,
                           before_date: str = None, before_time: str = None,
                           after_date: str = None, after_time: str = None, note: str = None):
-        """予約の作成・変更・キャンセルの履歴を記録する"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -150,7 +138,6 @@ class Database:
             conn.close()
 
     def get_booking_history(self, limit: int = 50):
-        """予約変更・キャンセルの履歴一覧を新しい順で取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
@@ -167,7 +154,6 @@ class Database:
         return results
 
     def get_all_upcoming_bookings(self):
-        """今後すべての確定予約を日時順で取得（ダッシュボード全件表示用）"""
         conn = self.get_connection()
         cursor = conn.cursor()
         today = date.today().isoformat()
@@ -184,7 +170,6 @@ class Database:
         return results
 
     def get_all_bookings_with_details(self):
-        """全予約（キャンセル含む）を顧客名・メニュー名付きで取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
@@ -199,7 +184,6 @@ class Database:
         return results
 
     def get_bookings_with_details_in_range(self, start_date_str: str, end_date_str: str):
-        """指定期間内の予約を、顧客名・メニュー名付きで取得（予約ボード表示用）"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
@@ -214,12 +198,7 @@ class Database:
         conn.close()
         return results
 
-    # =======================================
-    # 顧客管理
-    # =======================================
-
     def add_customer(self, user_id: str, name: str = None, phone: str = None):
-        """顧客追加"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -235,7 +214,6 @@ class Database:
             conn.close()
 
     def get_customer(self, user_id: str):
-        """顧客情報取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM customers WHERE user_id = ?', (user_id,))
@@ -244,7 +222,6 @@ class Database:
         return result
 
     def get_all_customers(self):
-        """全顧客取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM customers')
@@ -253,7 +230,6 @@ class Database:
         return results
 
     def update_customer(self, user_id: str, name: str = None, phone: str = None):
-        """顧客情報更新"""
         conn = self.get_connection()
         cursor = conn.cursor()
         if name:
@@ -265,7 +241,6 @@ class Database:
 
     def save_customer_profile(self, user_id: str, name: str, furigana: str = None,
                               gender: str = None, birthdate: str = None, phone: str = None):
-        """予約フォームから送信されたお客様情報を保存（新規なら作成、既存なら更新）"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -287,12 +262,7 @@ class Database:
         finally:
             conn.close()
 
-    # =======================================
-    # メニュー管理
-    # =======================================
-
     def add_menu(self, name: str, price: int, duration_minutes: int):
-        """メニュー追加"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -311,7 +281,6 @@ class Database:
             conn.close()
 
     def get_menu(self, menu_id: int):
-        """メニュー取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM menus WHERE id = ?', (menu_id,))
@@ -320,7 +289,6 @@ class Database:
         return result
 
     def get_all_menus(self):
-        """全メニュー取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM menus')
@@ -329,7 +297,6 @@ class Database:
         return results
 
     def delete_menu(self, menu_id: int):
-        """メニュー削除"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -341,26 +308,19 @@ class Database:
         finally:
             conn.close()
 
-    # =======================================
-    # 予約管理
-    # =======================================
-
     def add_booking(self, user_id: str, booking_date: str, booking_time: str,
                     menu_id: int, notes: str = None) -> int:
-        """予約追加"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            # 顧客情報を作成（存在しない場合）
             self.add_customer(user_id)
-
             cursor.execute('''
                 INSERT INTO bookings (booking_date, user_id, booking_time, menu_id, notes, status)
                 VALUES (?, ?, ?, ?, ?, 'confirmed')
             ''', (booking_date, user_id, booking_time, menu_id, notes))
             conn.commit()
             booking_id = cursor.lastrowid
-            logger.info(f"Booking added: {booking_id} ({user_id} on {booking_date} {booking_time})")
+            logger.info(f"Booking added: {booking_id}")
             return booking_id
         except Exception as e:
             logger.error(f"Error adding booking: {e}")
@@ -369,7 +329,6 @@ class Database:
             conn.close()
 
     def get_booking(self, booking_id: int):
-        """予約取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM bookings WHERE id = ?', (booking_id,))
@@ -378,7 +337,6 @@ class Database:
         return result
 
     def get_bookings_by_user(self, user_id: str, status: str = None):
-        """ユーザーの予約取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         if status:
@@ -398,7 +356,6 @@ class Database:
         return results
 
     def get_bookings_by_date(self, booking_date: date):
-        """指定日の予約取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         date_str = booking_date.isoformat()
@@ -412,10 +369,6 @@ class Database:
         return results
 
     def get_booked_times_in_range(self, start_date_str: str, end_date_str: str):
-        """
-        指定期間内の予約済み時間を取得
-        戻り値: { "2026-08-10": ["10:00", "14:00"], ... }
-        """
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
@@ -431,10 +384,8 @@ class Database:
         return booked
 
     def get_upcoming_bookings(self, days_ahead: int = 7):
-        """今後N日間の予約取得（確定済みのみ）"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        from datetime import datetime, timedelta
         today = datetime.now().date()
         target_date = today + timedelta(days=days_ahead)
 
@@ -448,7 +399,6 @@ class Database:
         return results
 
     def mark_reminder_7d_sent(self, booking_id: int):
-        """7日前リマインド送信完了をマーク"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -460,7 +410,6 @@ class Database:
             conn.close()
 
     def mark_reminder_3d_sent(self, booking_id: int):
-        """3日前リマインド送信完了をマーク"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -472,14 +421,9 @@ class Database:
             conn.close()
 
     def confirm_no_change(self, booking_id: int):
-        """
-        「予約変更なし」をお客様が選んだ場合に呼ぶ。
-        7日前リマインドで確認済みのため、3日前リマインドは省略する。
-        """
         self.mark_reminder_3d_sent(booking_id)
 
     def cancel_booking(self, booking_id: int):
-        """予約キャンセル"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -495,7 +439,6 @@ class Database:
 
     def update_booking(self, booking_id: int, booking_date: str = None,
                        booking_time: str = None, menu_id: int = None):
-        """予約更新"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -516,7 +459,6 @@ class Database:
             conn.close()
 
     def mark_reminder_sent(self, booking_id: int):
-        """リマインド送信完了をマーク"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -528,12 +470,7 @@ class Database:
         finally:
             conn.close()
 
-    # =======================================
-    # 顧客メモ・来店履歴
-    # =======================================
-
     def add_customer_note(self, user_id: str, note: str):
-        """顧客メモ追加"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -549,7 +486,6 @@ class Database:
             conn.close()
 
     def get_customer_notes(self, user_id: str):
-        """顧客メモ取得"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
@@ -561,4 +497,34 @@ class Database:
         conn.close()
         return results
 
-    def add_visit_record(self, user_id: str, booking_id: int, mem
+    def add_visit_record(self, user_id: str, booking_id: int, memo: str = None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            visited_date = datetime.now().date().isoformat()
+            cursor.execute('''
+                INSERT INTO visit_history (user_id, booking_id, visited_date, memo)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, booking_id, visited_date, memo))
+            conn.commit()
+            logger.info(f"Visit record added for {user_id}")
+        except Exception as e:
+            logger.error(f"Error adding visit record: {e}")
+        finally:
+            conn.close()
+
+    def get_visit_history(self, user_id: str, limit: int = 5):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT vh.*, b.menu_id, m.name
+            FROM visit_history vh
+            LEFT JOIN bookings b ON vh.booking_id = b.id
+            LEFT JOIN menus m ON b.menu_id = m.id
+            WHERE vh.user_id = ?
+            ORDER BY vh.visited_date DESC
+            LIMIT ?
+        ''', (user_id, limit))
+        results = cursor.fetchall()
+        conn.close()
+        return results
