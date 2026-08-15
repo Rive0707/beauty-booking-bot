@@ -9,7 +9,7 @@ BUSINESS_HOURS_START = "09:00"
 BUSINESS_HOURS_END = "19:00"
 
 # 予約の時間間隔（分）
-SLOT_INTERVAL_MINUTES = 60
+SLOT_INTERVAL_MINUTES = 30
 
 # 定休日（0=月, 1=火, 2=水, 3=木, 4=金, 5=土, 6=日）
 CLOSED_WEEKDAYS = [1, 2]  # 火曜・水曜定休
