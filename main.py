@@ -251,575 +251,596 @@ def handle_follow(event):
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
-    """管理ダッシュボード（予約タブ／メニュー設定タブ）"""
-    today = datetime.now().date()
-    today_bookings = db.get_bookings_by_date(today)
-    upcoming_bookings = db.get_all_upcoming_bookings()
-    menus = db.get_all_menus()
+    """管理ダッシュボード"""
+    return HTMLResponse(content=dashboard_html)
 
-    # メニューオプション生成（手動登録フォーム用）
-    menu_options = ""
-    for menu in menus:
-        menu_id, name, price = menu[0], menu[1], menu[2]
-        menu_options += f'<option value="{menu_id}">【{name}】 ¥{price:,}</option>'
+dashboard_html = """
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美容室予約管理</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f5f5f7; color: #1d1d1f; line-height: 1.5; padding: 16px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  }
+  .title { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 10px; border: 1px solid #d1d1d6;
+    background: #fff; color: #1d1d1f; font-size: 14px; font-weight: 500;
+    cursor: pointer; text-decoration: none;
+  }
+  .btn-primary { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid #d1d1d6; margin-bottom: 20px; }
+  .tab {
+    padding: 10px 16px; font-size: 14px; font-weight: 500;
+    color: #8e8e93; cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; background: none; border: none;
+  }
+  .tab.active { color: #1d1d1f; border-bottom-color: #1d1d1f; }
+  .panel { display: none; }
+  .panel.active { display: block; }
 
-    # メニュー一覧 HTML 生成
-    menus_html = ""
-    for menu in menus:
-        menu_id, name, price, duration = menu[0], menu[1], menu[2], menu[3]
-        menus_html += f"""
-        <div class="menu-item">
-            <div class="menu-item-info">
-                <strong>{name}</strong>
-                <small>¥{price:,} • {duration}分</small>
-            </div>
-            <button class="danger" onclick="deleteMenu({menu_id})" style="padding: 8px 15px; font-size: 0.9em;">削除</button>
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #e5e5ea; }
+  .stat-label { font-size: 12px; color: #8e8e93; margin-bottom: 4px; }
+  .stat-value { font-size: 28px; font-weight: 600; }
+
+  .date-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .date-nav input[type="date"] {
+    padding: 6px 10px; border-radius: 8px; border: 1px solid #d1d1d6;
+    font-size: 14px; font-family: inherit;
+  }
+  .date-label { font-size: 15px; font-weight: 500; }
+
+  .timeline {
+    display: grid; grid-template-columns: 56px 1fr; gap: 0;
+    border: 1px solid #d1d1d6; border-radius: 12px; overflow: hidden; background: #fff;
+  }
+  .time-slot { display: contents; }
+  .time-label {
+    padding: 12px 8px; font-size: 12px; color: #8e8e93; text-align: right;
+    border-right: 1px solid #e5e5ea; border-bottom: 1px solid #e5e5ea;
+    background: #fafafa; font-variant-numeric: tabular-nums;
+  }
+  .time-content {
+    padding: 8px; border-bottom: 1px solid #e5e5ea; min-height: 48px; position: relative;
+  }
+  .time-slot:last-child .time-label, .time-slot:last-child .time-content { border-bottom: none; }
+  .booking-card {
+    background: #e8f4fd; border-left: 3px solid #007aff; border-radius: 8px;
+    padding: 8px 10px; margin-bottom: 4px; cursor: pointer; position: relative;
+  }
+  .booking-card.tentative { border-left-color: #ff9500; background: #fff4e5; }
+  .booking-card.cancelled { border-left-color: #ff3b30; background: #ffe5e5; opacity: 0.7; }
+  .booking-name { font-weight: 500; font-size: 13px; }
+  .booking-meta { font-size: 12px; color: #8e8e93; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .booking-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; padding: 1px 6px; border-radius: 4px;
+    background: #fff; color: #8e8e93;
+  }
+  .booking-actions {
+    position: absolute; top: 6px; right: 6px; display: flex; gap: 4px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .booking-card:hover .booking-actions { opacity: 1; }
+  .icon-btn {
+    width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 6px; border: none; background: #fff; color: #8e8e93; cursor: pointer; padding: 0;
+  }
+  .icon-btn:hover { background: #f2f2f7; color: #1d1d1f; }
+  .icon-btn.danger:hover { color: #ff3b30; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .search-box { position: relative; flex: 1; min-width: 200px; }
+  .search-box input {
+    width: 100%; padding: 8px 10px 8px 32px; border-radius: 10px;
+    border: 1px solid #d1d1d6; font-size: 14px; font-family: inherit; background: #fff;
+  }
+  .filter-select {
+    padding: 8px 10px; border-radius: 10px; border: 1px solid #d1d1d6;
+    font-size: 14px; font-family: inherit; background: #fff; min-width: 120px;
+  }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; border-radius: 12px; overflow: hidden; }
+  .data-table th {
+    text-align: left; padding: 10px 12px; font-weight: 500; color: #8e8e93;
+    border-bottom: 1px solid #e5e5ea; font-size: 12px; white-space: nowrap; background: #fafafa;
+  }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid #e5e5ea; vertical-align: middle; }
+  .data-table tbody tr { transition: background 0.15s; }
+  .data-table tbody tr:hover { background: #f5f5f7; }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  }
+  .status-confirmed { background: #e8f5e9; color: #2e7d32; }
+  .status-tentative { background: #fff3e0; color: #ef6c00; }
+  .status-cancelled { background: #ffebee; color: #c62828; }
+  .row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+  .data-table tbody tr:hover .row-actions { opacity: 1; }
+
+  .history-item {
+    display: flex; gap: 12px; padding: 12px; border-radius: 10px;
+    border: 1px solid #e5e5ea; margin-bottom: 8px; background: #fff;
+    transition: background 0.15s;
+  }
+  .history-item:hover { background: #f5f5f7; }
+  .history-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .history-dot.change { background: #007aff; }
+  .history-dot.cancel { background: #ff3b30; }
+  .history-content { flex: 1; }
+  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .history-type { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 6px; }
+  .history-type.change { background: #e8f4fd; color: #007aff; }
+  .history-type.cancel { background: #ffe5e5; color: #ff3b30; }
+  .history-time { font-size: 12px; color: #8e8e93; }
+  .history-customer { font-weight: 500; font-size: 14px; margin-bottom: 4px; }
+  .history-detail { font-size: 13px; color: #8e8e93; }
+  .history-detail .from { color: #ff3b30; }
+  .history-detail .to { color: #2e7d32; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px; width: 100%; max-width: 480px;
+    max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid #e5e5ea;
+  }
+  .modal-title { font-size: 17px; font-weight: 600; }
+  .modal-body { padding: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #8e8e93; }
+  .form-group label .req { color: #ff3b30; margin-left: 2px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #d1d1d6;
+    font-size: 14px; font-family: inherit; background: #fff; color: #1d1d1f;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none; border-color: #007aff;
+  }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
+
+  .empty { text-align: center; padding: 40px 20px; color: #c7c7cc; font-size: 14px; }
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: #1d1d1f; color: #fff; padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    animation: slideIn 0.25s ease-out; display: flex; align-items: center; gap: 8px;
+  }
+  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  @media (max-width: 640px) {
+    .form-row { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .timeline { grid-template-columns: 48px 1fr; }
+    .data-table { font-size: 13px; }
+    .data-table th, .data-table td { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title">📅 美容室予約管理</div>
+    <div>
+      <a href="/static/menu.html" class="btn" style="margin-right:8px">メニュー管理</a>
+      <button class="btn btn-primary" onclick="openModal()">＋ 新規予約</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">本日の予約</div>
+      <div class="stat-value" id="stat-today">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">今後の予約</div>
+      <div class="stat-value" id="stat-upcoming">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">登録メニュー</div>
+      <div class="stat-value" id="stat-menus">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">登録顧客</div>
+      <div class="stat-value" id="stat-customers">0</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('board')" id="tab-board">予約ボード</button>
+    <button class="tab" onclick="switchTab('list')" id="tab-list">予約一覧</button>
+    <button class="tab" onclick="switchTab('history')" id="tab-history">変更・キャンセル履歴</button>
+  </div>
+
+  <div class="panel active" id="panel-board">
+    <div class="date-nav">
+      <button class="btn" onclick="changeDate(-1)">‹</button>
+      <input type="date" id="board-date" onchange="renderBoard()">
+      <button class="btn" onclick="changeDate(1)">›</button>
+      <span class="date-label" id="board-date-label"></span>
+    </div>
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+  <div class="panel" id="panel-list">
+    <div class="toolbar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#c7c7cc;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="list-search" placeholder="顧客名・電話番号・メニューで検索" oninput="renderList()">
+      </div>
+      <select class="filter-select" id="list-status" onchange="renderList()">
+        <option value="">すべて</option>
+        <option value="confirmed">確定</option>
+        <option value="tentative">仮予約</option>
+        <option value="cancelled">キャンセル</option>
+      </select>
+      <select class="filter-select" id="list-sort" onchange="renderList()">
+        <option value="date-asc">日付（近い順）</option>
+        <option value="date-desc">日付（遠い順）</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>時間</th>
+            <th>顧客</th>
+            <th>電話番号</th>
+            <th>メニュー</th>
+            <th>ステータス</th>
+            <th style="width:80px;"></th>
+          </tr>
+        </thead>
+        <tbody id="list-body"></tbody>
+      </table>
+    </div>
+    <div id="list-empty" class="empty" style="display:none;">該当する予約がありません</div>
+  </div>
+
+  <div class="panel" id="panel-history">
+    <div class="toolbar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#c7c7cc;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="history-search" placeholder="顧客名で検索" oninput="renderHistory()">
+      </div>
+      <select class="filter-select" id="history-type" onchange="renderHistory()">
+        <option value="">すべて</option>
+        <option value="change">変更</option>
+        <option value="cancel">キャンセル</option>
+      </select>
+    </div>
+    <div id="history-list"></div>
+    <div id="history-empty" class="empty" style="display:none;">該当する履歴がありません</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">予約を登録</span>
+      <button class="icon-btn" onclick="closeModal()" style="width:32px;height:32px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>既存のお客様から選ぶ（任意）</label>
+        <select id="form-customer-select" onchange="fillCustomer()">
+          <option value="">新規お客様</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>お客様名 <span class="req">*</span></label>
+          <input type="text" id="form-name" placeholder="山田 花子">
         </div>
-        """
-
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>美容室予約管理</title>
-        <style>
-            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 16px; }}
-            .container {{ max-width: 1200px; margin: 0 auto; }}
-            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px; border-radius: 10px; margin-bottom: 20px; }}
-            .header h1 {{ font-size: 1.8em; margin-bottom: 6px; }}
-            .header p {{ font-size: 1em; opacity: 0.9; }}
-
-            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }}
-            .stat-box {{ background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-            .stat-box h3 {{ color: #667eea; margin-bottom: 8px; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px; }}
-            .stat-box .value {{ font-size: 2em; font-weight: bold; color: #333; }}
-
-            .tabs {{ display: flex; gap: 6px; margin-bottom: 20px; background: white; padding: 6px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-            .tab-btn {{ flex: 1; padding: 12px; border: none; border-radius: 6px; background: transparent; color: #666; font-weight: 600; cursor: pointer; }}
-            .tab-btn.active {{ background: #667eea; color: white; }}
-            .tab-panel {{ display: none; }}
-            .tab-panel.active {{ display: block; }}
-
-            .section {{ background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }}
-            .section h2 {{ font-size: 1.4em; margin-bottom: 16px; color: #333; border-bottom: 3px solid #667eea; padding-bottom: 8px; }}
-
-            table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
-            table thead {{ background: #f9f9f9; }}
-            table th, table td {{ padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; font-size: 0.92em; }}
-            table th {{ font-weight: 600; color: #333; }}
-            table tr:hover {{ background: #f5f5f5; }}
-
-            button, input[type="text"], input[type="number"], input[type="date"], input[type="time"], select {{
-                padding: 12px 16px; border: none; border-radius: 5px; cursor: pointer;
-                font-size: 1em; transition: all 0.2s ease;
-            }}
-            button {{ background: #667eea; color: white; font-weight: 600; }}
-            button:hover {{ background: #764ba2; }}
-            button.danger {{ background: #e74c3c; }}
-            button.danger:hover {{ background: #c0392b; }}
-            button.small {{ padding: 6px 10px; font-size: 0.82em; }}
-
-            input[type="text"], input[type="date"], input[type="time"], select {{
-                border: 1px solid #ddd; background: white; color: #333; width: 100%;
-            }}
-            input:focus, select:focus {{ outline: none; border-color: #667eea; box-shadow: 0 0 5px rgba(102, 126, 234, 0.3); }}
-
-            .form-group {{ margin-bottom: 16px; }}
-            label {{ display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 0.9em; }}
-
-            .message {{ padding: 12px; border-radius: 5px; margin-top: 10px; }}
-            .message.success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
-            .message.error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
-
-            .menu-item {{ background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }}
-            .menu-item-info strong {{ display: block; font-size: 1.05em; margin-bottom: 4px; }}
-            .menu-item-info small {{ color: #666; }}
-
-            .form-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
-
-            /* 予約ボード */
-            .board-nav {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }}
-            .board-nav button {{ padding: 8px 14px; }}
-            .board-wrap {{ overflow-x: auto; }}
-            .board-table {{ border-collapse: collapse; min-width: 100%; }}
-            .board-table th, .board-table td {{ border: 1px solid #eee; padding: 0; text-align: center; }}
-            .board-table thead th {{ padding: 8px 4px; background: #f9f9f9; font-size: 0.85em; white-space: nowrap; }}
-            .board-table td.time-col {{ padding: 8px 10px; font-size: 0.82em; color: #666; white-space: nowrap; background: #fafafa; }}
-            .board-cell {{ width: 90px; height: 44px; cursor: default; font-size: 0.78em; }}
-            .board-cell.available {{ background: #fff; color: #ccc; }}
-            .board-cell.closed {{ background: #f0f0f0; color: #ccc; }}
-            .board-cell.booked {{ background: #e8ecff; color: #333; cursor: pointer; font-weight: 600; padding: 4px; line-height: 1.3; }}
-            .board-cell.booked:hover {{ background: #d4dbff; }}
-
-            @media (max-width: 768px) {{
-                .form-grid {{ grid-template-columns: 1fr; }}
-                .header h1 {{ font-size: 1.4em; }}
-                .tab-btn {{ font-size: 0.9em; padding: 10px 6px; }}
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>✨ 美容室予約管理システム</h1>
-                <p>LINE連携リアルタイム管理ダッシュボード</p>
-            </div>
-
-            <div class="stats">
-                <div class="stat-box">
-                    <h3>本日の予約数</h3>
-                    <div class="value">{len(today_bookings)}</div>
-                </div>
-                <div class="stat-box">
-                    <h3>今後の予約数</h3>
-                    <div class="value">{len(upcoming_bookings)}</div>
-                </div>
-                <div class="stat-box">
-                    <h3>登録メニュー数</h3>
-                    <div class="value">{len(menus)}</div>
-                </div>
-            </div>
-
-            <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('bookingTab', this)">📅 予約</button>
-                <button class="tab-btn" onclick="switchTab('menuTab', this)">🍽️ メニュー設定</button>
-            </div>
-
-            <!-- ============ 予約タブ ============ -->
-            <div id="bookingTab" class="tab-panel active">
-
-                <!-- 予約ボード -->
-                <div class="section">
-                    <h2>🗓️ 予約ボード</h2>
-                    <div class="board-nav">
-                        <button class="small" id="boardPrev">‹ 前の週</button>
-                        <span id="boardLabel" style="font-weight: 600;"></span>
-                        <button class="small" id="boardNext">次の週 ›</button>
-                    </div>
-                    <div class="board-wrap">
-                        <table class="board-table" id="boardTable"><tbody><tr><td style="padding:20px;">読み込み中…</td></tr></tbody></table>
-                    </div>
-                </div>
-
-                <!-- 予約を手動登録 -->
-                <div class="section">
-                    <h2>✍️ 予約を手動登録</h2>
-                    <p style="color: #999; font-size: 0.88em; margin-bottom: 15px;">
-                        紙の予約帳のお客様など、LINE未連携でも登録できます。
-                        ※LINE未連携のお客様にはリマインダー・変更通知は届きません。
-                    </p>
-                    <div style="background: #f0f4ff; padding: 20px; border-radius: 5px;">
-                        <div class="form-group" style="margin-bottom: 20px;">
-                            <label for="customerFilter">既存のお客様から選ぶ（任意）</label>
-                            <input type="text" id="customerFilter" placeholder="名前で絞り込み…" autocomplete="off" style="margin-bottom: 8px;">
-                            <select id="customerSelect">
-                                <option value="">－ 新規のお客様として登録する －</option>
-                            </select>
-                            <p id="selectedCustomerNote" style="font-size: 0.82em; color: #667eea; margin-top: 6px; display: none;"></p>
-                        </div>
-                        <form id="manualBookingForm" style="display: grid; gap: 14px;">
-                            <input type="hidden" id="existingUserId" value="">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="manualName">お客様名 *</label>
-                                    <input type="text" id="manualName" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="manualPhone">電話番号</label>
-                                    <input type="text" id="manualPhone">
-                                </div>
-                                <div class="form-group">
-                                    <label for="manualDate">日付 *</label>
-                                    <input type="date" id="manualDate" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="manualTime">時間 *</label>
-                                    <input type="time" id="manualTime" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="manualMenu">メニュー *</label>
-                                    <select id="manualMenu" required>
-                                        <option value="">選択してください</option>
-                                        {menu_options}
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="manualNote">メモ</label>
-                                    <input type="text" id="manualNote">
-                                </div>
-                            </div>
-                            <button type="submit">この内容で登録する</button>
-                        </form>
-                        <div id="manualBookingMessage"></div>
-                    </div>
-                </div>
-
-                <!-- 今後の予約一覧 -->
-                <div class="section">
-                    <h2>📋 今後の予約一覧</h2>
-                    <table>
-                        <thead>
-                            <tr><th>日付</th><th>時間</th><th>顧客</th><th>電話番号</th><th>メニュー</th><th>操作</th></tr>
-                        </thead>
-                        <tbody id="upcomingBookingsBody">
-                            <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 変更・キャンセル履歴 -->
-                <div class="section">
-                    <h2>🕓 変更・キャンセル履歴</h2>
-                    <table>
-                        <thead>
-                            <tr><th>日時</th><th>種別</th><th>顧客</th><th>変更前</th><th>変更後</th><th>備考</th></tr>
-                        </thead>
-                        <tbody id="historyBody">
-                            <tr><td colspan="6" style="text-align: center; color: #999;">読み込み中…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- ============ メニュー設定タブ ============ -->
-            <div id="menuTab" class="tab-panel">
-                <div class="section">
-                    <h2>➕ メニューを追加</h2>
-                    <form id="addMenuForm" style="display: grid; gap: 15px;">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="menuName">メニュー名 *</label>
-                                <input type="text" id="menuName" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="menuPrice">料金（円） *</label>
-                                <input type="number" id="menuPrice" required min="0">
-                            </div>
-                            <div class="form-group">
-                                <label for="menuDuration">所要時間（分） *</label>
-                                <input type="number" id="menuDuration" required min="1">
-                            </div>
-                        </div>
-                        <button type="submit">メニューを追加</button>
-                    </form>
-                </div>
-
-                <div class="section">
-                    <h2>📋 登録済みメニュー</h2>
-                    {menus_html if menus_html else '<p style="color: #999;">メニューがまだ登録されていません</p>'}
-                </div>
-            </div>
+        <div class="form-group">
+          <label>電話番号</label>
+          <input type="tel" id="form-phone" placeholder="090-1234-5678" oninput="formatPhone(this)">
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>日付 <span class="req">*</span></label>
+          <input type="date" id="form-date">
+        </div>
+        <div class="form-group">
+          <label>時間 <span class="req">*</span></label>
+          <select id="form-time"><option value="">選択</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>メニュー <span class="req">*</span></label>
+        <select id="form-menu"><option value="">選択</option></select>
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="form-memo" placeholder="要望・注意事項など"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitBooking()">登録する</button>
+    </div>
+  </div>
+</div>
 
-        <script>
-            // タブ切り替え
-            function switchTab(tabId, btn) {{
-                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.getElementById(tabId).classList.add('active');
-                btn.classList.add('active');
-            }}
+<div class="toast-container" id="toasts"></div>
 
-            // メニュー追加
-            document.getElementById('addMenuForm').addEventListener('submit', async (e) => {{
-                e.preventDefault();
-                const data = {{
-                    name: document.getElementById('menuName').value,
-                    price: parseInt(document.getElementById('menuPrice').value),
-                    duration_minutes: parseInt(document.getElementById('menuDuration').value)
-                }};
-                try {{
-                    const response = await fetch('/api/menu/add', {{
-                        method: 'POST',
-                        headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify(data)
-                    }});
-                    if (response.ok) {{
-                        alert('メニューを追加しました！');
-                        location.reload();
-                    }} else {{
-                        alert('エラーが発生しました');
-                    }}
-                }} catch (error) {{
-                    alert('エラー: ' + error);
-                }}
-            }});
+<script>
+  let bookings = [];
+  let histories = [];
+  let customers = [];
+  let menus = [];
+  let currentDate = new Date();
+  let editingId = null;
+  const times = [];
+  for (let h = 10; h <= 19; h++) { times.push(`${h}:00`); times.push(`${h}:30`); }
 
-            // メニュー削除
-            async function deleteMenu(menuId) {{
-                if (confirm('このメニューを削除しますか？')) {{
-                    try {{
-                        const response = await fetch(`/api/menu/delete/${{menuId}}`, {{method: 'DELETE'}});
-                        if (response.ok) {{
-                            alert('削除しました！');
-                            location.reload();
-                        }}
-                    }} catch (error) {{
-                        alert('エラー: ' + error);
-                    }}
-                }}
-            }}
+  function fmtDate(d) { return d.toISOString().split('T')[0]; }
+  function fmtDateJp(d) {
+    const dt = new Date(d + 'T00:00:00');
+    return `${dt.getMonth()+1}月${dt.getDate()}日 (${['日','月','火','水','木','金','土'][dt.getDay()]})`;
+  }
+  function formatPhone(el) {
+    const n = el.value.replace(/\\D/g,'');
+    if (n.length === 11) el.value = n.replace(/(\\d{3})(\\d{4})(\\d{4})/,'$1-$2-$3');
+    else if (n.length === 10) el.value = n.replace(/(\\d{3})(\\d{3})(\\d{4})/,'$1-$2-$3');
+  }
+  function maskPhone(p) {
+    if (!p || p.length < 8) return p;
+    return p.replace(/(\\d{3})-(\\d{4})-(\\d{4})/,'$1-****-$3');
+  }
+  function toast(msg) {
+    const c = document.getElementById('toasts');
+    const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+    c.appendChild(el); setTimeout(() => el.remove(), 3000);
+  }
 
-            // 既存客選択（プルダウン形式。上の絞り込み欄で候補を絞れる）
-            let customersCache = [];
+  // Init
+  document.getElementById('board-date').value = fmtDate(currentDate);
+  document.getElementById('form-date').value = fmtDate(currentDate);
+  const timeSel = document.getElementById('form-time');
+  times.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; timeSel.appendChild(o); });
 
-            function renderCustomerOptions(filterText) {{
-                const select = document.getElementById('customerSelect');
-                const filtered = filterText
-                    ? customersCache.filter(c => c.name && c.name.includes(filterText))
-                    : customersCache;
+  async function loadData() {
+    const [bRes, hRes, cRes, mRes] = await Promise.all([
+      fetch('/api/bookings/all').then(r => r.json()),
+      fetch('/api/history').then(r => r.json()),
+      fetch('/api/customers').then(r => r.json()),
+      fetch('/api/menus').then(r => r.json())
+    ]);
+    bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
+    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory();
+  }
+  function populateMenus() {
+    const sel = document.getElementById('form-menu');
+    sel.innerHTML = '<option value="">選択</option>';
+    menus.forEach(m => { const o = document.createElement('option'); o.value = m.id; o.textContent = `${m.name} (¥${m.price.toLocaleString()}, ${m.duration_minutes}分)`; sel.appendChild(o); });
+  }
+  function populateCustomers() {
+    const sel = document.getElementById('form-customer-select');
+    sel.innerHTML = '<option value="">新規お客様</option>';
+    customers.forEach(c => { const o = document.createElement('option'); o.value = c.user_id; o.textContent = c.name || c.user_id; sel.appendChild(o); });
+  }
+  function fillCustomer() {
+    const uid = document.getElementById('form-customer-select').value;
+    if (!uid) { document.getElementById('form-name').value = ''; document.getElementById('form-phone').value = ''; return; }
+    const c = customers.find(x => x.user_id === uid);
+    if (c) { document.getElementById('form-name').value = c.name || ''; document.getElementById('form-phone').value = c.phone || ''; }
+  }
+  function updateStats() {
+    const today = fmtDate(new Date());
+    document.getElementById('stat-today').textContent = bookings.filter(b => b.booking_date === today && b.status === 'confirmed').length;
+    document.getElementById('stat-upcoming').textContent = bookings.filter(b => b.booking_date >= today && b.status === 'confirmed').length;
+    document.getElementById('stat-menus').textContent = menus.length;
+    document.getElementById('stat-customers').textContent = customers.length;
+  }
 
-                select.innerHTML = '<option value="">－ 新規のお客様として登録する －</option>' +
-                    filtered.map(c => {{
-                        const label = `${{c.name}}${{c.phone ? '（' + c.phone + '）' : ''}}${{c.is_line_linked ? ' ✓LINE連携' : ' （未連携）'}}`;
-                        return `<option value="${{c.user_id}}">${{label}}</option>`;
-                    }}).join('');
-            }}
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+  }
 
-            async function loadCustomersForSearch() {{
-                try {{
-                    const res = await fetch('/api/customers');
-                    const data = await res.json();
-                    customersCache = data.customers;
-                    renderCustomerOptions('');
-                }} catch (error) {{
-                    console.error('顧客一覧の取得に失敗しました', error);
-                }}
-            }}
+  function changeDate(delta) {
+    currentDate.setDate(currentDate.getDate() + delta);
+    document.getElementById('board-date').value = fmtDate(currentDate);
+    renderBoard();
+  }
+  function renderBoard() {
+    const date = document.getElementById('board-date').value;
+    currentDate = new Date(date + 'T00:00:00');
+    document.getElementById('board-date-label').textContent = fmtDateJp(date);
+    const container = document.getElementById('timeline');
+    container.innerHTML = '';
+    const dayBookings = bookings.filter(b => b.booking_date === date).sort((a,b) => a.booking_time.localeCompare(b.booking_time));
 
-            document.getElementById('customerFilter').addEventListener('input', (e) => {{
-                renderCustomerOptions(e.target.value.trim());
-            }});
+    times.forEach(time => {
+      const slot = document.createElement('div'); slot.className = 'time-slot';
+      const label = document.createElement('div'); label.className = 'time-label'; label.textContent = time;
+      const content = document.createElement('div'); content.className = 'time-content';
+      const bs = dayBookings.filter(b => b.booking_time === time);
+      bs.forEach(b => {
+        const menu = menus.find(m => m.id === b.menu_id);
+        const c = customers.find(x => x.user_id === b.user_id);
+        const card = document.createElement('div');
+        card.className = 'booking-card ' + (b.status || 'confirmed');
+        card.innerHTML = `
+          <div class="booking-name">${c ? c.name : b.user_id}</div>
+          <div class="booking-meta">
+            <span class="booking-tag">${menu ? menu.name : '不明'}</span>
+            ${b.notes ? `<span class="booking-tag">${b.notes}</span>` : ''}
+          </div>
+          <div class="booking-actions">
+            <button class="icon-btn" onclick="editBooking(${b.id})">✏️</button>
+            <button class="icon-btn danger" onclick="deleteBooking(${b.id})">🗑</button>
+          </div>`;
+        content.appendChild(card);
+      });
+      slot.appendChild(label); slot.appendChild(content); container.appendChild(slot);
+    });
+  }
 
-            document.getElementById('customerSelect').addEventListener('change', (e) => {{
-                const userId = e.target.value;
-                const note = document.getElementById('selectedCustomerNote');
+  function renderList() {
+    const search = document.getElementById('list-search').value.toLowerCase();
+    const status = document.getElementById('list-status').value;
+    const sort = document.getElementById('list-sort').value;
+    let data = bookings.filter(b => {
+      if (status && b.status !== status) return false;
+      if (!search) return true;
+      const c = customers.find(x => x.user_id === b.user_id);
+      const m = menus.find(x => x.id === b.menu_id);
+      return (c && c.name && c.name.toLowerCase().includes(search)) || (c && c.phone && c.phone.includes(search)) || (m && m.name.toLowerCase().includes(search));
+    });
+    data.sort((a,b) => {
+      const da = a.booking_date + ' ' + a.booking_time;
+      const db = b.booking_date + ' ' + b.booking_time;
+      return sort === 'date-desc' ? db.localeCompare(da) : da.localeCompare(db);
+    });
+    const tbody = document.getElementById('list-body');
+    tbody.innerHTML = '';
+    data.forEach(b => {
+      const c = customers.find(x => x.user_id === b.user_id);
+      const m = menus.find(x => x.id === b.menu_id);
+      const tr = document.createElement('tr');
+      const statusClass = 'status-' + (b.status || 'confirmed');
+      const statusLabel = b.status === 'confirmed' ? '確定' : b.status === 'tentative' ? '仮' : b.status === 'cancelled' ? 'キャンセル' : '確定';
+      tr.innerHTML = `
+        <td>${b.booking_date.replace(/-/g,'/')}</td>
+        <td>${b.booking_time}</td>
+        <td style="font-weight:500">${c ? c.name : b.user_id}</td>
+        <td style="font-variant-numeric:tabular-nums">${maskPhone(c ? c.phone : '')}</td>
+        <td>${m ? m.name : '不明'}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="icon-btn" onclick="editBooking(${b.id})">✏️</button>
+            <button class="icon-btn danger" onclick="deleteBooking(${b.id})">🗑</button>
+          </div>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('list-empty').style.display = data.length ? 'none' : 'block';
+  }
 
-                if (!userId) {{
-                    document.getElementById('existingUserId').value = '';
-                    note.style.display = 'none';
-                    return;
-                }}
+  function renderHistory() {
+    const search = document.getElementById('history-search').value.toLowerCase();
+    const type = document.getElementById('history-type').value;
+    let data = histories.filter(h => {
+      if (type && h.action !== type) return false;
+      if (search && !(h.customer_name && h.customer_name.toLowerCase().includes(search))) return false;
+      return true;
+    });
+    const container = document.getElementById('history-list');
+    container.innerHTML = '';
+    data.forEach(h => {
+      const item = document.createElement('div'); item.className = 'history-item';
+      const dt = new Date(h.created_at);
+      const timeStr = `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+      const isChange = h.action === 'modified' || h.action === 'created';
+      item.innerHTML = `
+        <div class="history-dot ${isChange ? 'change' : 'cancel'}"></div>
+        <div class="history-content">
+          <div class="history-header">
+            <span class="history-type ${isChange ? 'change' : 'cancel'}">${h.action === 'created' ? '新規' : h.action === 'modified' ? '変更' : 'キャンセル'}</span>
+            <span class="history-time">${timeStr}</span>
+          </div>
+          <div class="history-customer">${h.customer_name || '不明'}</div>
+          <div class="history-detail">
+            ${h.before_date ? `<span class="from">${h.before_date} ${h.before_time || ''}</span> → ` : ''}
+            <span class="to">${h.after_date || ''} ${h.after_time || ''}</span>
+            ${h.note ? `<div style="margin-top:4px;color:#c7c7cc">備考: ${h.note}</div>` : ''}
+          </div>
+        </div>`;
+      container.appendChild(item);
+    });
+    document.getElementById('history-empty').style.display = data.length ? 'none' : 'block';
+  }
 
-                const match = customersCache.find(c => c.user_id === userId);
-                if (match) {{
-                    document.getElementById('existingUserId').value = match.user_id;
-                    document.getElementById('manualName').value = match.name;
-                    if (match.phone) document.getElementById('manualPhone').value = match.phone;
-                    note.style.display = 'block';
-                    note.textContent = match.is_line_linked
-                        ? '✓ LINE連携済みのお客様として登録します（リマインダー・変更通知が届きます）'
-                        : '※このお客様はLINE未連携です（通知は届きません）';
-                }}
-            }});
+  function openModal() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = '予約を登録';
+    clearForm();
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); editingId = null; }
+  function clearForm() {
+    document.getElementById('form-customer-select').value = '';
+    document.getElementById('form-name').value = '';
+    document.getElementById('form-phone').value = '';
+    document.getElementById('form-date').value = fmtDate(currentDate);
+    document.getElementById('form-time').value = '';
+    document.getElementById('form-menu').value = '';
+    document.getElementById('form-memo').value = '';
+  }
+  async function submitBooking() {
+    const name = document.getElementById('form-name').value.trim();
+    const date = document.getElementById('form-date').value;
+    const time = document.getElementById('form-time').value;
+    const menuId = document.getElementById('form-menu').value;
+    if (!name || !date || !time || !menuId) { toast('必須項目を入力してください'); return; }
 
-            loadCustomersForSearch();
+    const payload = {
+      customer_name: name,
+      phone: document.getElementById('form-phone').value.trim(),
+      booking_date: date,
+      booking_time: time,
+      menu_id: parseInt(menuId),
+      notes: document.getElementById('form-memo').value.trim(),
+      existing_user_id: document.getElementById('form-customer-select').value || null
+    };
+    const url = editingId ? `/api/bookings/${editingId}` : '/api/bookings';
+    const method = editingId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (res.ok) { toast(editingId ? '予約を更新しました' : '予約を登録しました'); closeModal(); loadData(); }
+    else { toast('エラーが発生しました'); }
+  }
+  function editBooking(id) {
+    const b = bookings.find(x => x.id === id);
+    if (!b) return;
+    editingId = id;
+    const c = customers.find(x => x.user_id === b.user_id);
+    document.getElementById('modal-title').textContent = '予約を編集';
+    document.getElementById('form-name').value = c ? c.name : '';
+    document.getElementById('form-phone').value = c ? c.phone : '';
+    document.getElementById('form-date').value = b.booking_date;
+    document.getElementById('form-time').value = b.booking_time;
+    document.getElementById('form-menu').value = b.menu_id;
+    document.getElementById('form-memo').value = b.notes || '';
+    document.getElementById('modal').classList.add('open');
+  }
+  async function deleteBooking(id) {
+    if (!confirm('この予約をキャンセルしますか？')) return;
+    const res = await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+    if (res.ok) { toast('予約をキャンセルしました'); loadData(); }
+  }
 
-            // 手動予約登録
-            document.getElementById('manualBookingForm').addEventListener('submit', async (e) => {{
-                e.preventDefault();
-                const messageDiv = document.getElementById('manualBookingMessage');
-                messageDiv.innerHTML = '<p style="color: #999;">登録中...</p>';
+  loadData();
+</script>
+</body>
+</html>
+"""
 
-                const data = {{
-                    name: document.getElementById('manualName').value,
-                    phone: document.getElementById('manualPhone').value || null,
-                    booking_date: document.getElementById('manualDate').value,
-                    booking_time: document.getElementById('manualTime').value,
-                    menu_id: parseInt(document.getElementById('manualMenu').value),
-                    note: document.getElementById('manualNote').value || null,
-                    existing_user_id: document.getElementById('existingUserId').value || null
-                }};
-
-                try {{
-                    const response = await fetch('/api/booking/manual', {{
-                        method: 'POST',
-                        headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify(data)
-                    }});
-                    if (response.ok) {{
-                        messageDiv.innerHTML = '<div class="message success">✅ 登録しました</div>';
-                        document.getElementById('manualBookingForm').reset();
-                        document.getElementById('customerFilter').value = '';
-                        document.getElementById('customerSelect').value = '';
-                        document.getElementById('existingUserId').value = '';
-                        document.getElementById('selectedCustomerNote').style.display = 'none';
-                        loadUpcomingBookings();
-                        loadHistory();
-                        loadBoard();
-                    }} else {{
-                        const result = await response.json();
-                        const errText = Array.isArray(result.detail)
-                            ? result.detail.map(d => d.msg || JSON.stringify(d)).join(' / ')
-                            : (result.detail || '不明なエラー');
-                        messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + errText + '</div>';
-                    }}
-                }} catch (error) {{
-                    messageDiv.innerHTML = '<div class="message error">❌ エラー: ' + error + '</div>';
-                }}
-            }});
-
-            // 今後の予約一覧
-            async function loadUpcomingBookings() {{
-                const tbody = document.getElementById('upcomingBookingsBody');
-                try {{
-                    const res = await fetch('/api/bookings/upcoming/all');
-                    const data = await res.json();
-                    if (!data.bookings.length) {{
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">今後の予約はありません</td></tr>';
-                        return;
-                    }}
-                    tbody.innerHTML = data.bookings.map(b => `
-                        <tr>
-                            <td>${{b.booking_date}}</td>
-                            <td>${{b.booking_time}}</td>
-                            <td>${{b.customer_name || '不明'}}</td>
-                            <td>${{b.customer_phone || '-'}}</td>
-                            <td>${{b.menu_name || '不明'}}</td>
-                            <td>
-                                <button class="small" onclick="editBooking(${{b.id}}, '${{b.booking_date}}', '${{b.booking_time}}')">変更</button>
-                                <button class="small danger" onclick="cancelBookingFromDashboard(${{b.id}})">キャンセル</button>
-                            </td>
-                        </tr>
-                    `).join('');
-                }} catch (error) {{
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #c00;">読み込みに失敗しました</td></tr>';
-                }}
-            }}
-
-            async function editBooking(bookingId, currentDate, currentTime) {{
-                const newDate = prompt('新しい日付 (YYYY-MM-DD)', currentDate);
-                if (newDate === null) return;
-                const newTime = prompt('新しい時間 (HH:MM)', currentTime);
-                if (newTime === null) return;
-                try {{
-                    const response = await fetch(`/api/booking/${{bookingId}}`, {{
-                        method: 'PUT',
-                        headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify({{ booking_date: newDate, booking_time: newTime }})
-                    }});
-                    if (response.ok) {{
-                        alert('変更しました');
-                        loadUpcomingBookings(); loadHistory(); loadBoard();
-                    }} else {{
-                        alert('エラーが発生しました');
-                    }}
-                }} catch (error) {{
-                    alert('エラー: ' + error);
-                }}
-            }}
-
-            async function cancelBookingFromDashboard(bookingId) {{
-                if (!confirm('この予約をキャンセルしますか？')) return;
-                try {{
-                    const response = await fetch(`/api/booking/${{bookingId}}/cancel`, {{ method: 'POST' }});
-                    if (response.ok) {{
-                        alert('キャンセルしました');
-                        loadUpcomingBookings(); loadHistory(); loadBoard();
-                    }} else {{
-                        alert('エラーが発生しました');
-                    }}
-                }} catch (error) {{
-                    alert('エラー: ' + error);
-                }}
-            }}
-
-            // 変更・キャンセル履歴
-            async function loadHistory() {{
-                const tbody = document.getElementById('historyBody');
-                try {{
-                    const res = await fetch('/api/bookings/history');
-                    const data = await res.json();
-                    if (!data.history.length) {{
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">履歴はまだありません</td></tr>';
-                        return;
-                    }}
-                    const actionLabels = {{ created: '🆕 新規', modified: '📝 変更', cancelled: '❌ キャンセル' }};
-                    tbody.innerHTML = data.history.map(h => `
-                        <tr>
-                            <td>${{h.created_at}}</td>
-                            <td>${{actionLabels[h.action] || h.action}}</td>
-                            <td>${{h.customer_name || '不明'}}</td>
-                            <td>${{h.before_date ? h.before_date + ' ' + (h.before_time || '') : '-'}}</td>
-                            <td>${{h.after_date ? h.after_date + ' ' + (h.after_time || '') : '-'}}</td>
-                            <td>${{h.note || '-'}}</td>
-                        </tr>
-                    `).join('');
-                }} catch (error) {{
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #c00;">読み込みに失敗しました</td></tr>';
-                }}
-            }}
-
-            // 予約ボード
-            let boardStart = new Date();
-            boardStart.setHours(0,0,0,0);
-
-            function boardDateStr(d) {{
-                const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
-                return `${{y}}-${{m}}-${{day}}`;
-            }}
-
-            async function loadBoard() {{
-                const table = document.getElementById('boardTable');
-                try {{
-                    const res = await fetch(`/api/board?start_date=${{boardDateStr(boardStart)}}&days=7`);
-                    const data = await res.json();
-                    const {{ time_slots, dates, board }} = data;
-
-                    document.getElementById('boardLabel').textContent =
-                        `${{dates[0].date}} 〜 ${{dates[dates.length-1].date}}`;
-
-                    let thead = '<thead><tr><th></th>' + dates.map(d => `<th>${{d.day}}日(${{d.weekday}})</th>`).join('') + '</tr></thead>';
-                    let tbody = '<tbody>';
-                    for (const slot of time_slots) {{
-                        tbody += `<tr><td class="time-col">${{slot}}</td>`;
-                        for (const d of dates) {{
-                            const cell = board[d.date][slot];
-                            if (cell.status === 'closed') {{
-                                tbody += `<td class="board-cell closed">-</td>`;
-                            }} else if (cell.status === 'booked') {{
-                                tbody += `<td class="board-cell booked" onclick="showBookingDetail(${{cell.booking_id}}, '${{cell.customer_name}}', '${{cell.menu_name}}', '${{d.date}}', '${{slot}}')">${{cell.customer_name}}</td>`;
-                            }} else {{
-                                tbody += `<td class="board-cell available"></td>`;
-                            }}
-                        }}
-                        tbody += '</tr>';
-                    }}
-                    tbody += '</tbody>';
-                    table.innerHTML = thead + tbody;
-                }} catch (error) {{
-                    table.innerHTML = '<tr><td style="padding:20px; color:#c00;">読み込みに失敗しました</td></tr>';
-                }}
-            }}
-
-            function showBookingDetail(bookingId, customerName, menuName, date, time) {{
-                const action = prompt(`${{date}} ${{time}}\\n${{customerName}} 様 / ${{menuName}}\\n\\n「1」で変更、「2」でキャンセル、それ以外で閉じる`);
-                if (action === '1') {{
-                    editBooking(bookingId, date, time);
-                }} else if (action === '2') {{
-                    cancelBookingFromDashboard(bookingId);
-                }}
-            }}
-
-            document.getElementById('boardPrev').addEventListener('click', () => {{
-                boardStart.setDate(boardStart.getDate() - 7);
-                loadBoard();
-            }});
-            document.getElementById('boardNext').addEventListener('click', () => {{
-                boardStart.setDate(boardStart.getDate() + 7);
-                loadBoard();
-            }});
-
-            loadUpcomingBookings();
-            loadHistory();
-            loadBoard();
-        </script>
-    </body>
-    </html>
-    """
 
     return html
 
