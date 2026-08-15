@@ -1,7 +1,6 @@
 """
 LINE美容室予約BOT メインアプリケーション - 完全版
 FastAPI + LINE Messaging API + SQLite + APScheduler
-顧客選択型予約追加機能を統合済み
 """
 
 from fastapi import FastAPI, Request, HTTPException
@@ -35,7 +34,7 @@ logger = logging.getLogger(__name__)
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 OWNER_USER_ID = os.getenv("OWNER_USER_ID")
-LIFF_ID = os.getenv("LIFF_ID")  # 予約変更用LIFF（未設定でも動作するが、変更ボタンが表示されなくなる）
+LIFF_ID = os.getenv("LIFF_ID")
 
 # チェック
 if not all([LINE_CHANNEL_ACCESS_TOKEN, LINE_CHANNEL_SECRET, OWNER_USER_ID]):
@@ -125,13 +124,23 @@ class ManualBookingRequest(BaseModel):
     booking_time: str
     menu_id: int
     note: Optional[str] = None
-    existing_user_id: Optional[str] = None  # 既存のLINE連携済みお客様を選んだ場合に指定
+    existing_user_id: Optional[str] = None
 
 class BookingUpdateRequest(BaseModel):
     """ダッシュボードからの予約変更"""
     booking_date: Optional[str] = None
     booking_time: Optional[str] = None
     menu_id: Optional[int] = None
+
+class DashboardBookingCreate(BaseModel):
+    """新管理画面用予約登録"""
+    customer_name: str
+    phone: Optional[str] = None
+    booking_date: str
+    booking_time: str
+    menu_id: int
+    notes: Optional[str] = None
+    existing_user_id: Optional[str] = None
 
 # ===============================
 # LINE Webhook エンドポイント
@@ -166,22 +175,14 @@ def handle_message(event):
     
     logger.info(f"Message from {user_id}: {text}")
     
-    # 予約フロー開始
     if text in ["予約", "予約する"]:
         line_handler.start_booking(user_id)
-    
-    # マイページ
     elif text in ["予約確認", "マイページ", "履歴"]:
         line_handler.show_my_page(user_id)
-    
-    # ヘルプ
     elif text in ["ヘルプ", "メニュー"]:
         line_handler.show_help(user_id)
-    
-    # オーナーコマンド
     elif user_id == OWNER_USER_ID:
         handle_owner_command(user_id, text)
-    
     else:
         line_handler.send_text(user_id, "「予約」「マイページ」などのボタンを使ってください")
 
@@ -193,49 +194,35 @@ def handle_postback(event):
     
     logger.info(f"Postback from {user_id}: {postback_data}")
     
-    # ポストバックデータをパース
     params = {}
     for param in postback_data.split("&"):
-        k, v = param.split("=")
-        params[k] = v
+        if "=" in param:
+            k, v = param.split("=", 1)
+            params[k] = v
     
     action = params.get("action")
     
-    # 日付選択
     if action == "select_date":
         date_str = event.postback.params.get("date")
         line_handler.on_date_selected(user_id, date_str)
-    
-    # 時間選択
     elif action == "select_time":
-        time_str = event.postback.params.get("time")
+        time_str = event.postback.params.get("time") or params.get("time")
         line_handler.on_time_selected(user_id, time_str)
-    
-    # メニュー選択
     elif action == "select_menu":
         menu_id = params.get("menu_id")
         line_handler.on_menu_selected(user_id, menu_id)
-    
-    # 予約確定
     elif action == "confirm_booking":
         line_handler.confirm_booking(user_id)
-    
-    # 予約キャンセル
     elif action == "cancel_booking":
         booking_id = params.get("booking_id")
         line_handler.cancel_booking(user_id, booking_id)
-    
-    # 予約変更（今はLIFFカレンダーで直接行うため、このpostbackは古いリンクの互換用）
     elif action == "modify_booking":
         booking_id = params.get("booking_id")
         line_handler.start_modify_booking(user_id, booking_id)
-
-    # 「予約変更なし」確認 → 3日前リマインドを省略
     elif action == "confirm_no_change":
         booking_id = params.get("booking_id")
         line_handler.db.confirm_no_change(int(booking_id))
         line_handler.send_text(user_id, "承知しました。ご来店をお待ちしております！")
-
     else:
         logger.warning(f"Unknown action: {action}")
 
@@ -593,12 +580,12 @@ dashboard_html = """
   let currentDate = new Date();
   let editingId = null;
   const times = [];
-  for (let h = 10; h <= 19; h++) { times.push(`${h}:00`); times.push(`${h}:30`); }
+  for (let h = 10; h <= 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
 
   function fmtDate(d) { return d.toISOString().split('T')[0]; }
   function fmtDateJp(d) {
     const dt = new Date(d + 'T00:00:00');
-    return `${dt.getMonth()+1}月${dt.getDate()}日 (${['日','月','火','水','木','金','土'][dt.getDay()]})`;
+    return (dt.getMonth()+1) + "月" + dt.getDate() + "日 (" + ['日','月','火','水','木','金','土'][dt.getDay()] + ")";
   }
   function formatPhone(el) {
     const n = el.value.replace(/\\D/g,'');
@@ -612,21 +599,20 @@ dashboard_html = """
   function toast(msg) {
     const c = document.getElementById('toasts');
     const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
-    c.appendChild(el); setTimeout(() => el.remove(), 3000);
+    c.appendChild(el); setTimeout(function(){ el.remove(); }, 3000);
   }
 
-  // Init
   document.getElementById('board-date').value = fmtDate(currentDate);
   document.getElementById('form-date').value = fmtDate(currentDate);
   const timeSel = document.getElementById('form-time');
-  times.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; timeSel.appendChild(o); });
+  times.forEach(function(t) { const o = document.createElement('option'); o.value = t; o.textContent = t; timeSel.appendChild(o); });
 
   async function loadData() {
     const [bRes, hRes, cRes, mRes] = await Promise.all([
-      fetch('/api/bookings/all').then(r => r.json()),
-      fetch('/api/history').then(r => r.json()),
-      fetch('/api/customers').then(r => r.json()),
-      fetch('/api/menus').then(r => r.json())
+      fetch('/api/bookings/all').then(function(r){ return r.json(); }),
+      fetch('/api/history').then(function(r){ return r.json(); }),
+      fetch('/api/customers').then(function(r){ return r.json(); }),
+      fetch('/api/menus').then(function(r){ return r.json(); })
     ]);
     bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
     populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory();
@@ -634,30 +620,30 @@ dashboard_html = """
   function populateMenus() {
     const sel = document.getElementById('form-menu');
     sel.innerHTML = '<option value="">選択</option>';
-    menus.forEach(m => { const o = document.createElement('option'); o.value = m.id; o.textContent = `${m.name} (¥${m.price.toLocaleString()}, ${m.duration_minutes}分)`; sel.appendChild(o); });
+    menus.forEach(function(m) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.name + ' (¥' + m.price.toLocaleString() + ', ' + m.duration_minutes + '分)'; sel.appendChild(o); });
   }
   function populateCustomers() {
     const sel = document.getElementById('form-customer-select');
     sel.innerHTML = '<option value="">新規お客様</option>';
-    customers.forEach(c => { const o = document.createElement('option'); o.value = c.user_id; o.textContent = c.name || c.user_id; sel.appendChild(o); });
+    customers.forEach(function(c) { const o = document.createElement('option'); o.value = c.user_id; o.textContent = c.name || c.user_id; sel.appendChild(o); });
   }
   function fillCustomer() {
     const uid = document.getElementById('form-customer-select').value;
     if (!uid) { document.getElementById('form-name').value = ''; document.getElementById('form-phone').value = ''; return; }
-    const c = customers.find(x => x.user_id === uid);
+    const c = customers.find(function(x){ return x.user_id === uid; });
     if (c) { document.getElementById('form-name').value = c.name || ''; document.getElementById('form-phone').value = c.phone || ''; }
   }
   function updateStats() {
     const today = fmtDate(new Date());
-    document.getElementById('stat-today').textContent = bookings.filter(b => b.booking_date === today && b.status === 'confirmed').length;
-    document.getElementById('stat-upcoming').textContent = bookings.filter(b => b.booking_date >= today && b.status === 'confirmed').length;
+    document.getElementById('stat-today').textContent = bookings.filter(function(b){ return b.booking_date === today && b.status === 'confirmed'; }).length;
+    document.getElementById('stat-upcoming').textContent = bookings.filter(function(b){ return b.booking_date >= today && b.status === 'confirmed'; }).length;
     document.getElementById('stat-menus').textContent = menus.length;
     document.getElementById('stat-customers').textContent = customers.length;
   }
 
   function switchTab(name) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
     document.getElementById('tab-' + name).classList.add('active');
     document.getElementById('panel-' + name).classList.add('active');
   }
@@ -673,28 +659,27 @@ dashboard_html = """
     document.getElementById('board-date-label').textContent = fmtDateJp(date);
     const container = document.getElementById('timeline');
     container.innerHTML = '';
-    const dayBookings = bookings.filter(b => b.booking_date === date).sort((a,b) => a.booking_time.localeCompare(b.booking_time));
+    const dayBookings = bookings.filter(function(b){ return b.booking_date === date; }).sort(function(a,b){ return a.booking_time.localeCompare(b.booking_time); });
 
-    times.forEach(time => {
+    times.forEach(function(time) {
       const slot = document.createElement('div'); slot.className = 'time-slot';
       const label = document.createElement('div'); label.className = 'time-label'; label.textContent = time;
       const content = document.createElement('div'); content.className = 'time-content';
-      const bs = dayBookings.filter(b => b.booking_time === time);
-      bs.forEach(b => {
-        const menu = menus.find(m => m.id === b.menu_id);
-        const c = customers.find(x => x.user_id === b.user_id);
+      const bs = dayBookings.filter(function(b){ return b.booking_time === time; });
+      bs.forEach(function(b) {
+        const menu = menus.find(function(m){ return m.id === b.menu_id; });
+        const c = customers.find(function(x){ return x.user_id === b.user_id; });
         const card = document.createElement('div');
         card.className = 'booking-card ' + (b.status || 'confirmed');
-        card.innerHTML = `
-          <div class="booking-name">${c ? c.name : b.user_id}</div>
-          <div class="booking-meta">
-            <span class="booking-tag">${menu ? menu.name : '不明'}</span>
-            ${b.notes ? `<span class="booking-tag">${b.notes}</span>` : ''}
-          </div>
-          <div class="booking-actions">
-            <button class="icon-btn" onclick="editBooking(${b.id})">✏️</button>
-            <button class="icon-btn danger" onclick="deleteBooking(${b.id})">🗑</button>
-          </div>`;
+        card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + '</div>' +
+          '<div class="booking-meta">' +
+            '<span class="booking-tag">' + (menu ? menu.name : '不明') + '</span>' +
+            (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') +
+          '</div>' +
+          '<div class="booking-actions">' +
+            '<button class="icon-btn" onclick="editBooking(' + b.id + ')">✏️</button>' +
+            '<button class="icon-btn danger" onclick="deleteBooking(' + b.id + ')">🗑</button>' +
+          '</div>';
         content.appendChild(card);
       });
       slot.appendChild(label); slot.appendChild(content); container.appendChild(slot);
@@ -705,39 +690,38 @@ dashboard_html = """
     const search = document.getElementById('list-search').value.toLowerCase();
     const status = document.getElementById('list-status').value;
     const sort = document.getElementById('list-sort').value;
-    let data = bookings.filter(b => {
+    let data = bookings.filter(function(b) {
       if (status && b.status !== status) return false;
       if (!search) return true;
-      const c = customers.find(x => x.user_id === b.user_id);
-      const m = menus.find(x => x.id === b.menu_id);
+      const c = customers.find(function(x){ return x.user_id === b.user_id; });
+      const m = menus.find(function(x){ return x.id === b.menu_id; });
       return (c && c.name && c.name.toLowerCase().includes(search)) || (c && c.phone && c.phone.includes(search)) || (m && m.name.toLowerCase().includes(search));
     });
-    data.sort((a,b) => {
+    data.sort(function(a,b) {
       const da = a.booking_date + ' ' + a.booking_time;
       const db = b.booking_date + ' ' + b.booking_time;
       return sort === 'date-desc' ? db.localeCompare(da) : da.localeCompare(db);
     });
     const tbody = document.getElementById('list-body');
     tbody.innerHTML = '';
-    data.forEach(b => {
-      const c = customers.find(x => x.user_id === b.user_id);
-      const m = menus.find(x => x.id === b.menu_id);
+    data.forEach(function(b) {
+      const c = customers.find(function(x){ return x.user_id === b.user_id; });
+      const m = menus.find(function(x){ return x.id === b.menu_id; });
       const tr = document.createElement('tr');
       const statusClass = 'status-' + (b.status || 'confirmed');
       const statusLabel = b.status === 'confirmed' ? '確定' : b.status === 'tentative' ? '仮' : b.status === 'cancelled' ? 'キャンセル' : '確定';
-      tr.innerHTML = `
-        <td>${b.booking_date.replace(/-/g,'/')}</td>
-        <td>${b.booking_time}</td>
-        <td style="font-weight:500">${c ? c.name : b.user_id}</td>
-        <td style="font-variant-numeric:tabular-nums">${maskPhone(c ? c.phone : '')}</td>
-        <td>${m ? m.name : '不明'}</td>
-        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-        <td>
-          <div class="row-actions">
-            <button class="icon-btn" onclick="editBooking(${b.id})">✏️</button>
-            <button class="icon-btn danger" onclick="deleteBooking(${b.id})">🗑</button>
-          </div>
-        </td>`;
+      tr.innerHTML = '<td>' + b.booking_date.replace(/-/g,'/') + '</td>' +
+        '<td>' + b.booking_time + '</td>' +
+        '<td style="font-weight:500">' + (c ? c.name : b.user_id) + '</td>' +
+        '<td style="font-variant-numeric:tabular-nums">' + maskPhone(c ? c.phone : '') + '</td>' +
+        '<td>' + (m ? m.name : '不明') + '</td>' +
+        '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+        '<td>' +
+          '<div class="row-actions">' +
+            '<button class="icon-btn" onclick="editBooking(' + b.id + ')">✏️</button>' +
+            '<button class="icon-btn danger" onclick="deleteBooking(' + b.id + ')">🗑</button>' +
+          '</div>' +
+        '</td>';
       tbody.appendChild(tr);
     });
     document.getElementById('list-empty').style.display = data.length ? 'none' : 'block';
@@ -746,32 +730,31 @@ dashboard_html = """
   function renderHistory() {
     const search = document.getElementById('history-search').value.toLowerCase();
     const type = document.getElementById('history-type').value;
-    let data = histories.filter(h => {
+    let data = histories.filter(function(h) {
       if (type && h.action !== type) return false;
       if (search && !(h.customer_name && h.customer_name.toLowerCase().includes(search))) return false;
       return true;
     });
     const container = document.getElementById('history-list');
     container.innerHTML = '';
-    data.forEach(h => {
+    data.forEach(function(h) {
       const item = document.createElement('div'); item.className = 'history-item';
       const dt = new Date(h.created_at);
-      const timeStr = `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+      const timeStr = (dt.getMonth()+1) + '/' + dt.getDate() + ' ' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
       const isChange = h.action === 'modified' || h.action === 'created';
-      item.innerHTML = `
-        <div class="history-dot ${isChange ? 'change' : 'cancel'}"></div>
-        <div class="history-content">
-          <div class="history-header">
-            <span class="history-type ${isChange ? 'change' : 'cancel'}">${h.action === 'created' ? '新規' : h.action === 'modified' ? '変更' : 'キャンセル'}</span>
-            <span class="history-time">${timeStr}</span>
-          </div>
-          <div class="history-customer">${h.customer_name || '不明'}</div>
-          <div class="history-detail">
-            ${h.before_date ? `<span class="from">${h.before_date} ${h.before_time || ''}</span> → ` : ''}
-            <span class="to">${h.after_date || ''} ${h.after_time || ''}</span>
-            ${h.note ? `<div style="margin-top:4px;color:#c7c7cc">備考: ${h.note}</div>` : ''}
-          </div>
-        </div>`;
+      item.innerHTML = '<div class="history-dot ' + (isChange ? 'change' : 'cancel') + '"></div>' +
+        '<div class="history-content">' +
+          '<div class="history-header">' +
+            '<span class="history-type ' + (isChange ? 'change' : 'cancel') + '">' + (h.action === 'created' ? '新規' : h.action === 'modified' ? '変更' : 'キャンセル') + '</span>' +
+            '<span class="history-time">' + timeStr + '</span>' +
+          '</div>' +
+          '<div class="history-customer">' + (h.customer_name || '不明') + '</div>' +
+          '<div class="history-detail">' +
+            (h.before_date ? '<span class="from">' + h.before_date + ' ' + (h.before_time || '') + '</span> → ' : '') +
+            '<span class="to">' + (h.after_date || '') + ' ' + (h.after_time || '') + '</span>' +
+            (h.note ? '<div style="margin-top:4px;color:#c7c7cc">備考: ' + h.note + '</div>' : '') +
+          '</div>' +
+        '</div>';
       container.appendChild(item);
     });
     document.getElementById('history-empty').style.display = data.length ? 'none' : 'block';
@@ -809,17 +792,17 @@ dashboard_html = """
       notes: document.getElementById('form-memo').value.trim(),
       existing_user_id: document.getElementById('form-customer-select').value || null
     };
-    const url = editingId ? `/api/bookings/${editingId}` : '/api/bookings';
+    const url = editingId ? '/api/bookings/' + editingId : '/api/bookings';
     const method = editingId ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const res = await fetch(url, { method: method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     if (res.ok) { toast(editingId ? '予約を更新しました' : '予約を登録しました'); closeModal(); loadData(); }
     else { toast('エラーが発生しました'); }
   }
   function editBooking(id) {
-    const b = bookings.find(x => x.id === id);
+    const b = bookings.find(function(x){ return x.id === id; });
     if (!b) return;
     editingId = id;
-    const c = customers.find(x => x.user_id === b.user_id);
+    const c = customers.find(function(x){ return x.user_id === b.user_id; });
     document.getElementById('modal-title').textContent = '予約を編集';
     document.getElementById('form-name').value = c ? c.name : '';
     document.getElementById('form-phone').value = c ? c.phone : '';
@@ -831,7 +814,7 @@ dashboard_html = """
   }
   async function deleteBooking(id) {
     if (!confirm('この予約をキャンセルしますか？')) return;
-    const res = await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+    const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
     if (res.ok) { toast('予約をキャンセルしました'); loadData(); }
   }
 
@@ -841,12 +824,8 @@ dashboard_html = """
 </html>
 """
 
-
-    return html
-
-
 # ===============================
-# API エンドポイント
+# API エンドポイント（既存）
 # ===============================
 
 @app.post("/api/booking/add-with-customer")
@@ -857,299 +836,129 @@ async def add_booking_with_customer(data: BookingAddWithCustomerRequest):
     1週間前に自動リマインダー送信
     """
     try:
-        # 顧客が存在するか確認
-        customer = db.get_customer(data.customer_id)
-        if not customer:
-            raise Exception("顧客が見つかりません")
-        
-        customer_name = customer[2]
-        
-        # 予約を保存
         booking_id = db.add_booking(
             user_id=data.customer_id,
             booking_date=data.booking_date,
             booking_time=data.booking_time,
             menu_id=data.menu_id,
-            notes=data.notes or ""
+            notes=data.notes
         )
-        
         if not booking_id:
-            raise Exception("予約の保存に失敗しました")
-        
-        # 顧客に確認メッセージを送信
+            raise HTTPException(status_code=500, detail="予約の追加に失敗しました")
+
+        db.add_booking_history(
+            booking_id=booking_id,
+            action="created",
+            user_id=data.customer_id,
+            after_date=data.booking_date,
+            after_time=data.booking_time
+        )
+
+        customer = db.get_customer(data.customer_id)
         menu = db.get_menu(data.menu_id)
-        menu_name = menu[1] if menu else "不明"
-        
-        confirmation_message = f"""
-📅 予約が追加されました
 
-予約日時: {data.booking_date} {data.booking_time}
-メニュー: {menu_name}
-予約ID: {booking_id}
+        line_handler.notify_owner(
+            f"🆕 新規予約（管理画面から）\n\n"
+            f"お客様: {customer['name'] if customer else '不明'}\n"
+            f"日時: {data.booking_date} {data.booking_time}\n"
+            f"メニュー: {menu['name'] if menu else '不明'}"
+        )
 
-7日前にリマインダーをお送りいたします。
-ご不明な点はお気軽にお問い合わせください。
-"""
-        
-        try:
-            from linebot.models import TextSendMessage
-            line_bot_api.push_message(data.customer_id, TextSendMessage(text=confirmation_message))
-        except Exception as e:
-            logger.warning(f"Failed to send confirmation message: {e}")
-        
-        logger.info(f"Booking added with customer selection: {booking_id} ({customer_name})")
-        
         return JSONResponse({
             "status": "ok",
             "booking_id": booking_id,
-            "message": f"予約を追加しました。顧客に LINE で通知しました。"
+            "message": "予約を追加しました"
         })
-    
+
     except Exception as e:
         logger.error(f"Error adding booking with customer: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/booking/reschedule")
-async def reschedule_booking_from_liff(data: RescheduleRequest):
-    """
-    お客様自身がLIFFカレンダーから予約日時を変更する
-    本人の予約かどうかを必ず確認してから更新する
-    """
-    try:
-        booking = db.get_booking(data.booking_id)
-        if not booking:
-            raise HTTPException(status_code=404, detail="予約が見つかりません")
-        if booking["user_id"] != data.user_id:
-            raise HTTPException(status_code=403, detail="この予約を変更する権限がありません")
 
-        before_date = booking["booking_date"]
-        before_time = booking["booking_time"]
-
-        db.update_booking(data.booking_id, booking_date=data.booking_date, booking_time=data.booking_time)
-
-        db.add_booking_history(
-            booking_id=data.booking_id, action="modified", user_id=data.user_id,
-            before_date=before_date, before_time=before_time,
-            after_date=data.booking_date, after_time=data.booking_time,
-            note="お客様がLIFFから変更"
-        )
-
-        menu = db.get_menu(booking["menu_id"])
-        menu_name = menu["name"] if menu else "不明"
-
-        # お客様への確認
-        try:
-            line_bot_api.push_message(
-                data.user_id,
-                TextSendMessage(text=f"✅ ご予約を変更しました\n\n📅 変更後: {data.booking_date} {data.booking_time}\n🎨 メニュー: {menu_name}\n予約ID: {data.booking_id}")
-            )
-        except Exception as e:
-            logger.warning(f"Failed to send reschedule confirmation: {e}")
-
-        # オーナーへ通知
-        if OWNER_USER_ID:
-            try:
-                customer = db.get_customer(data.user_id)
-                customer_name = customer["name"] if customer and customer["name"] else data.user_id[:10] + "..."
-                line_bot_api.push_message(
-                    OWNER_USER_ID,
-                    TextSendMessage(text=f"📝 予約変更がありました\n\nお客様: {customer_name}\n変更前: {before_date} {before_time}\n変更後: {data.booking_date} {data.booking_time}\nメニュー: {menu_name}\n予約ID: {data.booking_id}")
-                )
-            except Exception as e:
-                logger.warning(f"Failed to notify owner of reschedule: {e}")
-
-        return JSONResponse({"status": "ok"})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error rescheduling booking: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/board")
-async def get_booking_board(start_date: str, days: int = 7):
-    """
-    予約ボード表示用：日付×時間のマス目に、予約が入っていれば顧客名・メニュー名を含めて返す
-    """
-    try:
-        start = datetime.strptime(start_date, "%Y-%m-%d").date()
-        end = start + timedelta(days=days - 1)
-
-        detailed_bookings = db.get_bookings_with_details_in_range(start.isoformat(), end.isoformat())
-        booking_map = {}
-        for b in detailed_bookings:
-            key = f"{b['booking_date']}_{b['booking_time']}"
-            booking_map[key] = {
-                "booking_id": b["id"],
-                "customer_name": b["customer_name"] or "不明",
-                "customer_phone": b["customer_phone"],
-                "menu_name": b["menu_name"] or "不明",
-            }
-
-        time_slots = generate_time_slots()
-        date_list = []
-        board = {}
-
-        for i in range(days):
-            current_date = start + timedelta(days=i)
-            date_str = current_date.isoformat()
-            weekday_index = current_date.weekday()
-
-            date_list.append({
-                "date": date_str,
-                "day": current_date.day,
-                "weekday": WEEKDAY_LABELS_JA[weekday_index],
-                "is_closed": weekday_index in CLOSED_WEEKDAYS
-            })
-
-            board[date_str] = {}
-            for slot in time_slots:
-                key = f"{date_str}_{slot}"
-                if weekday_index in CLOSED_WEEKDAYS:
-                    board[date_str][slot] = {"status": "closed"}
-                elif key in booking_map:
-                    board[date_str][slot] = {"status": "booked", **booking_map[key]}
-                else:
-                    board[date_str][slot] = {"status": "available"}
-
-        return JSONResponse({"time_slots": time_slots, "dates": date_list, "board": board})
-    except Exception as e:
-        logger.error(f"Error getting booking board: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/bookings/upcoming/all")
-async def get_all_upcoming_bookings():
-    """今後すべての確定予約を取得（ダッシュボードの一覧表示用）"""
-    try:
-        bookings = db.get_all_upcoming_bookings()
-        result = [dict(b) for b in bookings]
-        return JSONResponse({"bookings": result})
-    except Exception as e:
-        logger.error(f"Error getting all upcoming bookings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/bookings/history")
-async def get_booking_history(limit: int = 50):
-    """予約の変更・キャンセル履歴を取得"""
-    try:
-        history = db.get_booking_history(limit=limit)
-        result = [dict(h) for h in history]
-        return JSONResponse({"history": result})
-    except Exception as e:
-        logger.error(f"Error getting booking history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/customers")
-async def get_all_customers():
-    """
-    登録済みの全お客様を取得（手動登録フォームの「既存客から選ぶ」用）
-    LINE連携済み(本物のuser_id)・未連携(manual-から始まるuser_id)の両方を含む
-    """
-    try:
-        customers = db.get_all_customers()
-        result = [
-            {
-                "user_id": c["user_id"],
-                "name": c["name"],
-                "phone": c["phone"],
-                "is_line_linked": not c["user_id"].startswith("manual-")
-            }
-            for c in customers if c["name"]  # 名前未登録のデータは除外
-        ]
-        return JSONResponse({"customers": result})
-    except Exception as e:
-        logger.error(f"Error getting customers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/booking/manual")
-async def create_manual_booking(data: ManualBookingRequest):
+@app.post("/api/booking")
+async def add_booking_manual(data: ManualBookingRequest):
     """
     ダッシュボードからの手動予約登録
-    既存客(existing_user_id指定あり)ならその人に紐付け、
-    新規なら仮のuser_id（manual-から始まる）を発行してLINE未連携として登録する
+    LINE未連携のお客様でも登録可能
     """
     try:
-        if data.existing_user_id:
-            # 既存のお客様（LINE連携済み含む）に予約を追加する
-            existing_customer = db.get_customer(data.existing_user_id)
-            if not existing_customer:
-                raise HTTPException(status_code=404, detail="指定されたお客様が見つかりません")
-            target_user_id = data.existing_user_id
-            # 電話番号だけ、入力があれば更新しておく（名前は変更しない）
-            if data.phone:
-                db.update_customer(target_user_id, phone=data.phone)
-        else:
-            # 新規のお客様（LINE未連携の仮アカウント）として登録する
-            target_user_id = f"manual-{uuid.uuid4().hex[:16]}"
-            db.save_customer_profile(user_id=target_user_id, name=data.name, phone=data.phone)
+        user_id = data.existing_user_id
+        if not user_id:
+            user_id = f"manual_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}"
+            db.save_customer_profile(
+                user_id=user_id,
+                name=data.name,
+                phone=data.phone
+            )
 
         booking_id = db.add_booking(
-            user_id=target_user_id,
+            user_id=user_id,
             booking_date=data.booking_date,
             booking_time=data.booking_time,
             menu_id=data.menu_id,
             notes=data.note
         )
+
         if not booking_id:
-            raise Exception("予約の保存に失敗しました")
+            raise HTTPException(status_code=500, detail="予約の追加に失敗しました")
 
         db.add_booking_history(
-            booking_id=booking_id, action="created", user_id=target_user_id,
-            after_date=data.booking_date, after_time=data.booking_time,
-            note="手動登録（既存客）" if data.existing_user_id else "手動登録（新規）"
+            booking_id=booking_id,
+            action="created",
+            user_id=user_id,
+            after_date=data.booking_date,
+            after_time=data.booking_time,
+            note="管理画面から手動登録"
         )
 
-        return JSONResponse({"status": "ok", "booking_id": booking_id})
-    except HTTPException:
-        raise
+        return JSONResponse({
+            "status": "ok",
+            "booking_id": booking_id
+        })
+
     except Exception as e:
-        logger.error(f"Error creating manual booking: {e}")
+        logger.error(f"Error adding manual booking: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.put("/api/booking/{booking_id}")
-async def update_booking_from_dashboard(booking_id: int, data: BookingUpdateRequest):
-    """ダッシュボードからの予約変更"""
+async def update_booking(booking_id: int, data: BookingUpdateRequest):
+    """予約変更（日付・時間・メニュー）"""
     try:
         booking = db.get_booking(booking_id)
         if not booking:
             raise HTTPException(status_code=404, detail="予約が見つかりません")
 
-        before_date = booking["booking_date"]
-        before_time = booking["booking_time"]
+        original_date = booking["booking_date"]
+        original_time = booking["booking_time"]
 
         db.update_booking(
-            booking_id,
+            booking_id=booking_id,
             booking_date=data.booking_date,
             booking_time=data.booking_time,
             menu_id=data.menu_id
         )
 
         db.add_booking_history(
-            booking_id=booking_id, action="modified", user_id=booking["user_id"],
-            before_date=before_date, before_time=before_time,
-            after_date=data.booking_date or before_date,
-            after_time=data.booking_time or before_time,
-            note="ダッシュボードから変更"
+            booking_id=booking_id,
+            action="modified",
+            user_id=booking["user_id"],
+            before_date=original_date,
+            before_time=original_time,
+            after_date=data.booking_date,
+            after_time=data.booking_time
         )
 
-        # LINE連携済みのお客様には通知する（手動登録で未連携の場合はスキップされる）
-        try:
-            line_bot_api.push_message(
-                booking["user_id"],
-                TextSendMessage(text=f"📝 ご予約内容が変更されました\n\n変更後の日時: {data.booking_date or before_date} {data.booking_time or before_time}\n予約ID: {booking_id}")
-            )
-        except Exception:
-            pass  # LINE未連携（手動登録）のお客様は送信できないため無視
+        return JSONResponse({"status": "ok", "message": "予約を変更しました"})
 
-        return JSONResponse({"status": "ok"})
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error updating booking from dashboard: {e}")
+        logger.error(f"Error updating booking: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/booking/{booking_id}/cancel")
-async def cancel_booking_from_dashboard(booking_id: int):
-    """ダッシュボードからの予約キャンセル"""
+
+@app.delete("/api/booking/{booking_id}")
+async def delete_booking(booking_id: int):
+    """予約キャンセル"""
     try:
         booking = db.get_booking(booking_id)
         if not booking:
@@ -1158,211 +967,98 @@ async def cancel_booking_from_dashboard(booking_id: int):
         db.cancel_booking(booking_id)
 
         db.add_booking_history(
-            booking_id=booking_id, action="cancelled", user_id=booking["user_id"],
-            before_date=booking["booking_date"], before_time=booking["booking_time"],
-            note="ダッシュボードからキャンセル"
+            booking_id=booking_id,
+            action="cancelled",
+            user_id=booking["user_id"],
+            before_date=booking["booking_date"],
+            before_time=booking["booking_time"]
         )
 
-        try:
-            line_bot_api.push_message(
-                booking["user_id"],
-                TextSendMessage(text=f"❌ ご予約がキャンセルされました\n\n予約日時: {booking['booking_date']} {booking['booking_time']}\n予約ID: {booking_id}\n\nご不明な点があればお問い合わせください。")
-            )
-        except Exception:
-            pass  # LINE未連携（手動登録）のお客様は送信できないため無視
+        return JSONResponse({"status": "ok", "message": "予約をキャンセルしました"})
 
-        return JSONResponse({"status": "ok"})
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error cancelling booking from dashboard: {e}")
+        logger.error(f"Error cancelling booking: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/customer/{user_id}")
-async def get_customer_profile(user_id: str):
-    """お客様の登録済み情報を取得（2回目以降の予約フォーム自動入力用）"""
-    try:
-        customer = db.get_customer(user_id)
-        if not customer:
-            return JSONResponse({"customer": None})
-        return JSONResponse({
-            "customer": {
-                "name": customer["name"],
-                "furigana": customer["furigana"] if "furigana" in customer.keys() else None,
-                "gender": customer["gender"] if "gender" in customer.keys() else None,
-                "birthdate": customer["birthdate"] if "birthdate" in customer.keys() else None,
-                "phone": customer["phone"],
-            }
-        })
-    except Exception as e:
-        logger.error(f"Error getting customer profile: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/menus")
-async def get_menus():
-    """メニュー一覧取得（LIFF画面用）"""
-    try:
-        menus = db.get_all_menus()
-        result = [
-            {"id": m["id"], "name": m["name"], "price": m["price"], "duration_minutes": m["duration_minutes"]}
-            for m in menus
-        ]
-        return JSONResponse({"menus": result})
-    except Exception as e:
-        logger.error(f"Error getting menus: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/booking/create")
-async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
-    """LIFFの予約フォームから送信された内容で予約を確定する"""
-    try:
-        # お客様情報を保存（新規 or 更新）
-        db.save_customer_profile(
-            user_id=data.user_id,
-            name=data.name,
-            furigana=data.furigana,
-            gender=data.gender,
-            birthdate=data.birthdate,
-            phone=data.phone
-        )
-
-        # 予約を保存
-        booking_id = db.add_booking(
-            user_id=data.user_id,
-            booking_date=data.booking_date,
-            booking_time=data.booking_time,
-            menu_id=data.menu_id
-        )
-
-        if not booking_id:
-            raise Exception("予約の保存に失敗しました")
-
-        db.add_booking_history(
-            booking_id=booking_id, action="created", user_id=data.user_id,
-            after_date=data.booking_date, after_time=data.booking_time, note="Web予約"
-        )
-
-        menu = db.get_menu(data.menu_id)
-        menu_name = menu["name"] if menu else "不明"
-
-        confirmation_message = f"""ご予約ありがとうございます！
-
-📅 予約日時: {data.booking_date} {data.booking_time}
-💇 メニュー: {menu_name}
-予約番号: {booking_id}
-
-当日のご来店をお待ちしております。
-"""
-        try:
-            from linebot.models import TextSendMessage
-            line_bot_api.push_message(data.user_id, TextSendMessage(text=confirmation_message))
-        except Exception as e:
-            logger.warning(f"Failed to send confirmation message: {e}")
-
-        # オーナーへ通知
-        if OWNER_USER_ID:
-            try:
-                owner_message = (
-                    f"🆕 新規予約が入りました（Web予約）\n\n"
-                    f"お客様: {data.name}\n"
-                    f"予約日時: {data.booking_date} {data.booking_time}\n"
-                    f"メニュー: {menu_name}\n"
-                    f"電話番号: {data.phone or '未入力'}\n"
-                    f"予約ID: {booking_id}"
-                )
-                line_bot_api.push_message(OWNER_USER_ID, TextSendMessage(text=owner_message))
-            except Exception as e:
-                logger.warning(f"Failed to notify owner: {e}")
-
-        logger.info(f"Booking created via LIFF: {booking_id} ({data.user_id})")
-
-        return JSONResponse({
-            "status": "ok",
-            "booking_id": booking_id
-        })
-    except Exception as e:
-        logger.error(f"Error creating booking from LIFF: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/menu/add")
+@app.post("/api/menu")
 async def add_menu(data: MenuAddRequest):
     """メニュー追加"""
     try:
-        db.add_menu(data.name, data.price, data.duration_minutes)
-        return JSONResponse({"status": "ok"})
+        menu_id = db.add_menu(data.name, data.price, data.duration_minutes)
+        if not menu_id:
+            raise HTTPException(status_code=500, detail="メニューの追加に失敗しました")
+        return JSONResponse({
+            "status": "ok",
+            "menu_id": menu_id,
+            "message": "メニューを追加しました"
+        })
     except Exception as e:
         logger.error(f"Error adding menu: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/menu/delete/{menu_id}")
+
+@app.delete("/api/menu/{menu_id}")
 async def delete_menu(menu_id: int):
     """メニュー削除"""
     try:
         db.delete_menu(menu_id)
-        return JSONResponse({"status": "ok"})
+        return JSONResponse({"status": "ok", "message": "メニューを削除しました"})
     except Exception as e:
         logger.error(f"Error deleting menu: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/bookings/{date_str}")
-async def get_bookings_by_date(date_str: str):
-    """指定日の予約取得"""
+
+@app.get("/api/bookings/upcoming/all")
+async def get_all_upcoming_bookings_api():
+    """今後の全予約取得（管理画面用）"""
     try:
-        date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        bookings = db.get_bookings_by_date(date)
-        return JSONResponse({"bookings": bookings})
+        bookings = db.get_all_upcoming_bookings()
+        return JSONResponse({
+            "bookings": [dict(b) for b in bookings]
+        })
     except Exception as e:
+        logger.error(f"Error getting upcoming bookings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def generate_time_slots():
-    """営業時間・予約間隔から時間枠のリストを生成"""
-    slots = []
-    start = datetime.strptime(BUSINESS_HOURS_START, "%H:%M")
-    end = datetime.strptime(BUSINESS_HOURS_END, "%H:%M")
-    current = start
-    while current < end:
-        slots.append(current.strftime("%H:%M"))
-        current += timedelta(minutes=SLOT_INTERVAL_MINUTES)
-    return slots
-
-WEEKDAY_LABELS_JA = ["月", "火", "水", "木", "金", "土", "日"]
 
 @app.get("/api/availability")
-async def get_availability(start_date: str, days: int = 7, duration_minutes: int = None):
+async def get_availability(start_date: str, end_date: str):
     """
-    指定日から指定日数分の空き状況を返す
-    定休日・営業時間・既存予約・メニューの所要時間（最終受付時刻）を踏まえて判定する
+    指定期間の予約可能状況を取得（LIFFカレンダー用）
     """
     try:
+        from datetime import datetime, timedelta
+
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
-        end = start + timedelta(days=days - 1)
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-        booked_times = db.get_booked_times_in_range(
-            start.isoformat(), end.isoformat()
-        )
-        time_slots = generate_time_slots()
-
-        # メニューの所要時間を踏まえた最終受付時刻を計算
-        # （所要時間が営業終了時刻をまたぐ枠は選べないようにする）
-        business_end = datetime.strptime(BUSINESS_HOURS_END, "%H:%M")
-        last_valid_start = None
-        if duration_minutes:
-            last_valid_start = (business_end - timedelta(minutes=duration_minutes)).strftime("%H:%M")
+        time_slots = []
+        current_time = BUSINESS_HOURS_START
+        while current_time < BUSINESS_HOURS_END:
+            time_slots.append(f"{current_time:02d}:00")
+            if SLOT_INTERVAL_MINUTES == 30:
+                time_slots.append(f"{current_time:02d}:30")
+            current_time += 1
 
         date_list = []
         availability = {}
+        current = start
+        while current <= end:
+            date_str = current.isoformat()
+            date_list.append(date_str)
+            weekday_index = current.weekday()
 
-        for i in range(days):
-            current_date = start + timedelta(days=i)
-            date_str = current_date.isoformat()
-            weekday_index = current_date.weekday()
+            booked_times = db.get_booked_times_in_range(date_str, date_str)
 
-            date_list.append({
-                "date": date_str,
-                "day": current_date.day,
-                "weekday": WEEKDAY_LABELS_JA[weekday_index],
-                "is_closed": weekday_index in CLOSED_WEEKDAYS
-            })
+            all_menus = db.get_all_menus()
+            max_duration = max((m[3] for m in all_menus), default=60)
+            last_valid_start = None
+            if BUSINESS_HOURS_END * 60 - max_duration >= BUSINESS_HOURS_START * 60:
+                last_valid_start_minutes = BUSINESS_HOURS_END * 60 - max_duration
+                last_valid_hour = last_valid_start_minutes // 60
+                last_valid_minute = last_valid_start_minutes % 60
+                last_valid_start = f"{last_valid_hour:02d}:{last_valid_minute:02d}"
 
             if weekday_index in CLOSED_WEEKDAYS:
                 availability[date_str] = {slot: "closed" for slot in time_slots}
@@ -1373,11 +1069,12 @@ async def get_availability(start_date: str, days: int = 7, duration_minutes: int
                     if slot in booked_for_date:
                         day_avail[slot] = "booked"
                     elif last_valid_start and slot > last_valid_start:
-                        # 所要時間を踏まえると営業終了までに終わらない枠
                         day_avail[slot] = "too_late"
                     else:
                         day_avail[slot] = "available"
                 availability[date_str] = day_avail
+
+            current += timedelta(days=1)
 
         return JSONResponse({
             "time_slots": time_slots,
@@ -1388,6 +1085,167 @@ async def get_availability(start_date: str, days: int = 7, duration_minutes: int
         logger.error(f"Error getting availability: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/liff/booking")
+async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
+    """LIFFからの予約確定（お客様情報付き）"""
+    try:
+        db.save_customer_profile(
+            user_id=data.user_id,
+            name=data.name,
+            furigana=data.furigana,
+            gender=data.gender,
+            birthdate=data.birthdate,
+            phone=data.phone
+        )
+
+        booking_id = db.add_booking(
+            user_id=data.user_id,
+            booking_date=data.booking_date,
+            booking_time=data.booking_time,
+            menu_id=data.menu_id
+        )
+
+        if not booking_id:
+            raise HTTPException(status_code=500, detail="予約に失敗しました")
+
+        db.add_booking_history(
+            booking_id=booking_id,
+            action="created",
+            user_id=data.user_id,
+            after_date=data.booking_date,
+            after_time=data.booking_time
+        )
+
+        menu = db.get_menu(data.menu_id)
+        menu_name = menu["name"] if menu else "不明"
+
+        line_handler.notify_owner(
+            f"🆕 LIFFから新規予約\n\n"
+            f"お客様: {data.name}\n"
+            f"日時: {data.booking_date} {data.booking_time}\n"
+            f"メニュー: {menu_name}"
+        )
+
+        return JSONResponse({
+            "status": "ok",
+            "booking_id": booking_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error creating booking from LIFF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/liff/reschedule")
+async def reschedule_from_liff(data: RescheduleRequest):
+    """LIFFからの予約変更"""
+    try:
+        booking = db.get_booking(data.booking_id)
+        if not booking or booking["user_id"] != data.user_id:
+            raise HTTPException(status_code=404, detail="予約が見つかりません")
+
+        original_date = booking["booking_date"]
+        original_time = booking["booking_time"]
+
+        db.update_booking(
+            booking_id=data.booking_id,
+            booking_date=data.booking_date,
+            booking_time=data.booking_time
+        )
+
+        db.add_booking_history(
+            booking_id=data.booking_id,
+            action="modified",
+            user_id=data.user_id,
+            before_date=original_date,
+            before_time=original_time,
+            after_date=data.booking_date,
+            after_time=data.booking_time
+        )
+
+        return JSONResponse({"status": "ok", "message": "予約を変更しました"})
+
+    except Exception as e:
+        logger.error(f"Error rescheduling from LIFF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ===============================
+# 新管理画面用API
+# ===============================
+
+@app.get("/api/bookings/all")
+async def api_get_all_bookings():
+    """全予約（キャンセル含む）を顧客名・メニュー名付きで取得"""
+    rows = db.get_all_bookings_with_details()
+    return [dict(r) for r in rows]
+
+@app.get("/api/history")
+async def api_get_history(limit: int = 50):
+    """変更・キャンセル履歴"""
+    rows = db.get_booking_history(limit=limit)
+    return [dict(r) for r in rows]
+
+@app.get("/api/customers")
+async def api_get_customers():
+    """全顧客"""
+    rows = db.get_all_customers()
+    return [dict(r) for r in rows]
+
+@app.get("/api/menus")
+async def api_get_menus():
+    """全メニュー"""
+    rows = db.get_all_menus()
+    return [dict(r) for r in rows]
+
+@app.post("/api/bookings")
+async def api_create_booking(data: DashboardBookingCreate):
+    """新規予約（管理画面からの手動登録）"""
+    user_id = data.existing_user_id
+    if not user_id:
+        user_id = f"manual_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}"
+        db.save_customer_profile(user_id, data.customer_name, phone=data.phone)
+    booking_id = db.add_booking(user_id, data.booking_date, data.booking_time, data.menu_id, data.notes)
+    if booking_id:
+        db.add_booking_history(
+            booking_id=booking_id, action="created", user_id=user_id,
+            after_date=data.booking_date, after_time=data.booking_time,
+            note="管理画面から手動登録"
+        )
+        return {"id": booking_id, "status": "ok"}
+    return JSONResponse({"error": "failed"}, status_code=500)
+
+@app.put("/api/bookings/{booking_id}")
+async def api_update_booking(booking_id: int, data: DashboardBookingCreate):
+    """予約更新"""
+    booking = db.get_booking(booking_id)
+    if not booking:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    original = dict(booking)
+    db.update_booking(booking_id, data.booking_date, data.booking_time, data.menu_id)
+    db.save_customer_profile(booking["user_id"], data.customer_name, phone=data.phone)
+    db.add_booking_history(
+        booking_id=booking_id, action="modified", user_id=booking["user_id"],
+        before_date=original.get("booking_date"), before_time=original.get("booking_time"),
+        after_date=data.booking_date, after_time=data.booking_time,
+        note="管理画面から変更"
+    )
+    return {"status": "ok"}
+
+@app.delete("/api/bookings/{booking_id}")
+async def api_delete_booking(booking_id: int):
+    """予約キャンセル（管理画面から）"""
+    booking = db.get_booking(booking_id)
+    if not booking:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    db.cancel_booking(booking_id)
+    db.add_booking_history(
+        booking_id=booking_id, action="cancelled", user_id=booking["user_id"],
+        before_date=booking["booking_date"], before_time=booking["booking_time"],
+        note="管理画面からキャンセル"
+    )
+    return {"status": "ok"}
+
 # ===============================
 # オーナーコマンド処理
 # ===============================
@@ -1395,7 +1253,6 @@ async def get_availability(start_date: str, days: int = 7, duration_minutes: int
 def handle_owner_command(user_id: str, text: str):
     """オーナー向けコマンド処理"""
     
-    # 本日の予約確認
     if text in ["/today", "今日", "本日"]:
         today = datetime.now().date()
         bookings = db.get_bookings_by_date(today)
@@ -1409,12 +1266,10 @@ def handle_owner_command(user_id: str, text: str):
             customer = db.get_customer(booking[2])
             menu = db.get_menu(booking[4])
             status = "✅" if booking[6] == "confirmed" else "❌"
-            
             message += f"{status} {booking[3]} - {customer[1]} ({menu[1]})\n"
         
         line_handler.send_text(user_id, message)
     
-    # 明日の予約確認
     elif text in ["/tomorrow", "明日"]:
         tomorrow = datetime.now().date() + timedelta(days=1)
         bookings = db.get_bookings_by_date(tomorrow)
@@ -1431,7 +1286,6 @@ def handle_owner_command(user_id: str, text: str):
         
         line_handler.send_text(user_id, message)
     
-    # ヘルプ
     elif text in ["/help"]:
         help_text = """
 📋 オーナーコマンド一覧
