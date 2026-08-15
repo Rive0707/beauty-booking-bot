@@ -518,7 +518,7 @@ dashboard_html = """
             <input type="text" id="menu-name" placeholder="カット">
           </div>
           <div class="form-group">
-            <label>料金（円） <span class="req">*</span></label>
+            <label>料金（B） <span class="req">*</span></label>
             <input type="number" id="menu-price" placeholder="5500">
           </div>
           <div class="form-group">
@@ -1067,7 +1067,7 @@ async def delete_booking(booking_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/menu")
+@app.post("/api/menus")
 async def add_menu(data: MenuAddRequest):
     """メニュー追加"""
     try:
@@ -1084,7 +1084,7 @@ async def add_menu(data: MenuAddRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/api/menu/{menu_id}")
+@app.delete("/api/menus/{menu_id}")
 async def delete_menu(menu_id: int):
     """メニュー削除"""
     try:
