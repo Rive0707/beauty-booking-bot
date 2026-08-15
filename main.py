@@ -856,9 +856,44 @@ dashboard_html = """
     const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
     if (res.ok) { toast('予約をキャンセルしました'); loadData(); }
   }
-  function renderMenus() {}
-  async function addMenu() {}
-  async function deleteMenu(id) {}
+  function renderMenus() {
+    const tbody = document.getElementById('menu-body');
+    tbody.innerHTML = '';
+    menus.forEach(function(m) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td style="font-weight:500">' + m.name + '</td>' +
+        '<td>¥' + m.price.toLocaleString() + '</td>' +
+        '<td>' + m.duration_minutes + '分</td>' +
+        '<td><button class="icon-btn danger" onclick="deleteMenu(' + m.id + ')">&#128465;&#65039;</button></td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('menu-empty').style.display = menus.length ? 'none' : 'block';
+  }
+  async function addMenu() {
+    const name = document.getElementById('menu-name').value.trim();
+    const price = parseInt(document.getElementById('menu-price').value);
+    const duration = parseInt(document.getElementById('menu-duration').value);
+    if (!name || !price || !duration) { toast('全項目を入力してください'); return; }
+    const res = await fetch('/api/menu', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name: name, price: price, duration_minutes: duration})
+    });
+    if (res.ok) {
+      toast('メニューを追加しました');
+      document.getElementById('menu-name').value = '';
+      document.getElementById('menu-price').value = '';
+      document.getElementById('menu-duration').value = '';
+      loadData();
+    } else {
+      toast('追加に失敗しました');
+    }
+  }
+  async function deleteMenu(id) {
+    if (!confirm('このメニューを削除しますか？')) return;
+    const res = await fetch('/api/menu/' + id, {method: 'DELETE'});
+    if (res.ok) { toast('メニューを削除しました'); loadData(); }
+  }
   
   loadData();
 </script>
