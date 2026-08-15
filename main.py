@@ -1105,9 +1105,86 @@ async def get_all_upcoming_bookings_api():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/availability")
-async def get_availability(start_date: str, end_date: str):
-    """
+try:
+        from datetime import datetime, timedelta
+
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = start + timedelta(days=days - 1)
+
+        business_start_h, business_start_m = map(int, BUSINESS_HOURS_START.split(":"))
+        business_end_h, business_end_m = map(int, BUSINESS_HOURS_END.split(":"))
+        business_start_minutes = business_start_h * 60 + business_start_m
+        business_end_minutes = business_end_h * 60 + business_end_m
+
+        time_slots = []
+        current_minutes = business_start_minutes
+        while current_minutes < business_end_minutes:
+            h, m = divmod(current_minutes, 60)
+            time_slots.append(f"{h:02d}:{m:02d}")
+            current_minutes += SLOT_INTERVAL_MINUTES
+
+        weekday_labels = ['月', '火', '水', '木', '金', '土', '日']
+
+        date_list = []
+        availability = {}
+        current = start
+        while current <= end:
+            date_str = current.isoformat()
+            weekday_index = current.weekday()
+            date_list.append({
+                "date": date_str,
+                "day": current.day,
+                "weekday": weekday_labels[weekday_index]
+            })
+
+            booked_times = db.get_booked_times_in_range(date_str, date_str)
+
+            if duration_minutes:
+                max_duration = duration_minutes
+            else:
+                all_menus = db.get_all_menus()
+                max_duration = max((m[3] for m in all_menus), default=60)
+
+            last_valid_start = None
+            if business_end_minutes - max_duration >= business_start_minutes:
+                last_valid_start_minutes = business_end_minutes - max_duration
+                last_valid_hour, last_valid_minute = divmod(last_valid_start_minutes, 60)
+                last_valid_start = f"{last_valid_hour:02d}:{last_valid_minute:02d}"
+
+            if weekday_index in CLOSED_WEEKDAYS:
+                availability[date_str] = {slot: "closed" for slot in time_slots}
+            else:
+                occupied_slots = set()
+                for booking_time in booked_times.get(date_str, []):
+                    b_h, b_m = map(int, booking_time.split(":"))
+                    b_start_minutes = b_h * 60 + b_m
+                    b_end_minutes = b_start_minutes + 60
+                    for slot in time_slots:
+                        s_h, s_m = map(int, slot.split(":"))
+                        s_minutes = s_h * 60 + s_m
+                        if b_start_minutes <= s_minutes < b_end_minutes:
+                            occupied_slots.add(slot)
+
+                day_avail = {}
+                for slot in time_slots:
+                    if slot in occupied_slots:
+                        day_avail[slot] = "booked"
+                    elif last_valid_start and slot > last_valid_start:
+                        day_avail[slot] = "too_late"
+                    else:
+                        day_avail[slot] = "available"
+                availability[date_str] = day_avail
+
+            current += timedelta(days=1)
+
+        return JSONResponse({
+            "time_slots": time_slots,
+            "dates": date_list,
+            "availability": availability
+        })
+    except Exception as e:
+        logger.error(f"Error getting availability: {e}")
+        raise HTTPException(status_code=500, detail=str(e))    """
     指定期間の予約可能状況を取得（LIFFカレンダー用）
     """
     try:
@@ -1180,7 +1257,7 @@ async def get_availability(start_date: str, end_date: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/liff/booking")
+@app.post("/api/booking/reschedule")
 async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
     """LIFFからの予約確定（お客様情報付き）"""
     try:
