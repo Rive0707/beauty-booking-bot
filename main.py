@@ -1146,10 +1146,21 @@ async def get_availability(start_date: str, end_date: str):
             if weekday_index in CLOSED_WEEKDAYS:
                 availability[date_str] = {slot: "closed" for slot in time_slots}
             else:
-                booked_for_date = booked_times.get(date_str, [])
+                # 予約1件につき、開始時刻から固定1時間（60分）ぶんの枠をbooked扱いにする
+                occupied_slots = set()
+                for booking_time in booked_times.get(date_str, []):
+                    b_h, b_m = map(int, booking_time.split(":"))
+                    b_start_minutes = b_h * 60 + b_m
+                    b_end_minutes = b_start_minutes + 60
+                    for slot in time_slots:
+                        s_h, s_m = map(int, slot.split(":"))
+                        s_minutes = s_h * 60 + s_m
+                        if b_start_minutes <= s_minutes < b_end_minutes:
+                            occupied_slots.add(slot)
+
                 day_avail = {}
                 for slot in time_slots:
-                    if slot in booked_for_date:
+                    if slot in occupied_slots:
                         day_avail[slot] = "booked"
                     elif last_valid_start and slot > last_valid_start:
                         day_avail[slot] = "too_late"
