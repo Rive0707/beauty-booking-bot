@@ -428,7 +428,7 @@ dashboard_html = """
   <div class="header">
     <div class="title">📅 美容室予約管理</div>
     <div>
-      <a href="/static/menu.html" class="btn" style="margin-right:8px">メニュー管理</a>
+        <a href="/static/menu.html" class="btn" style="margin-right:8px">お客様画面</a>
       <button class="btn btn-primary" onclick="openModal()">＋ 新規予約</button>
     </div>
   </div>
@@ -508,6 +508,42 @@ dashboard_html = """
   </div>
 
   <div class="panel" id="panel-history">
+    <div class="panel" id="panel-menus">
+    <div style="display:grid; grid-template-columns: 280px 1fr; gap: 20px;">
+      <div>
+        <div style="background:#fff; border-radius:12px; border:1px solid #e5e5ea; padding:16px;">
+          <div style="font-weight:600; margin-bottom:12px;">新規メニュー追加</div>
+          <div class="form-group">
+            <label>メニュー名 <span class="req">*</span></label>
+            <input type="text" id="menu-name" placeholder="カット">
+          </div>
+          <div class="form-group">
+            <label>料金（円） <span class="req">*</span></label>
+            <input type="number" id="menu-price" placeholder="5500">
+          </div>
+          <div class="form-group">
+            <label>時間（分） <span class="req">*</span></label>
+            <input type="number" id="menu-duration" placeholder="60">
+          </div>
+          <button class="btn btn-primary" onclick="addMenu()" style="width:100%; justify-content:center;">追加する</button>
+        </div>
+      </div>
+      <div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>メニュー名</th>
+              <th>料金</th>
+              <th>時間</th>
+              <th style="width:60px;"></th>
+            </tr>
+          </thead>
+          <tbody id="menu-body"></tbody>
+        </table>
+        <div id="menu-empty" class="empty" style="display:none;">メニューが登録されていません</div>
+      </div>
+    </div>
+  </div>
     <div class="toolbar">
       <div class="search-box">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#c7c7cc;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -618,7 +654,7 @@ dashboard_html = """
       fetch('/api/menus').then(function(r){ return r.json(); })
     ]);
     bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
-    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory();
+    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus();
   }
   function populateMenus() {
     const sel = document.getElementById('form-menu');
@@ -820,7 +856,10 @@ dashboard_html = """
     const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
     if (res.ok) { toast('予約をキャンセルしました'); loadData(); }
   }
-
+  function renderMenus() { ... }
+  async function addMenu() { ... }
+  async function deleteMenu(id) { ... }
+  
   loadData();
 </script>
 </body>
