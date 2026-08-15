@@ -1105,7 +1105,12 @@ async def get_all_upcoming_bookings_api():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-try:
+@app.get("/api/availability")
+async def get_availability(start_date: str, days: int = 7, duration_minutes: int = None):
+    """
+    指定期間の予約可能状況を取得（LIFFカレンダー用）
+    """
+    try:
         from datetime import datetime, timedelta
 
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -1182,80 +1187,60 @@ try:
             "dates": date_list,
             "availability": availability
         })
-    　　　except Exception as e:
-        logger.error(f"Error getting availability: {e}")
-        raise HTTPException(status_code=500, detail=str(e))    """
-    指定期間の予約可能状況を取得（LIFFカレンダー用）
-    """
-    try:
-        from datetime import datetime, timedelta
-
-        start = datetime.strptime(start_date, "%Y-%m-%d").date()
-        end = datetime.strptime(end_date, "%Y-%m-%d").date()
-
-        time_slots = []
-        current_time = BUSINESS_HOURS_START
-        while current_time < BUSINESS_HOURS_END:
-            time_slots.append(f"{current_time:02d}:00")
-            if SLOT_INTERVAL_MINUTES == 30:
-                time_slots.append(f"{current_time:02d}:30")
-            current_time += 1
-
-        date_list = []
-        availability = {}
-        current = start
-        while current <= end:
-            date_str = current.isoformat()
-            date_list.append(date_str)
-            weekday_index = current.weekday()
-
-            booked_times = db.get_booked_times_in_range(date_str, date_str)
-
-            all_menus = db.get_all_menus()
-            max_duration = max((m[3] for m in all_menus), default=60)
-            last_valid_start = None
-            if BUSINESS_HOURS_END * 60 - max_duration >= BUSINESS_HOURS_START * 60:
-                last_valid_start_minutes = BUSINESS_HOURS_END * 60 - max_duration
-                last_valid_hour = last_valid_start_minutes // 60
-                last_valid_minute = last_valid_start_minutes % 60
-                last_valid_start = f"{last_valid_hour:02d}:{last_valid_minute:02d}"
-
-            if weekday_index in CLOSED_WEEKDAYS:
-                availability[date_str] = {slot: "closed" for slot in time_slots}
-            else:
-                # 予約1件につき、開始時刻から固定1時間（60分）ぶんの枠をbooked扱いにする
-                occupied_slots = set()
-                for booking_time in booked_times.get(date_str, []):
-                    b_h, b_m = map(int, booking_time.split(":"))
-                    b_start_minutes = b_h * 60 + b_m
-                    b_end_minutes = b_start_minutes + 60
-                    for slot in time_slots:
-                        s_h, s_m = map(int, slot.split(":"))
-                        s_minutes = s_h * 60 + s_m
-                        if b_start_minutes <= s_minutes < b_end_minutes:
-                            occupied_slots.add(slot)
-
-                day_avail = {}
-                for slot in time_slots:
-                    if slot in occupied_slots:
-                        day_avail[slot] = "booked"
-                    elif last_valid_start and slot > last_valid_start:
-                        day_avail[slot] = "too_late"
-                    else:
-                        day_avail[slot] = "available"
-                availability[date_str] = day_avail
-
-            current += timedelta(days=1)
-
-        return JSONResponse({
-            "time_slots": time_slots,
-            "dates": date_list,
-            "availability": availability
-        })
     except Exception as e:
         logger.error(f"Error getting availability: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/liff/booking")
+async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
+    """LIFFからの予約確定（お客様情報付き）"""
+    try:
+        db.save_customer_profile(
+            user_id=data.user_id,
+            name=data.name,
+            furigana=data.furigana,
+            gender=data.gender,
+            birthdate=data.birthdate,
+            phone=data.phone
+        )
+
+        booking_id = db.add_booking(
+            user_id=data.user_id,
+            booking_date=data.booking_date,
+            booking_time=data.booking_time,
+            menu_id=data.menu_id
+        )
+
+        if not booking_id:
+            raise HTTPException(status_code=500, detail="予約に失敗しました")
+
+        db.add_booking_history(
+            booking_id=booking_id,
+            action="created",
+            user_id=data.user_id,
+            after_date=data.booking_date,
+            after_time=data.booking_time
+        )
+
+        menu = db.get_menu(data.menu_id)
+        menu_name = menu["name"] if menu else "不明"
+
+        line_handler.notify_owner(
+            f"🆕 LIFFから新規予約\n\n"
+            f"お客様: {data.name}\n"
+            f"日時: {data.booking_date} {data.booking_time}\n"
+            f"メニュー: {menu_name}"
+        )
+
+        return JSONResponse({
+            "status": "ok",
+            "booking_id": booking_id
+        })
+
+    except Exception as e:
+        logger.error(f"Error creating booking from LIFF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/booking/reschedule")
 async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
