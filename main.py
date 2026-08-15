@@ -856,9 +856,9 @@ dashboard_html = """
     const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
     if (res.ok) { toast('予約をキャンセルしました'); loadData(); }
   }
-  function renderMenus() { ... }
-  async function addMenu() { ... }
-  async function deleteMenu(id) { ... }
+  function renderMenus() {}
+  async function addMenu() {}
+  async function deleteMenu(id) {}
   
   loadData();
 </script>
