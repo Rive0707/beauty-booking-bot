@@ -507,8 +507,23 @@ dashboard_html = """
     <div id="list-empty" class="empty" style="display:none;">該当する予約がありません</div>
   </div>
 
-  <div class="panel" id="panel-history">
-    <div class="panel" id="panel-menus">
+<div class="panel" id="panel-history">
+    <div class="toolbar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#c7c7cc;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="history-search" placeholder="顧客名で検索" oninput="renderHistory()">
+      </div>
+      <select class="filter-select" id="history-type" onchange="renderHistory()">
+        <option value="">すべて</option>
+        <option value="change">変更</option>
+        <option value="cancel">キャンセル</option>
+      </select>
+    </div>
+    <div id="history-list"></div>
+    <div id="history-empty" class="empty" style="display:none;">該当する履歴がありません</div>
+  </div>
+
+  <div class="panel" id="panel-menus">
     <div style="display:grid; grid-template-columns: 280px 1fr; gap: 20px;">
       <div>
         <div style="background:#fff; border-radius:12px; border:1px solid #e5e5ea; padding:16px;">
@@ -543,20 +558,6 @@ dashboard_html = """
         <div id="menu-empty" class="empty" style="display:none;">メニューが登録されていません</div>
       </div>
     </div>
-  </div>
-    <div class="toolbar">
-      <div class="search-box">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#c7c7cc;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="history-search" placeholder="顧客名で検索" oninput="renderHistory()">
-      </div>
-      <select class="filter-select" id="history-type" onchange="renderHistory()">
-        <option value="">すべて</option>
-        <option value="change">変更</option>
-        <option value="cancel">キャンセル</option>
-      </select>
-    </div>
-    <div id="history-list"></div>
-    <div id="history-empty" class="empty" style="display:none;">該当する履歴がありません</div>
   </div>
 </div>
 
