@@ -1352,7 +1352,7 @@ async def api_get_customers():
 async def api_get_menus():
     """全メニュー"""
     rows = db.get_all_menus()
-    return [dict(r) for r in rows]
+    return {"menus": [dict(r) for r in rows]}
 
 @app.post("/api/bookings")
 async def api_create_booking(data: DashboardBookingCreate):
