@@ -898,7 +898,7 @@ dashboard_html = """
       fetch('/api/customers').then(function(r){ return r.json(); }),
       fetch('/api/menus').then(function(r){ return r.json(); })
     ]);
-    bookings = bRes; histories = hRes; customers = cRes; menus = mRes;
+    bookings = bRes; histories = hRes; customers = cRes; menus = mRes.menus || [];
     populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus();
   }
   loadData();
