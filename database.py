@@ -4,7 +4,7 @@ SQLiteデータベース管理
 """
 
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
