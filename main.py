@@ -1226,6 +1226,18 @@ async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
         menu = db.get_menu(data.menu_id)
         menu_name = menu["name"] if menu else "不明"
 
+        line_handler.send_text(data.user_id, f"""
+🎉 ご予約ありがとうございます！
+
+📅 {data.booking_date} {data.booking_time}
+📍 予約ID: {booking_id}
+✂️ メニュー: {menu_name}
+
+ご来店の7日前・3日前にリマインダーをお送りいたします。
+
+📞 ご質問やご変更は、いつでもお気軽にご連絡ください。
+""")
+
         line_handler.notify_owner(
             f"🆕 LIFFから新規予約\n\n"
             f"お客様: {data.name}\n"
@@ -1241,59 +1253,9 @@ async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
     except Exception as e:
         logger.error(f"Error creating booking from LIFF: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/booking/reschedule")
-async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
-    """LIFFからの予約確定（お客様情報付き）"""
-    try:
-        db.save_customer_profile(
-            user_id=data.user_id,
-            name=data.name,
-            furigana=data.furigana,
-            gender=data.gender,
-            birthdate=data.birthdate,
-            phone=data.phone
-        )
-
-        booking_id = db.add_booking(
-            user_id=data.user_id,
-            booking_date=data.booking_date,
-            booking_time=data.booking_time,
-            menu_id=data.menu_id
-        )
-
-        if not booking_id:
-            raise HTTPException(status_code=500, detail="予約に失敗しました")
-
-        db.add_booking_history(
-            booking_id=booking_id,
-            action="created",
-            user_id=data.user_id,
-            after_date=data.booking_date,
-            after_time=data.booking_time
-        )
-
-        menu = db.get_menu(data.menu_id)
-        menu_name = menu["name"] if menu else "不明"
-
-        line_handler.notify_owner(
-            f"🆕 LIFFから新規予約\n\n"
-            f"お客様: {data.name}\n"
-            f"日時: {data.booking_date} {data.booking_time}\n"
-            f"メニュー: {menu_name}"
-        )
-
-        return JSONResponse({
-            "status": "ok",
-            "booking_id": booking_id
-        })
-
-    except Exception as e:
-        logger.error(f"Error creating booking from LIFF: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/liff/reschedule")
 async def reschedule_from_liff(data: RescheduleRequest):
     """LIFFからの予約変更"""
     try:
@@ -1318,6 +1280,26 @@ async def reschedule_from_liff(data: RescheduleRequest):
             before_time=original_time,
             after_date=data.booking_date,
             after_time=data.booking_time
+        )
+
+        menu = db.get_menu(booking["menu_id"])
+        menu_name = menu["name"] if menu else "不明"
+
+        line_handler.send_text(data.user_id, f"""
+✅ ご予約を変更しました
+
+📅 変更後の日時: {data.booking_date} {data.booking_time}
+📍 予約ID: {data.booking_id}
+
+ご来店をお待ちしております！
+""")
+
+        line_handler.notify_owner(
+            f"📝 予約変更がありました\n\n"
+            f"変更前: {original_date} {original_time}\n"
+            f"変更後: {data.booking_date} {data.booking_time}\n"
+            f"メニュー: {menu_name}\n"
+            f"予約ID: {data.booking_id}"
         )
 
         return JSONResponse({"status": "ok", "message": "予約を変更しました"})
