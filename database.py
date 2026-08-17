@@ -16,6 +16,7 @@ class Database:
         self.conn = None
 
     def get_connection(self):
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
