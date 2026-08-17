@@ -3,6 +3,7 @@ SQLiteデータベース管理
 顧客、予約、メニュー、来店履歴を管理
 """
 
+import os
 import sqlite3
 from datetime import datetime, date, timedelta
 import logging
@@ -10,8 +11,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Database:
-    def __init__(self, db_path: str = "beauty_booking.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: str = None):
+    self.db_path = db_path or os.environ.get("DB_PATH", "/data/beauty_booking.db")
         self.conn = None
 
     def get_connection(self):
