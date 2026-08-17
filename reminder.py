@@ -54,15 +54,16 @@ class ReminderScheduler:
                 # 予約日と今日の差分
                 days_until_booking = (booking_date - today).days
                 
-                # 7日前（7日以内に入った時点でまだ送っていなければ送信）
-                if days_until_booking <= 7 and not reminder_7d_sent:
-                    self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id, days_label="7日前")
-                    self.db.mark_reminder_7d_sent(booking_id)
-
-                # 3日前（3日以内に入った時点でまだ送っていなければ送信）
+                # 残り日数に応じて、7日前・3日前のリマインドを「1回のチェックにつき1通だけ」送る
+                # （サーバーが一時停止していても、次に動いた時に取りこぼさず送れるよう <= で判定）
                 if days_until_booking <= 3 and not reminder_3d_sent:
-                    self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id, days_label="3日前")
+                    self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id, days_label=f"あと{days_until_booking}日")
                     self.db.mark_reminder_3d_sent(booking_id)
+                    if not reminder_7d_sent:
+                        self.db.mark_reminder_7d_sent(booking_id)
+                elif days_until_booking <= 7 and not reminder_7d_sent:
+                    self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id, days_label=f"あと{days_until_booking}日")
+                    self.db.mark_reminder_7d_sent(booking_id)
         
         except Exception as e:
             logger.error(f"Error in check_and_send_reminders: {e}")
