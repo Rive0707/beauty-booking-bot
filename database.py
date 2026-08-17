@@ -309,6 +309,28 @@ class Database:
             logger.error(f"Error deleting menu: {e}")
         finally:
             conn.close()
+    def is_slot_available(self, booking_date: str, booking_time: str, exclude_booking_id: int = None) -> bool:
+        """その日時が他の予約と重複していないか確認（1件＝60分埋まる前提）"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, booking_time FROM bookings
+            WHERE booking_date = ? AND status = 'confirmed'
+        ''', (booking_date,))
+        rows = cursor.fetchall()
+        conn.close()
+
+        new_h, new_m = map(int, booking_time.split(":"))
+        new_start = new_h * 60 + new_m
+
+        for row in rows:
+            if exclude_booking_id and row["id"] == exclude_booking_id:
+                continue
+            b_h, b_m = map(int, row["booking_time"].split(":"))
+            b_start = b_h * 60 + b_m
+            if abs(new_start - b_start) < 60:
+                return False
+        return True
 
     def add_booking(self, user_id: str, booking_date: str, booking_time: str,
                     menu_id: int, notes: str = None) -> int:
