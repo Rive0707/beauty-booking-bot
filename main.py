@@ -1111,7 +1111,12 @@ async def get_availability(start_date: str, days: int = 7, duration_minutes: int
     指定期間の予約可能状況を取得（LIFFカレンダー用）
     """
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
+
+        JST_TH = timezone(timedelta(hours=7))
+        now = datetime.now(JST_TH)
+        today_str = now.date().isoformat()
+        cutoff_minutes = now.hour * 60 + now.minute + 30
 
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
         end = start + timedelta(days=days - 1)
@@ -1172,8 +1177,12 @@ async def get_availability(start_date: str, days: int = 7, duration_minutes: int
 
                 day_avail = {}
                 for slot in time_slots:
+                    s_h, s_m = map(int, slot.split(":"))
+                    s_minutes = s_h * 60 + s_m
                     if slot in occupied_slots:
                         day_avail[slot] = "booked"
+                    elif date_str == today_str and s_minutes < cutoff_minutes:
+                        day_avail[slot] = "too_late"
                     elif last_valid_start and slot > last_valid_start:
                         day_avail[slot] = "too_late"
                     else:
