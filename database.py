@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self, db_path: str = None):
-    self.db_path = db_path or os.environ.get("DB_PATH", "/data/beauty_booking.db")
+        self.db_path = db_path or os.environ.get("DB_PATH", "/data/beauty_booking.db")
         self.conn = None
 
     def get_connection(self):
