@@ -1743,6 +1743,30 @@ async def api_create_booking(data: DashboardBookingCreate):
     return JSONResponse({"error": "failed"}, status_code=500)
 
 @app.put("/api/bookings/{booking_id}")
+
+class CompleteBookingRequest(BaseModel):
+    notes: Optional[str] = None
+
+@app.post("/api/bookings/{booking_id}/complete")
+async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
+    """予約を「来店完了」にし、来店履歴（カルテ）に記録する"""
+    booking = db.get_booking(booking_id)
+    if not booking:
+        return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
+    
+    # 予約ステータスを completed に更新
+    db.update_booking_status(booking_id, "completed")
+    
+    # 来店履歴（カルテ）を登録
+    db.add_visit_history(
+        user_id=booking['user_id'],
+        booking_id=booking_id,
+        visited_date=booking['booking_date'],
+        notes=data.notes
+    )
+    
+    return {"status": "ok", "message": "来店完了を記録しました"}
+
 async def api_update_booking(booking_id: int, data: DashboardBookingCreate):
     """予約更新"""
     booking = db.get_booking(booking_id)
