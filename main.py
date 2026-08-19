@@ -630,7 +630,7 @@ dashboard_html = """
   </div>
 </div>
 
-    <div class="toast-container" id="toasts"></div>
+<div class="toast-container" id="toasts"></div>
 
 <script>
   let bookings = [];
