@@ -638,7 +638,7 @@ dashboard_html = """
   let currentDate = new Date();
   let editingId = null;
   const times = [];
-　for (let h = 9; h < 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
+  for (let h = 9; h < 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
 　times.push("19:00");
   function fmtDate(d) {
   const y = d.getFullYear();
