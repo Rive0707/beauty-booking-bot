@@ -1446,6 +1446,19 @@ async def api_delete_customer(user_id: str):
         return {"status": "ok"}
     return JSONResponse({"error": "削除に失敗しました"}, status_code=500)
 
+
+class CustomerMergeRequest(BaseModel):
+    manual_user_id: str
+    line_user_id: str
+
+@app.post("/api/customers/merge")
+async def api_merge_customer(data: CustomerMergeRequest):
+    """手動顧客とLINE顧客の統合"""
+    success = db.merge_customers(data.manual_user_id, data.line_user_id)
+    if success:
+        return {"status": "ok", "message": "LINE連携が完了しました"}
+    return JSONResponse({"error": "連携処理に失敗しました"}, status_code=500)
+
 @app.get("/api/menus")
 async def api_get_menus():
     """全メニュー"""
