@@ -578,3 +578,21 @@ class Database:
         results = cursor.fetchall()
         conn.close()
         return results
+        
+    def merge_customers(self, manual_user_id: str, line_user_id: str) -> bool:
+        """手動登録の顧客データをLINEユーザーへ統合し、旧手動データを削除"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('UPDATE bookings SET user_id = ? WHERE user_id = ?', (line_user_id, manual_user_id))
+            cursor.execute('UPDATE booking_history SET user_id = ? WHERE user_id = ?', (line_user_id, manual_user_id))
+            cursor.execute('UPDATE visit_history SET user_id = ? WHERE user_id = ?', (line_user_id, manual_user_id))
+            cursor.execute('DELETE FROM customers WHERE user_id = ?', (manual_user_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error merging customers: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
