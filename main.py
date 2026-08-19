@@ -934,7 +934,6 @@ dashboard_html = """
     const res = await fetch('/api/menus/' + id, {method: 'DELETE'});
     if (res.ok) { toast('メニューを削除しました'); loadData(); }
   }
-   </div>
    
     async function loadData() {
     const [bRes, hRes, cRes, mRes] = await Promise.all([
@@ -948,6 +947,7 @@ dashboard_html = """
   }
   loadData();
 </script>
+</div>
 </body>
 </html>
 """
