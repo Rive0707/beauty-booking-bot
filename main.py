@@ -886,6 +886,32 @@ dashboard_html = """
     });
     document.getElementById('menu-empty').style.display = menus.length ? 'none' : 'block';
   }
+  function renderCustomers() {
+    const q = (document.getElementById('customer-search').value || '').toLowerCase();
+    const filtered = customers.filter(function(c) {
+      const name = (c.name || '').toLowerCase();
+      const phone = (c.phone || '').toLowerCase();
+      return name.includes(q) || phone.includes(q);
+    });
+    const body = document.getElementById('customer-body');
+    body.innerHTML = filtered.map(function(c) {
+      return '<tr><td>' + (c.name || '(未登録)') + '</td><td>' + (c.phone || '-') + '</td>' +
+        '<td><button class="btn-icon" onclick="deleteCustomer(\'' + c.user_id + '\')">🗑️</button></td></tr>';
+    }).join('');
+    document.getElementById('customer-empty').style.display = filtered.length ? 'none' : 'block';
+  }
+
+  async function deleteCustomer(userId) {
+    if (!confirm('このお客様を削除しますか？')) return;
+    const res = await fetch('/api/customers/' + encodeURIComponent(userId), { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      toast('お客様を削除しました');
+      loadData();
+    } else {
+      toast(data.error || '削除に失敗しました');
+    }
+  }
   async function addMenu() {
     const name = document.getElementById('menu-name').value.trim();
     const price = parseInt(document.getElementById('menu-price').value);
