@@ -628,6 +628,35 @@ dashboard_html = """
   </div>
 </div>
 
+<!-- LINE連携（ガッチャンコ）モーダル -->
+<div class="modal-overlay" id="modal-customer-merge" onclick="if(event.target===this)closeCustomerMergeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">LINEアカウントとの連携（ガッチャンコ）</span>
+      <button class="icon-btn" onclick="closeCustomerMergeModal()" style="width:32px;height:32px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:#8e8e93; margin-bottom:12px;">
+        手動登録されたお客様の予約データを、LINEで登録されたアカウントに引き継ぎます。
+      </p>
+      <div class="form-group">
+        <label>手動登録のお客さま</label>
+        <input type="text" id="merge-manual-name" readonly style="background:#f2f2f7;">
+      </div>
+      <div class="form-group">
+        <label>紐付けるLINEアカウントを選択 <span class="req">*</span></label>
+        <select id="merge-line-user-select">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeCustomerMergeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitCustomerMerge()">連携を確定する</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toasts"></div>
 
 <script>
