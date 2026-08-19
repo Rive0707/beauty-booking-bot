@@ -560,9 +560,8 @@ dashboard_html = """
       </div>
     </div>
   </div>
-</div>
 
-<div class="panel" id="panel-customers">
+　　<div class="panel" id="panel-customers">
     <div class="toolbar">
       <div class="search-box">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#c7c7cc;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
