@@ -959,6 +959,7 @@ function clearForm() {
     const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
     if (res.ok) { toast('予約をキャンセルしました'); loadData(); }
   }
+  
 function renderCustomers() {
     const q = (document.getElementById('customer-search').value || '').toLowerCase();
     const filtered = customers.filter(function(c) {
