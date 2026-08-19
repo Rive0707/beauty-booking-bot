@@ -935,19 +935,6 @@ function clearForm() {
     const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
     if (res.ok) { toast('予約をキャンセルしました'); loadData(); }
   }
-  function renderMenus() {
-    const tbody = document.getElementById('menu-body');
-    tbody.innerHTML = '';
-    menus.forEach(function(m) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td style="font-weight:500">' + m.name + '</td>' +
-        '<td>¥' + m.price.toLocaleString() + '</td>' +
-        '<td>' + m.duration_minutes + '分</td>' +
-        '<td><button class="icon-btn danger" onclick="deleteMenu(' + m.id + ')">&#128465;&#65039;</button></td>';
-      tbody.appendChild(tr);
-    });
-    document.getElementById('menu-empty').style.display = menus.length ? 'none' : 'block';
-  }
 function renderCustomers() {
     const q = (document.getElementById('customer-search').value || '').toLowerCase();
     const filtered = customers.filter(function(c) {
@@ -957,19 +944,93 @@ function renderCustomers() {
     });
     const body = document.getElementById('customer-body');
     
-    // 👇 ここをバッククォートを用いた書き方に修正します
     body.innerHTML = filtered.map(function(c) {
       const id = c.user_id;
+      const isLine = !id.startsWith('manual_');
+      const badge = isLine 
+        ? '<span class="status-badge status-confirmed">LINE</span>' 
+        : '<span class="status-badge" style="background:#e5e5ea;color:#8e8e93;">手動</span>';
       const name = c.name || '(未登録)';
       const phone = c.phone || '-';
+      const lastVisit = c.last_visit ? c.last_visit.replace(/-/g, '/') : '-';
+
+      // 手動顧客のみ連携ボタン(🔗)を表示
+      const mergeBtn = !isLine 
+        ? `<button class="icon-btn" title="LINE連携" onclick="openCustomerMergeModal('${id}')">🔗</button>` 
+        : '';
+
       return `<tr>
-        <td>${name}</td>
+        <td>${badge}</td>
+        <td style="font-weight:500">${name}</td>
         <td>${phone}</td>
-        <td><button class="icon-btn danger" onclick="deleteCustomer('${id}')">🗑️</button></td>
+        <td>${lastVisit}</td>
+        <td>
+          <div class="row-actions" style="opacity:1;">
+            ${mergeBtn}
+            <button class="icon-btn" title="来店履歴" onclick="showCustomerHistory('${id}')">📋</button>
+            <button class="icon-btn" title="編集" onclick="openCustomerEditModal('${id}')">✏️</button>
+            <button class="icon-btn danger" title="削除" onclick="deleteCustomer('${id}')">🗑️</button>
+          </div>
+        </td>
       </tr>`;
     }).join('');
     
     document.getElementById('customer-empty').style.display = filtered.length ? 'none' : 'block';
+  }
+
+  let mergingManualUserId = null;
+
+  function openCustomerMergeModal(manualUserId) {
+    const manualCustomer = customers.find(x => x.user_id === manualUserId);
+    if (!manualCustomer) return;
+    
+    mergingManualUserId = manualUserId;
+    document.getElementById('merge-manual-name').value = `${manualCustomer.name || '名前なし'} (${manualCustomer.phone || '電話なし'})`;
+
+    const lineUsers = customers.filter(x => !x.user_id.startsWith('manual_'));
+    const sel = document.getElementById('merge-line-user-select');
+    sel.innerHTML = '<option value="">選択してください</option>';
+    
+    lineUsers.forEach(function(u) {
+      const opt = document.createElement('option');
+      opt.value = u.user_id;
+      opt.textContent = `${u.name || 'LINEユーザー'} (${u.phone || 'TEL未登録'})`;
+      sel.appendChild(opt);
+    });
+
+    document.getElementById('modal-customer-merge').classList.add('open');
+  }
+
+  function closeCustomerMergeModal() {
+    document.getElementById('modal-customer-merge').classList.remove('open');
+    mergingManualUserId = null;
+  }
+
+  async function submitCustomerMerge() {
+    const lineUserId = document.getElementById('merge-line-user-select').value;
+    if (!mergingManualUserId || !lineUserId) {
+      toast('連携するLINEアカウントを選択してください');
+      return;
+    }
+
+    if (!confirm('この手動登録データを指定のLINEアカウントに統合しますか？')) return;
+
+    const res = await fetch('/api/customers/merge', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        manual_user_id: mergingManualUserId,
+        line_user_id: lineUserId
+      })
+    });
+
+    if (res.ok) {
+      toast('LINEアカウントとの連携が完了しました！');
+      closeCustomerMergeModal();
+      loadData();
+    } else {
+      toast('連携処理に失敗しました');
+    }
   }
 
   async function deleteCustomer(userId) {
