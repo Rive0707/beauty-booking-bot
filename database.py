@@ -214,6 +214,32 @@ class Database:
             logger.error(f"Error adding customer: {e}")
         finally:
             conn.close()
+    def has_active_bookings(self, user_id: str) -> bool:
+        """confirmed状態の予約が残っているか確認"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) as cnt FROM bookings
+            WHERE user_id = ? AND status = 'confirmed'
+        ''', (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row["cnt"] > 0
+
+    def delete_customer(self, user_id: str) -> bool:
+        """お客様情報を削除（予約が残っていないことは呼び出し側で確認済み前提）"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('DELETE FROM customers WHERE user_id = ?', (user_id,))
+            conn.commit()
+            logger.info(f"Customer deleted: {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting customer: {e}")
+            return False
+        finally:
+            conn.close()
 
     def get_customer(self, user_id: str):
         conn = self.get_connection()
