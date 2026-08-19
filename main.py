@@ -460,8 +460,6 @@ dashboard_html = """
     <button class="tab" onclick="switchTab('customers')" id="tab-customers">顧客管理</button>
   </div>
 
-  </div>
-
   <div class="panel active" id="panel-board">
     <div class="date-nav">
       <button class="btn" onclick="changeDate(-1)">‹</button>
