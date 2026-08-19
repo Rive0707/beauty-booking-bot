@@ -980,7 +980,6 @@ function renderCustomers() {
       const customerPhone = c.phone ? c.phone : '-';
       const lastVisit = c.last_visit ? String(c.last_visit).replace(/-/g, '/') : '-';
 
-      // LINE顧客のみメッセージ送信ボタン(✉️)を表示、手動顧客のみ連携ボタン(🔗)を表示
       const lineBtn = isLine 
         ? `<button class="icon-btn" title="LINE送信" onclick="openSendMessageModal('${id}')">✉️</button>`
         : `<button class="icon-btn" title="LINE連携" onclick="openCustomerMergeModal('${id}')">🔗</button>`;
@@ -1004,46 +1003,148 @@ function renderCustomers() {
     document.getElementById('customer-empty').style.display = filtered.length ? 'none' : 'block';
   }
 
-  // LINEメッセージ送信の制御スクリプト
+  // LINEメッセージ送信制御
   let sendingMessageUserId = null;
-
   function openSendMessageModal(userId) {
     const c = customers.find(x => x.user_id === userId);
     if (!c) return;
-    
     sendingMessageUserId = userId;
     document.getElementById('message-target-name').value = `${c.name || 'LINEユーザー'} 様`;
     document.getElementById('message-text').value = '';
     document.getElementById('modal-send-message').classList.add('open');
   }
-
   function closeSendMessageModal() {
     document.getElementById('modal-send-message').classList.remove('open');
     sendingMessageUserId = null;
   }
-
   async function submitDirectMessage() {
     const text = document.getElementById('message-text').value.trim();
-    if (!sendingMessageUserId || !text) {
-      toast('メッセージを入力してください');
-      return;
-    }
-
+    if (!sendingMessageUserId || !text) { toast('メッセージを入力してください'); return; }
     const res = await fetch('/api/customers/send-message', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        user_id: sendingMessageUserId,
-        message: text
-      })
+      body: JSON.stringify({ user_id: sendingMessageUserId, message: text })
     });
+    if (res.ok) { toast('LINEメッセージを送信しました！'); closeSendMessageModal(); }
+    else { toast('送信に失敗しました'); }
+  }
 
-    if (res.ok) {
-      toast('LINEメッセージを送信しました！');
-      closeSendMessageModal();
+  // 顧客編集モーダル制御
+  let editingCustomerUserId = null;
+  function openCustomerEditModal(userId) {
+    const c = customers.find(x => x.user_id === userId);
+    if (!c) return;
+    editingCustomerUserId = userId;
+    document.getElementById('edit-customer-name').value = c.name || '';
+    document.getElementById('edit-customer-phone').value = c.phone || '';
+    document.getElementById('modal-customer-edit').classList.add('open');
+  }
+  function closeCustomerEditModal() {
+    document.getElementById('modal-customer-edit').classList.remove('open');
+    editingCustomerUserId = null;
+  }
+  async function saveCustomerEdit() {
+    if (!editingCustomerUserId) return;
+    const name = document.getElementById('edit-customer-name').value.trim();
+    const phone = document.getElementById('edit-customer-phone').value.trim();
+    if (!name) { toast('お名前を入力してください'); return; }
+    const res = await fetch('/api/customers/' + encodeURIComponent(editingCustomerUserId), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name: name, phone: phone })
+    });
+    if (res.ok) { toast('お客様情報を更新しました'); closeCustomerEditModal(); loadData(); }
+    else { toast('更新に失敗しました'); }
+  }
+
+  // 来店履歴モーダル表示
+  function showCustomerHistory(userId) {
+    const c = customers.find(x => x.user_id === userId);
+    if (!c) return;
+    document.getElementById('history-modal-title').textContent = `${c.name || 'お客様'} 様の来店・予約履歴`;
+    const userBookings = bookings.filter(b => b.user_id === userId)
+      .sort((a,b) => (b.booking_date + b.booking_time).localeCompare(a.booking_date + a.booking_time));
+    const container = document.getElementById('customer-history-body');
+    if (userBookings.length === 0) {
+      container.innerHTML = '<div class="empty">予約・来店履歴がありません</div>';
     } else {
-      toast('送信に失敗しました');
+      container.innerHTML = userBookings.map(b => {
+        const m = menus.find(x => x.id === b.menu_id);
+        const statusLabel = b.status === 'confirmed' ? '確定' : b.status === 'cancelled' ? 'キャンセル' : '仮';
+        const statusClass = 'status-' + (b.status || 'confirmed');
+        return `<div style="border-bottom:1px solid #e5e5ea; padding:10px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b>${b.booking_date.replace(/-/g, '/')} ${b.booking_time}</b>
+            <span class="status-badge ${statusClass}">${statusLabel}</span>
+          </div>
+          <div style="font-size:13px; color:#1d1d1f; margin-top:4px;">メニュー: ${m ? m.name : '不明'}</div>
+          ${b.notes ? `<div style="font-size:12px; color:#8e8e93; margin-top:2px;">メモ: ${b.notes}</div>` : ''}
+        </div>`;
+      }).join('');
     }
+    document.getElementById('modal-customer-history').classList.add('open');
+  }
+  function closeCustomerHistoryModal() {
+    document.getElementById('modal-customer-history').classList.remove('open');
+  }
+
+  // LINE連携（ガッチャンコ）制御
+  let mergingManualUserId = null;
+  function openCustomerMergeModal(manualUserId) {
+    const manualCustomer = customers.find(x => x.user_id === manualUserId);
+    if (!manualCustomer) return;
+    mergingManualUserId = manualUserId;
+    document.getElementById('merge-manual-name').value = `${manualCustomer.name || '名前なし'} (${manualCustomer.phone || '電話なし'})`;
+    const lineUsers = customers.filter(x => !x.user_id.startsWith('manual_'));
+    const sel = document.getElementById('merge-line-user-select');
+    sel.innerHTML = '<option value="">選択してください</option>';
+    lineUsers.forEach(function(u) {
+      const opt = document.createElement('option');
+      opt.value = u.user_id;
+      opt.textContent = `${u.name || 'LINEユーザー'} (${u.phone || 'TEL未登録'})`;
+      sel.appendChild(opt);
+    });
+    document.getElementById('modal-customer-merge').classList.add('open');
+  }
+  function closeCustomerMergeModal() {
+    document.getElementById('modal-customer-merge').classList.remove('open');
+    mergingManualUserId = null;
+  }
+  async function submitCustomerMerge() {
+    const lineUserId = document.getElementById('merge-line-user-select').value;
+    if (!mergingManualUserId || !lineUserId) { toast('連携するLINEアカウントを選択してください'); return; }
+    if (!confirm('この手動登録データを指定のLINEアカウントに統合しますか？')) return;
+    const res = await fetch('/api/customers/merge', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ manual_user_id: mergingManualUserId, line_user_id: lineUserId })
+    });
+    if (res.ok) { toast('LINEアカウントとの連携が完了しました！'); closeCustomerMergeModal(); loadData(); }
+    else { toast('連携処理に失敗しました'); }
+  }
+
+  // 顧客削除
+  async function deleteCustomer(userId) {
+    if (!confirm('このお客様を削除しますか？')) return;
+    const res = await fetch('/api/customers/' + encodeURIComponent(userId), { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) { toast('お客様を削除しました'); loadData(); }
+    else { toast(data.error || '削除に失敗しました'); }
+  }
+
+  // メニュー操作
+  function renderMenus() {
+    const tbody = document.getElementById('menu-body');
+    tbody.innerHTML = '';
+    menus.forEach(function(m) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td style="font-weight:500">' + m.name + '</td>' +
+        '<td>¥' + m.price.toLocaleString() + '</td>' +
+        '<td>' + m.duration_minutes + '分</td>' +
+        '<td><button class="icon-btn danger" onclick="deleteMenu(' + m.id + ')">🗑️</button></td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('menu-empty').style.display = menus.length ? 'none' : 'block';
   }
   async function addMenu() {
     const name = document.getElementById('menu-name').value.trim();
@@ -1061,25 +1162,64 @@ function renderCustomers() {
       document.getElementById('menu-price').value = '';
       document.getElementById('menu-duration').value = '';
       loadData();
-    } else {
-      toast('追加に失敗しました');
-    }
+    } else { toast('追加に失敗しました'); }
   }
   async function deleteMenu(id) {
     if (!confirm('このメニューを削除しますか？')) return;
     const res = await fetch('/api/menus/' + id, {method: 'DELETE'});
     if (res.ok) { toast('メニューを削除しました'); loadData(); }
   }
-   
-    async function loadData() {
-    const [bRes, hRes, cRes, mRes] = await Promise.all([
+
+  // 休業日描画・操作
+  let holidays = [];
+  function renderHolidays() {
+    const tbody = document.getElementById('holiday-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    holidays.forEach(function(h) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td style="font-weight:500">' + h.closed_date.replace(/-/g, '/') + '</td>' +
+        '<td>' + (h.note || '-') + '</td>' +
+        '<td><button class="icon-btn danger" onclick="deleteHoliday(\'' + h.closed_date + '\')">🗑️</button></td>';
+      tbody.appendChild(tr);
+    });
+    const emptyEl = document.getElementById('holiday-empty');
+    if (emptyEl) emptyEl.style.display = holidays.length ? 'none' : 'block';
+  }
+  async function addHoliday() {
+    const date = document.getElementById('holiday-date').value;
+    const note = document.getElementById('holiday-note').value.trim();
+    if (!date) { toast('日付を選択してください'); return; }
+    const res = await fetch('/api/closed-days', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ closed_date: date, note: note })
+    });
+    if (res.ok) {
+      toast('休業日を登録しました');
+      document.getElementById('holiday-date').value = '';
+      document.getElementById('holiday-note').value = '';
+      loadData();
+    } else { toast('登録に失敗しました'); }
+  }
+  async function deleteHoliday(closedDate) {
+    if (!confirm(closedDate + ' の休業設定を解除しますか？')) return;
+    const res = await fetch('/api/closed-days/' + closedDate, { method: 'DELETE' });
+    if (res.ok) { toast('休業設定を解除しました'); loadData(); }
+  }
+
+  // データ一括ロード
+  async function loadData() {
+    const [bRes, hRes, cRes, mRes, holRes] = await Promise.all([
       fetch('/api/bookings/all').then(function(r){ return r.json(); }),
       fetch('/api/history').then(function(r){ return r.json(); }),
       fetch('/api/customers').then(function(r){ return r.json(); }),
-      fetch('/api/menus').then(function(r){ return r.json(); })
+      fetch('/api/menus').then(function(r){ return r.json(); }),
+      fetch('/api/closed-days').then(function(r){ return r.json(); }).catch(function(){ return {closed_days:[]}; })
     ]);
     bookings = bRes; histories = hRes; customers = cRes; menus = mRes.menus || [];
-    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus(); renderCustomers();
+    holidays = (holRes && holRes.closed_days) ? holRes.closed_days : [];
+    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus(); renderCustomers(); renderHolidays();
   }
   loadData();
 </script>
