@@ -681,6 +681,30 @@ dashboard_html = """
   </div>
 </div>
 
+<!-- 来店完了（カルテ記録）モーダル -->
+<div class="modal-overlay" id="modal-complete-booking" onclick="if(event.target===this)closeCompleteBookingModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">来店完了・カルテ記録</span>
+      <button class="icon-btn" onclick="closeCompleteBookingModal()" style="width:32px;height:32px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>お客さま</label>
+        <input type="text" id="complete-customer-name" readonly style="background:#f2f2f7;">
+      </div>
+      <div class="form-group">
+        <label>施術内容・カルテメモ（カラーレシピ、髪質メモなど）</label>
+        <textarea id="complete-notes" rows="4" placeholder="例: アッシュ8トーン、オキシ6%、サイド少し長め"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeCompleteBookingModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitCompleteBooking()">来店完了として保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toasts"></div>
 
 <script>
