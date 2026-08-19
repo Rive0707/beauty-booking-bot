@@ -883,7 +883,7 @@ dashboard_html = """
     });
     document.getElementById('menu-empty').style.display = menus.length ? 'none' : 'block';
   }
-  function renderCustomers() {
+function renderCustomers() {
     const q = (document.getElementById('customer-search').value || '').toLowerCase();
     const filtered = customers.filter(function(c) {
       const name = (c.name || '').toLowerCase();
@@ -891,10 +891,19 @@ dashboard_html = """
       return name.includes(q) || phone.includes(q);
     });
     const body = document.getElementById('customer-body');
+    
+    // 👇 ここをバッククォートを用いた書き方に修正します
     body.innerHTML = filtered.map(function(c) {
-      return '<tr><td>' + (c.name || '(未登録)') + '</td><td>' + (c.phone || '-') + '</td>' +
-        '<td><button class="btn-icon" onclick="deleteCustomer(\'' + c.user_id + '\')">🗑️</button></td></tr>';
+      const id = c.user_id;
+      const name = c.name || '(未登録)';
+      const phone = c.phone || '-';
+      return `<tr>
+        <td>${name}</td>
+        <td>${phone}</td>
+        <td><button class="icon-btn danger" onclick="deleteCustomer('${id}')">🗑️</button></td>
+      </tr>`;
     }).join('');
+    
     document.getElementById('customer-empty').style.display = filtered.length ? 'none' : 'block';
   }
 
