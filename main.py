@@ -586,11 +586,11 @@ dashboard_html = """
       <button class="icon-btn" onclick="closeModal()" style="width:32px;height:32px;">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label>既存のお客様から選ぶ（任意）</label>
-        <select id="form-customer-select" onchange="fillCustomer()">
-          <option value="">新規お客様</option>
-        </select>
+    <div class="form-group">
+        <label>既存のお客様から選ぶ（名前・電話番号で検索）</label>
+        <input type="text" id="form-customer-input" list="customer-list" placeholder="名前または電話番号を入力..." oninput="onCustomerInput()">
+        <datalist id="customer-list"></datalist>
+        <div id="customer-info-badge" style="display:none; margin-top:6px; padding:6px 10px; background:#e8f4fd; border-radius:6px; font-size:12px; color:#007aff; font-weight:500;"></div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -675,16 +675,47 @@ dashboard_html = """
     sel.innerHTML = '<option value="">選択</option>';
     menus.forEach(function(m) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.name + ' (¥' + m.price.toLocaleString() + ', ' + m.duration_minutes + '分)'; sel.appendChild(o); });
   }
+  
+  let selectedUserId = null;
+
   function populateCustomers() {
-    const sel = document.getElementById('form-customer-select');
-    sel.innerHTML = '<option value="">新規お客様</option>';
-    customers.forEach(function(c) { const o = document.createElement('option'); o.value = c.user_id; o.textContent = c.name || c.user_id; sel.appendChild(o); });
+    const list = document.getElementById('customer-list');
+    list.innerHTML = '';
+    customers.forEach(function(c) {
+      const opt = document.createElement('option');
+      const lastVisit = c.last_visit ? '最終来店: ' + c.last_visit.replace(/-/g, '/') : '来店履歴なし';
+      const phoneStr = c.phone ? maskPhone(c.phone) : '電話なし';
+      opt.value = `${c.name || '(名前なし)'} (${phoneStr}) [${lastVisit}]`;
+      list.appendChild(opt);
+    });
   }
-  function fillCustomer() {
-    const uid = document.getElementById('form-customer-select').value;
-    if (!uid) { document.getElementById('form-name').value = ''; document.getElementById('form-phone').value = ''; return; }
-    const c = customers.find(function(x){ return x.user_id === uid; });
-    if (c) { document.getElementById('form-name').value = c.name || ''; document.getElementById('form-phone').value = c.phone || ''; }
+
+  function onCustomerInput() {
+    const val = document.getElementById('form-customer-input').value;
+    const badge = document.getElementById('customer-info-badge');
+    
+    const matched = customers.find(function(c) {
+      const lastVisit = c.last_visit ? '最終来店: ' + c.last_visit.replace(/-/g, '/') : '来店履歴なし';
+      const phoneStr = c.phone ? maskPhone(c.phone) : '電話なし';
+      const label = `${c.name || '(名前なし)'} (${phoneStr}) [${lastVisit}]`;
+      return label === val || c.name === val || c.phone === val;
+    });
+
+    if (matched) {
+      selectedUserId = matched.user_id;
+      document.getElementById('form-name').value = matched.name || '';
+      document.getElementById('form-phone').value = matched.phone || '';
+      
+      const lastVisitStr = matched.last_visit ? matched.last_visit.replace(/-/g, '/') : 'なし';
+      badge.style.display = 'block';
+      badge.innerHTML = `👤 <b>${matched.name}</b> 様 | TEL: ${matched.phone || '未登録'} | 最終来店: <b>${lastVisitStr}</b>`;
+    } else {
+      selectedUserId = null;
+      badge.style.display = 'none';
+      if (val && !val.includes('(')) {
+        document.getElementById('form-name').value = val;
+      }
+    }
   }
   function updateStats() {
     const today = fmtDate(new Date());
