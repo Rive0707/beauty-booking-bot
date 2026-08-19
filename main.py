@@ -1205,6 +1205,9 @@ async def get_availability(start_date: str, days: int = 7, duration_minutes: int
 async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
     """LIFFからの予約確定（お客様情報付き）"""
     try:
+        if not db.is_slot_available(data.booking_date, data.booking_time):
+            raise HTTPException(status_code=409, detail="その時間帯はすでに予約が入っています")
+
         db.save_customer_profile(
             user_id=data.user_id,
             name=data.name,
