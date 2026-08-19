@@ -1550,6 +1550,25 @@ async def api_merge_customer(data: CustomerMergeRequest):
         return {"status": "ok", "message": "LINE連携が完了しました"}
     return JSONResponse({"error": "連携処理に失敗しました"}, status_code=500)
 
+
+class DirectMessageRequest(BaseModel):
+    user_id: str
+    message: str
+
+
+@app.post("/api/customers/send-message")
+async def api_send_direct_message(data: DirectMessageRequest):
+    """顧客へLINE直接メッセージを送信"""
+    if data.user_id.startswith("manual_"):
+        return JSONResponse({"error": "手動登録の顧客にはLINE送信できません"}, status_code=400)
+    
+    try:
+        line_handler.send_text(data.user_id, data.message)
+        return {"status": "ok", "message": "メッセージを送信しました"}
+    except Exception as e:
+        logger.error(f"Error sending direct message: {e}")
+        return JSONResponse({"error": "送信に失敗しました"}, status_code=500)
+
 @app.get("/api/menus")
 async def api_get_menus():
     """全メニュー"""
