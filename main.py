@@ -851,8 +851,12 @@ dashboard_html = """
     document.getElementById('modal').classList.add('open');
   }
   function closeModal() { document.getElementById('modal').classList.remove('open'); editingId = null; }
-  function clearForm() {
-    document.getElementById('form-customer-select').value = '';
+function clearForm() {
+    selectedUserId = null;
+    const inputEl = document.getElementById('form-customer-input');
+    if (inputEl) inputEl.value = '';
+    const badgeEl = document.getElementById('customer-info-badge');
+    if (badgeEl) badgeEl.style.display = 'none';
     document.getElementById('form-name').value = '';
     document.getElementById('form-phone').value = '';
     document.getElementById('form-date').value = fmtDate(currentDate);
@@ -860,6 +864,7 @@ dashboard_html = """
     document.getElementById('form-menu').value = '';
     document.getElementById('form-memo').value = '';
   }
+
   async function submitBooking() {
     const name = document.getElementById('form-name').value.trim();
     const date = document.getElementById('form-date').value;
@@ -874,7 +879,7 @@ dashboard_html = """
       booking_time: time,
       menu_id: parseInt(menuId),
       notes: document.getElementById('form-memo').value.trim(),
-      existing_user_id: document.getElementById('form-customer-select').value || null
+      existing_user_id: selectedUserId
     };
     const url = editingId ? '/api/bookings/' + editingId : '/api/bookings';
     const method = editingId ? 'PUT' : 'POST';
