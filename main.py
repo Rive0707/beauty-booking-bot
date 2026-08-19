@@ -1271,6 +1271,8 @@ async def create_booking_from_liff(data: BookingCreateFromLiffRequest):
 async def reschedule_from_liff(data: RescheduleRequest):
     """LIFFからの予約変更"""
     try:
+        if not db.is_slot_available(data.booking_date, data.booking_time, exclude_booking_id=data.booking_id):
+            raise HTTPException(status_code=409, detail="その時間帯はすでに予約が入っています")
         booking = db.get_booking(data.booking_id)
         if not booking or booking["user_id"] != data.user_id:
             raise HTTPException(status_code=404, detail="予約が見つかりません")
@@ -1351,6 +1353,9 @@ async def api_get_menus():
 @app.post("/api/bookings")
 async def api_create_booking(data: DashboardBookingCreate):
     """新規予約（管理画面からの手動登録）"""
+    if not db.is_slot_available(data.booking_date, data.booking_time):
+        return JSONResponse({"error": "その時間帯はすでに予約が入っています"}, status_code=409)
+
     user_id = data.existing_user_id
     if not user_id:
         user_id = f"manual_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}"
@@ -1371,6 +1376,8 @@ async def api_update_booking(booking_id: int, data: DashboardBookingCreate):
     booking = db.get_booking(booking_id)
     if not booking:
         return JSONResponse({"error": "not found"}, status_code=404)
+    if not db.is_slot_available(data.booking_date, data.booking_time, exclude_booking_id=booking_id):
+        return JSONResponse({"error": "その時間帯はすでに予約が入っています"}, status_code=409)
     original = dict(booking)
     db.update_booking(booking_id, data.booking_date, data.booking_time, data.menu_id)
     db.save_customer_profile(booking["user_id"], data.customer_name, phone=data.phone)
