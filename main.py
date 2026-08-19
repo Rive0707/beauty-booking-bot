@@ -1112,6 +1112,43 @@ function renderCustomers() {
     document.getElementById('modal-customer-history').classList.remove('open');
   }
 
+  // --- 来店完了（カルテ記録）スクリプト ---
+  let completingBookingId = null;
+
+  function openCompleteBookingModal(bookingId) {
+    const b = bookings.find(x => x.id === bookingId);
+    if (!b) return;
+    
+    completingBookingId = bookingId;
+    document.getElementById('complete-customer-name').value = `${b.customer_name || 'お客様'} 様 (${b.booking_date} ${b.booking_time})`;
+    document.getElementById('complete-notes').value = b.notes || '';
+    document.getElementById('modal-complete-booking').classList.add('open');
+  }
+
+  function closeCompleteBookingModal() {
+    document.getElementById('modal-complete-booking').classList.remove('open');
+    completingBookingId = null;
+  }
+
+  async function submitCompleteBooking() {
+    if (!completingBookingId) return;
+    const notes = document.getElementById('complete-notes').value.trim();
+
+    const res = await fetch(`/api/bookings/${completingBookingId}/complete`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ notes: notes })
+    });
+
+    if (res.ok) {
+      toast('来店完了として記録しました！');
+      closeCompleteBookingModal();
+      loadData();
+    } else {
+      toast('処理に失敗しました');
+    }
+  }
+
   // LINE連携（ガッチャンコ）制御
   let mergingManualUserId = null;
   function openCustomerMergeModal(manualUserId) {
