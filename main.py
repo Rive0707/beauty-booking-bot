@@ -1344,6 +1344,18 @@ async def api_get_customers():
     rows = db.get_all_customers()
     return [dict(r) for r in rows]
 
+@app.delete("/api/customers/{user_id}")
+async def api_delete_customer(user_id: str):
+    """顧客削除（予約が残っている場合は削除不可）"""
+    customer = db.get_customer(user_id)
+    if not customer:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if db.has_active_bookings(user_id):
+        return JSONResponse({"error": "この顧客には現在有効な予約が残っているため削除できません"}, status_code=400)
+    if db.delete_customer(user_id):
+        return {"status": "ok"}
+    return JSONResponse({"error": "削除に失敗しました"}, status_code=500)
+
 @app.get("/api/menus")
 async def api_get_menus():
     """全メニュー"""
