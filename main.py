@@ -657,6 +657,30 @@ dashboard_html = """
   </div>
 </div>
 
+<!-- LINE個別メッセージ送信モーダル -->
+<div class="modal-overlay" id="modal-send-message" onclick="if(event.target===this)closeSendMessageModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="message-modal-title">LINEメッセージ送信</span>
+      <button class="icon-btn" onclick="closeSendMessageModal()" style="width:32px;height:32px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>送信先のお客さま</label>
+        <input type="text" id="message-target-name" readonly style="background:#f2f2f7;">
+      </div>
+      <div class="form-group">
+        <label>メッセージ内容 <span class="req">*</span></label>
+        <textarea id="message-text" rows="5" placeholder="例: 明日のご予約時間の確認でお送りいたしました。"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeSendMessageModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitDirectMessage()">送信する</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toasts"></div>
 
 <script>
