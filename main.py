@@ -457,6 +457,7 @@ dashboard_html = """
     <button class="tab" onclick="switchTab('list')" id="tab-list">予約一覧</button>
     <button class="tab" onclick="switchTab('history')" id="tab-history">変更・キャンセル履歴</button>
     <button class="tab" onclick="switchTab('menus')" id="tab-menus">メニュー管理</button>
+    <button class="tab" onclick="switchTab('customers')" id="tab-customers">顧客管理</button>
   </div>
 
   </div>
