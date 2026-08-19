@@ -1171,6 +1171,7 @@ function renderCustomers() {
   }
 
   // 休業日描画・操作
+// 休業日描画・操作（修正後）
   let holidays = [];
   function renderHolidays() {
     const tbody = document.getElementById('holiday-body');
@@ -1178,9 +1179,15 @@ function renderCustomers() {
     tbody.innerHTML = '';
     holidays.forEach(function(h) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td style="font-weight:500">' + h.closed_date.replace(/-/g, '/') + '</td>' +
-        '<td>' + (h.note || '-') + '</td>' +
-        '<td><button class="icon-btn danger" onclick="deleteHoliday(\'' + h.closed_date + '\')">🗑️</button></td>';
+      const dateStr = h.closed_date ? String(h.closed_date).replace(/-/g, '/') : '-';
+      const noteStr = h.note ? h.note : '-';
+      const closedDate = h.closed_date || '';
+
+      tr.innerHTML = `<tr>
+        <td style="font-weight:500">${dateStr}</td>
+        <td>${noteStr}</td>
+        <td><button class="icon-btn danger" onclick="deleteHoliday('${closedDate}')">🗑️</button></td>
+      </tr>`;
       tbody.appendChild(tr);
     });
     const emptyEl = document.getElementById('holiday-empty');
