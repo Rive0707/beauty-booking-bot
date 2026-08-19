@@ -979,10 +979,10 @@ function renderCustomers() {
       const customerPhone = c.phone ? c.phone : '-';
       const lastVisit = c.last_visit ? String(c.last_visit).replace(/-/g, '/') : '-';
 
-      // 手動顧客のみ連携ボタン(🔗)を表示
-      const mergeBtn = !isLine 
-        ? `<button class="icon-btn" title="LINE連携" onclick="openCustomerMergeModal('${id}')">🔗</button>` 
-        : '';
+      // LINE顧客のみメッセージ送信ボタン(✉️)を表示、手動顧客のみ連携ボタン(🔗)を表示
+      const lineBtn = isLine 
+        ? `<button class="icon-btn" title="LINE送信" onclick="openSendMessageModal('${id}')">✉️</button>`
+        : `<button class="icon-btn" title="LINE連携" onclick="openCustomerMergeModal('${id}')">🔗</button>`;
 
       return `<tr>
         <td>${badge}</td>
@@ -991,7 +991,7 @@ function renderCustomers() {
         <td>${lastVisit}</td>
         <td>
           <div class="row-actions" style="opacity:1;">
-            ${mergeBtn}
+            ${lineBtn}
             <button class="icon-btn" title="来店履歴" onclick="showCustomerHistory('${id}')">📋</button>
             <button class="icon-btn" title="編集" onclick="openCustomerEditModal('${id}')">✏️</button>
             <button class="icon-btn danger" title="削除" onclick="deleteCustomer('${id}')">🗑️</button>
@@ -1003,70 +1003,45 @@ function renderCustomers() {
     document.getElementById('customer-empty').style.display = filtered.length ? 'none' : 'block';
   }
 
-  let mergingManualUserId = null;
+  // LINEメッセージ送信の制御スクリプト
+  let sendingMessageUserId = null;
 
-  function openCustomerMergeModal(manualUserId) {
-    const manualCustomer = customers.find(x => x.user_id === manualUserId);
-    if (!manualCustomer) return;
+  function openSendMessageModal(userId) {
+    const c = customers.find(x => x.user_id === userId);
+    if (!c) return;
     
-    mergingManualUserId = manualUserId;
-    document.getElementById('merge-manual-name').value = `${manualCustomer.name || '名前なし'} (${manualCustomer.phone || '電話なし'})`;
-
-    const lineUsers = customers.filter(x => !x.user_id.startsWith('manual_'));
-    const sel = document.getElementById('merge-line-user-select');
-    sel.innerHTML = '<option value="">選択してください</option>';
-    
-    lineUsers.forEach(function(u) {
-      const opt = document.createElement('option');
-      opt.value = u.user_id;
-      opt.textContent = `${u.name || 'LINEユーザー'} (${u.phone || 'TEL未登録'})`;
-      sel.appendChild(opt);
-    });
-
-    document.getElementById('modal-customer-merge').classList.add('open');
+    sendingMessageUserId = userId;
+    document.getElementById('message-target-name').value = `${c.name || 'LINEユーザー'} 様`;
+    document.getElementById('message-text').value = '';
+    document.getElementById('modal-send-message').classList.add('open');
   }
 
-  function closeCustomerMergeModal() {
-    document.getElementById('modal-customer-merge').classList.remove('open');
-    mergingManualUserId = null;
+  function closeSendMessageModal() {
+    document.getElementById('modal-send-message').classList.remove('open');
+    sendingMessageUserId = null;
   }
 
-  async function submitCustomerMerge() {
-    const lineUserId = document.getElementById('merge-line-user-select').value;
-    if (!mergingManualUserId || !lineUserId) {
-      toast('連携するLINEアカウントを選択してください');
+  async function submitDirectMessage() {
+    const text = document.getElementById('message-text').value.trim();
+    if (!sendingMessageUserId || !text) {
+      toast('メッセージを入力してください');
       return;
     }
 
-    if (!confirm('この手動登録データを指定のLINEアカウントに統合しますか？')) return;
-
-    const res = await fetch('/api/customers/merge', {
+    const res = await fetch('/api/customers/send-message', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        manual_user_id: mergingManualUserId,
-        line_user_id: lineUserId
+        user_id: sendingMessageUserId,
+        message: text
       })
     });
 
     if (res.ok) {
-      toast('LINEアカウントとの連携が完了しました！');
-      closeCustomerMergeModal();
-      loadData();
+      toast('LINEメッセージを送信しました！');
+      closeSendMessageModal();
     } else {
-      toast('連携処理に失敗しました');
-    }
-  }
-
-  async function deleteCustomer(userId) {
-    if (!confirm('このお客様を削除しますか？')) return;
-    const res = await fetch('/api/customers/' + encodeURIComponent(userId), { method: 'DELETE' });
-    const data = await res.json();
-    if (res.ok) {
-      toast('お客様を削除しました');
-      loadData();
-    } else {
-      toast(data.error || '削除に失敗しました');
+      toast('送信に失敗しました');
     }
   }
   async function addMenu() {
