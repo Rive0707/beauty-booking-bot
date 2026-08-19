@@ -948,33 +948,32 @@ function renderCustomers() {
       const id = c.user_id || '';
       const isLine = !id.startsWith('manual_');
       const badge = isLine 
-        ? '<span class="status-badge status-confirmed">LINE</span>' 
-        : '<span class="status-badge" style="background:#e5e5ea;color:#8e8e93;">手動</span>';
+        ? `<span class="status-badge status-confirmed">LINE</span>` 
+        : `<span class="status-badge" style="background:#e5e5ea;color:#8e8e93;">手動</span>`;
       
-      // 名前と電話番号の安全な取得
       const customerName = c.name ? c.name : '(名前未登録)';
       const customerPhone = c.phone ? c.phone : '-';
       const lastVisit = c.last_visit ? String(c.last_visit).replace(/-/g, '/') : '-';
 
       // 手動顧客のみ連携ボタン(🔗)を表示
       const mergeBtn = !isLine 
-        ? '<button class="icon-btn" title="LINE連携" onclick="openCustomerMergeModal(\'' + id + '\')">🔗</button>' 
+        ? `<button class="icon-btn" title="LINE連携" onclick="openCustomerMergeModal('${id}')">🔗</button>` 
         : '';
 
-      return '<tr>' +
-        '<td>' + badge + '</td>' +
-        '<td style="font-weight:500">' + customerName + '</td>' +
-        '<td>' + customerPhone + '</td>' +
-        '<td>' + lastVisit + '</td>' +
-        '<td>' +
-          '<div class="row-actions" style="opacity:1;">' +
-            mergeBtn +
-            '<button class="icon-btn" title="来店履歴" onclick="showCustomerHistory(\'' + id + '\')">📋</button>' +
-            '<button class="icon-btn" title="編集" onclick="openCustomerEditModal(\'' + id + '\')">✏️</button>' +
-            '<button class="icon-btn danger" title="削除" onclick="deleteCustomer(\'' + id + '\')">🗑️</button>' +
-          '</div>' +
-        '</td>' +
-      '</tr>';
+      return `<tr>
+        <td>${badge}</td>
+        <td style="font-weight:500">${customerName}</td>
+        <td>${customerPhone}</td>
+        <td>${lastVisit}</td>
+        <td>
+          <div class="row-actions" style="opacity:1;">
+            ${mergeBtn}
+            <button class="icon-btn" title="来店履歴" onclick="showCustomerHistory('${id}')">📋</button>
+            <button class="icon-btn" title="編集" onclick="openCustomerEditModal('${id}')">✏️</button>
+            <button class="icon-btn danger" title="削除" onclick="deleteCustomer('${id}')">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
     }).join('');
     
     document.getElementById('customer-empty').style.display = filtered.length ? 'none' : 'block';
