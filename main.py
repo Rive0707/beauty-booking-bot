@@ -1138,26 +1138,30 @@ def _generate_time_slots():
     return slots
 
 @app.get("/api/availability")
-async def api_get_availability(start_date: str, days: int = 7, duration_minutes: int = None):
-    """指定期間の空き状況を返す（calendar.html用）"""
+async def api_get_availability(start_date: str, days: int = 7, duration_minutes: int = 60):
+    """指定期間の空き状況を返す（過去時間ブロック ＆ 所要時間考慮の完全版）"""
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
     except ValueError:
         return JSONResponse({"error": "start_dateの形式が不正です"}, status_code=400)
 
-    duration = duration_minutes or LAST_BOOKING_BUFFER_MINUTES
+    # メニューの所要時間（指定がない場合は60分計算）
+    menu_duration = duration_minutes or 60
     end = start + timedelta(days=days - 1)
 
     closed_day_set = {row["closed_date"] for row in db.get_closed_days()}
-    booked_map = db.get_booked_times_in_range(start.isoformat(), end.isoformat())
+    
+    # 期間内の全予約データを詳細（所要時間付き）で取得
+    existing_bookings = db.get_bookings_with_details_in_range(start.isoformat(), end.isoformat())
 
     all_slots = _generate_time_slots()
     end_h, end_m = map(int, BUSINESS_HOURS_END.split(":"))
     end_total = end_h * 60 + end_m
 
-    now = datetime.now()
-    today = now.date()
-    now_total = now.hour * 60 + now.minute
+    # 日本時間（JST = UTC+9）で現在時刻を取得
+    jst_now = datetime.utcnow() + timedelta(hours=9)
+    today_jst = jst_now.date()
+    now_total_minutes = jst_now.hour * 60 + jst_now.minute
 
     dates = []
     availability = {}
@@ -1168,23 +1172,52 @@ async def api_get_availability(start_date: str, days: int = 7, duration_minutes:
         dates.append({"date": d_str, "day": d.day, "weekday": JP_WEEKDAYS[d.weekday()]})
 
         is_closed_day = (d.weekday() in CLOSED_WEEKDAYS) or (d_str in closed_day_set)
-        booked_times = set(booked_map.get(d_str, []))
+        
+        # 当日の確定予約の「開始〜終了時間（分）」リストを作成
+        day_booked_spans = []
+        for b in existing_bookings:
+            if b["booking_date"] == d_str:
+                bh, bm = map(int, b["booking_time"].split(":"))
+                b_start = bh * 60 + bm
+                # メニューの所要時間を取得（無ければ60分）
+                b_duration = b["duration_minutes"] if ("duration_minutes" in b.keys() and b["duration_minutes"]) else 60
+                b_end = b_start + b_duration
+                day_booked_spans.append((b_start, b_end))
 
         day_availability = {}
         for slot in all_slots:
             h, m = map(int, slot.split(":"))
-            slot_total = h * 60 + m
+            slot_start = h * 60 + m
+            slot_end = slot_start + menu_duration
 
+            # 1. 休業日
             if is_closed_day:
                 day_availability[slot] = "closed"
-            elif slot_total + duration > end_total:
-                day_availability[slot] = "closed"
-            elif slot in booked_times:
-                day_availability[slot] = "booked"
-            elif d == today and slot_total <= now_total:
+                continue
+
+            # 2. 過去の日時（本日かつ現在時刻より前の時間枠）
+            if d < today_jst or (d == today_jst and slot_start <= now_total_minutes):
                 day_availability[slot] = "too_late"
+                continue
+
+            # 3. 営業終了時間を超える施術
+            if slot_end > end_total:
+                day_availability[slot] = "closed"
+                continue
+
+            # 4. 既存予約との重複チェック（施術時間範囲が被っているか）
+            is_overlap = False
+            for b_start, b_end in day_booked_spans:
+                # 枠の「開始〜終了」が既存予約の「開始〜終了」と重なっているか判定
+                if max(slot_start, b_start) < min(slot_end, b_end):
+                    is_overlap = True
+                    break
+
+            if is_overlap:
+                day_availability[slot] = "booked"
             else:
                 day_availability[slot] = "available"
+
         availability[d_str] = day_availability
 
     return {"time_slots": all_slots, "dates": dates, "availability": availability}
