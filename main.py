@@ -1048,6 +1048,14 @@ async def api_get_history(limit: int = 50):
 async def api_get_customers():
     return [dict(r) for r in db.get_all_customers()]
 
+@app.get("/api/customers/{user_id}")
+async def api_get_customer(user_id: str):
+    """LIFF予約フォームで、既存のお客様情報を自動入力するための単体取得API"""
+    c = db.get_customer(user_id)
+    if not c:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return dict(c)
+
 @app.get("/api/customers/{user_id}/visits")
 async def api_get_customer_visits(user_id: str):
     return [dict(r) for r in db.get_visit_history(user_id, limit=20)]
