@@ -1,5 +1,5 @@
 """
-LINE美容室予約BOT メインアプリケーション - 完全修正版
+LINE美容室予約BOT メインアプリケーション - 完全統合版
 FastAPI + LINE Messaging API + SQLite + APScheduler
 """
 
@@ -215,7 +215,10 @@ def get_dashboard_html():
 <title>美容室予約管理</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.5; padding: 16px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f5f5f7; color: #1d1d1f; line-height: 1.5; padding: 16px;
+  }
   .wrap { max-width: 960px; margin: 0 auto; }
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
   .title { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
@@ -315,7 +318,7 @@ def get_dashboard_html():
     <button class="tab" onclick="switchTab('menus')" id="tab-menus">メニュー管理</button>
   </div>
 
-  <!-- 予約ボード -->
+  <!-- 予約ボード（タイムライン） -->
   <div class="panel active" id="panel-board">
     <div class="date-nav">
       <button class="btn" onclick="changeDate(-1)">‹</button>
@@ -640,6 +643,7 @@ def get_dashboard_html():
     renderBoard();
   }
 
+  /* --- ① ドラッグ＆ドロップ ＋ ② 時間指定ダイレクト登録 ＋ ⑤ ボード上来店処理 --- */
   function renderBoard() {
     var date = document.getElementById("board-date").value;
     currentDate = new Date(date + "T00:00:00");
@@ -655,6 +659,7 @@ def get_dashboard_html():
       var content = document.createElement("div"); content.className = "time-content"; content.style.cursor = "pointer";
       content.onclick = function(e) { if (e.target === content) openModalWithTime(time); };
 
+      // ドラッグ＆ドロップ受け入れイベント
       content.ondragover = function(e) { e.preventDefault(); content.style.background = "#e8f4fd"; };
       content.ondragleave = function() { content.style.background = ""; };
       content.ondrop = async function(e) {
@@ -671,6 +676,7 @@ def get_dashboard_html():
         var statusClass = b.status === "completed" ? "completed" : (b.status || "confirmed");
         card.className = "booking-card " + statusClass;
 
+        // ドラッグ可能設定
         if (b.status !== "completed" && b.status !== "cancelled") {
           card.draggable = true;
           card.ondragstart = function(e) { e.dataTransfer.setData("text/plain", b.id); card.style.opacity = "0.5"; };
@@ -715,6 +721,7 @@ def get_dashboard_html():
     document.getElementById("modal").classList.add("open");
   }
 
+  /* --- 予約一覧描画 --- */
   function renderList() {
     var search = document.getElementById("list-search").value.toLowerCase();
     var status = document.getElementById("list-status").value;
@@ -744,6 +751,7 @@ def get_dashboard_html():
     document.getElementById("list-empty").style.display = data.length ? "none" : "block";
   }
 
+  /* --- ③ 顧客情報の編集・安全削除 --- */
   function renderCustomers() {
     var q = (document.getElementById("customer-search").value || "").toLowerCase();
     var filtered = customers.filter(function(c) {
@@ -754,18 +762,15 @@ def get_dashboard_html():
       var id = c.user_id || "";
       var isLine = !id.startsWith("manual_");
       var tr = document.createElement("tr");
-      
-      var badge = isLine ? "<span class='status-badge status-confirmed'>LINE</span>" : "<span class='status-badge' style='background:#e5e5ea;'>手動</span>";
-      var lineBtn = isLine ? "<button class='icon-btn' title='LINE送信' onclick='openSendMessageModal(\"" + id + "\")'>✉️</button>" : "<button class='icon-btn' title='LINE連携' onclick='openCustomerMergeModal(\"" + id + "\")'>🔗</button>";
-
-      tr.innerHTML = "<td>" + badge + "</td>" +
+      tr.innerHTML = "<td>" + (isLine ? "<span class='status-badge status-confirmed'>LINE</span>" : "<span class='status-badge' style='background:#e5e5ea;'>手動</span>") + "</td>" +
         "<td style='font-weight:500'>" + (c.name || "(名前未登録)") + "</td>" +
         "<td>" + (c.phone || "-") + "</td>" +
         "<td>" + (c.last_visit ? String(c.last_visit).replace(/-/g, "/") : "-") + "</td>" +
-        "<td><div class='row-actions' style='opacity:1;'>" + lineBtn +
-          "<button class='icon-btn' title='来店履歴・カルテ' onclick='showCustomerHistory(\"" + id + "\")'>📋</button>" +
-          "<button class='icon-btn' title='編集' onclick='openCustomerEditModal(\"" + id + "\")'>✏️</button>" +
-          "<button class='icon-btn danger' title='削除' onclick='deleteCustomer(\"" + id + "\")'>🗑️</button>" +
+        "<td><div class='row-actions' style='opacity:1;'>" +
+          (isLine ? "<button class='icon-btn' title='LINE送信' onclick='openSendMessageModal(\\"" + id + "\\")'>✉️</button>" : "<button class='icon-btn' title='LINE連携' onclick='openCustomerMergeModal(\\"" + id + "\\")'>🔗</button>") +
+          "<button class='icon-btn' title='来店履歴・カルテ' onclick='showCustomerHistory(\\"" + id + "\\")'>📋</button>" +
+          "<button class='icon-btn' title='編集' onclick='openCustomerEditModal(\\"" + id + "\\")'>✏️</button>" +
+          "<button class='icon-btn danger' title='削除' onclick='deleteCustomer(\\"" + id + "\\")'>🗑️</button>" +
         "</div></td>";
       body.appendChild(tr);
     });
@@ -797,6 +802,7 @@ def get_dashboard_html():
     if (res.ok) { toast("お客様を削除しました"); loadData(); } else { toast(data.error || "削除に失敗しました"); }
   }
 
+  /* --- ④ カルテ（過去履歴・メモ）の表示 --- */
   async function showCustomerHistory(userId) {
     var c = customers.find(function(x){ return x.user_id === userId; }); if (!c) return;
     document.getElementById("history-modal-title").textContent = (c.name || "お客様") + " 様の来店履歴・カルテ";
@@ -821,13 +827,12 @@ def get_dashboard_html():
         var statusLabel = (b.status === "completed") ? "来店済み" : ((b.status === "confirmed") ? "確定" : ((b.status === "cancelled") ? "キャンセル" : "仮"));
         var v = visitRes.find(function(x){ return x.booking_id === b.id; });
         var karteMemo = (v && v.notes) ? v.notes : (b.notes || "");
-        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split("\n").join("<br>") : "";
+        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split("\\n").join("<br>") : "";
 
         var item = document.createElement("div"); item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
-        var memoHtml = formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + "</div>" : "";
-        
         item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + b.booking_date.replace(/-/g,"/") + " " + b.booking_time + "</b><span class='status-badge'>" + statusLabel + "</span></div>" +
-          "<div style='font-size:13px;margin-top:4px;'>✂️ メニュー: " + (m ? m.name : "不明") + "</div>" + memoHtml;
+          "<div style='font-size:13px;margin-top:4px;'>✂️ メニュー: " + (m ? m.name : "不明") + "</div>" +
+          (formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + "</div>" : "");
         container.appendChild(item);
       });
       document.getElementById("modal-customer-history").classList.add("open");
@@ -837,6 +842,7 @@ def get_dashboard_html():
   }
   function closeCustomerHistoryModal() { document.getElementById("modal-customer-history").classList.remove("open"); }
 
+  /* --- ⑥ 臨時休業日の登録・解除 --- */
   function renderHolidays() {
     var tbody = document.getElementById("holiday-body"); if (!tbody) return;
     tbody.innerHTML = "";
@@ -844,7 +850,7 @@ def get_dashboard_html():
       var tr = document.createElement("tr");
       tr.innerHTML = "<td><b>" + (h.closed_date ? h.closed_date.replace(/-/g,"/") : "") + "</b></td>" +
         "<td>" + (h.note || "-") + "</td>" +
-        "<td><button class='icon-btn danger' onclick='deleteHoliday(\"" + h.closed_date + "\")'>🗑️</button></td>";
+        "<td><button class='icon-btn danger' onclick='deleteHoliday(\\"" + h.closed_date + "\\")'>🗑️</button></td>";
       tbody.appendChild(tr);
     });
     document.getElementById("holiday-empty").style.display = holidays.length ? "none" : "block";
@@ -863,6 +869,7 @@ def get_dashboard_html():
     if (res.ok) { toast("休業設定を解除しました"); loadData(); }
   }
 
+  /* --- その他のモーダル制御 ＆ 一括ロード ＆ ⑦ スマートポーリング --- */
   function openModal() { editingId = null; document.getElementById("modal-title").textContent = "予約を登録"; clearForm(); document.getElementById("modal").classList.add("open"); }
   function closeModal() { document.getElementById("modal").classList.remove("open"); editingId = null; }
   function clearForm() {
