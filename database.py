@@ -107,7 +107,15 @@ class Database:
             cursor.execute("ALTER TABLE visit_history ADD COLUMN notes TEXT")
         except sqlite3.OperationalError:
             pass
-        
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS closed_days (
+                closed_date TEXT PRIMARY KEY,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS booking_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,14 +131,6 @@ class Database:
             )
         ''')
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS closed_days (
-                closed_date TEXT PRIMARY KEY,
-                note TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")

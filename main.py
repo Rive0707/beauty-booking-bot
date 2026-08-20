@@ -23,7 +23,7 @@ import atexit
 from database import Database
 from line_handler import LineHandler
 from reminder import ReminderScheduler
-from config import BUSINESS_HOURS_START, BUSINESS_HOURS_END, SLOT_INTERVAL_MINUTES, CLOSED_WEEKDAYS
+from config import BUSINESS_HOURS_START, BUSINESS_HOURS_END, SLOT_INTERVAL_MINUTES, CLOSED_WEEKDAYS, LAST_BOOKING_BUFFER_MINUTES
 
 # ロギング設定
 logging.basicConfig(level=logging.INFO)
@@ -1109,6 +1109,149 @@ async def api_delete_closed_day(closed_date: str):
     if db.delete_closed_day(closed_date):
         return {"status": "ok"}
     return JSONResponse({"error": "削除失敗"}, status_code=500)
+
+# ===============================
+# LIFF（お客様向け予約画面）API
+# ===============================
+
+JP_WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"]
+
+def _generate_time_slots():
+    """営業時間・予約間隔から時間枠のリストを作る（例: ["09:00","09:30",...]）"""
+    start_h, start_m = map(int, BUSINESS_HOURS_START.split(":"))
+    end_h, end_m = map(int, BUSINESS_HOURS_END.split(":"))
+    start_total = start_h * 60 + start_m
+    end_total = end_h * 60 + end_m
+    slots = []
+    t = start_total
+    while t < end_total:
+        slots.append(f"{t // 60:02d}:{t % 60:02d}")
+        t += SLOT_INTERVAL_MINUTES
+    return slots
+
+@app.get("/api/availability")
+async def api_get_availability(start_date: str, days: int = 7, duration_minutes: int = None):
+    """指定期間の空き状況を返す（calendar.html用）"""
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    except ValueError:
+        return JSONResponse({"error": "start_dateの形式が不正です"}, status_code=400)
+
+    duration = duration_minutes or LAST_BOOKING_BUFFER_MINUTES
+    end = start + timedelta(days=days - 1)
+
+    closed_day_set = {row["closed_date"] for row in db.get_closed_days()}
+    booked_map = db.get_booked_times_in_range(start.isoformat(), end.isoformat())
+
+    all_slots = _generate_time_slots()
+    end_h, end_m = map(int, BUSINESS_HOURS_END.split(":"))
+    end_total = end_h * 60 + end_m
+
+    now = datetime.now()
+    today = now.date()
+    now_total = now.hour * 60 + now.minute
+
+    dates = []
+    availability = {}
+
+    for i in range(days):
+        d = start + timedelta(days=i)
+        d_str = d.isoformat()
+        dates.append({"date": d_str, "day": d.day, "weekday": JP_WEEKDAYS[d.weekday()]})
+
+        is_closed_day = (d.weekday() in CLOSED_WEEKDAYS) or (d_str in closed_day_set)
+        booked_times = set(booked_map.get(d_str, []))
+
+        day_availability = {}
+        for slot in all_slots:
+            h, m = map(int, slot.split(":"))
+            slot_total = h * 60 + m
+
+            if is_closed_day:
+                day_availability[slot] = "closed"
+            elif slot_total + duration > end_total:
+                day_availability[slot] = "closed"
+            elif slot in booked_times:
+                day_availability[slot] = "booked"
+            elif d == today and slot_total <= now_total:
+                day_availability[slot] = "too_late"
+            else:
+                day_availability[slot] = "available"
+        availability[d_str] = day_availability
+
+    return {"time_slots": all_slots, "dates": dates, "availability": availability}
+
+@app.post("/api/booking/create")
+async def api_create_booking_from_liff(data: BookingCreateFromLiffRequest):
+    """LIFF（booking-form.html）からの新規予約確定"""
+    if not db.is_slot_available(data.booking_date, data.booking_time):
+        return JSONResponse({"error": "この日時は既にご予約が入っています"}, status_code=409)
+
+    db.save_customer_profile(
+        data.user_id, data.name, furigana=data.furigana,
+        gender=data.gender, birthdate=data.birthdate, phone=data.phone
+    )
+    booking_id = db.add_booking(data.user_id, data.booking_date, data.booking_time, data.menu_id)
+    if not booking_id:
+        return JSONResponse({"error": "予約の作成に失敗しました"}, status_code=500)
+
+    db.add_booking_history(
+        booking_id, "created", data.user_id,
+        after_date=data.booking_date, after_time=data.booking_time, note="LIFF予約"
+    )
+
+    menu = db.get_menu(data.menu_id)
+    menu_name = menu["name"] if menu else "不明"
+
+    line_handler.send_text(data.user_id, f"""✅ ご予約が確定しました
+
+📅 {data.booking_date} {data.booking_time}
+🎨 メニュー: {menu_name}
+📍 予約ID: {booking_id}
+
+ご来店を心よりお待ちしております。""")
+
+    line_handler.notify_owner(
+        f"🆕 新規予約が入りました（LIFF）\n\n"
+        f"お客様: {data.name}\n"
+        f"予約日時: {data.booking_date} {data.booking_time}\n"
+        f"メニュー: {menu_name}\n"
+        f"予約ID: {booking_id}"
+    )
+
+    return {"status": "ok", "booking_id": booking_id}
+
+@app.post("/api/booking/reschedule")
+async def api_reschedule_booking(data: RescheduleRequest):
+    """LIFF（calendar.html）からの予約変更"""
+    booking = db.get_booking(data.booking_id)
+    if not booking or booking["user_id"] != data.user_id:
+        return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
+
+    if not db.is_slot_available(data.booking_date, data.booking_time, exclude_booking_id=data.booking_id):
+        return JSONResponse({"error": "この日時は既にご予約が入っています"}, status_code=409)
+
+    db.update_booking(data.booking_id, booking_date=data.booking_date, booking_time=data.booking_time)
+    db.add_booking_history(
+        data.booking_id, "modified", data.user_id,
+        before_date=booking["booking_date"], before_time=booking["booking_time"],
+        after_date=data.booking_date, after_time=data.booking_time, note="LIFFから変更"
+    )
+
+    menu = db.get_menu(booking["menu_id"])
+    menu_name = menu["name"] if menu else "不明"
+
+    line_handler.send_text(data.user_id, f"""📝 ご予約日時を変更しました
+
+📅 {data.booking_date} {data.booking_time}
+🎨 メニュー: {menu_name}
+📍 予約ID: {data.booking_id}""")
+
+    return {"status": "ok"}
+
+# ===============================
+# 管理画面向け 予約API
+# ===============================
 
 @app.post("/api/bookings")
 async def api_create_booking(data: DashboardBookingCreate):
