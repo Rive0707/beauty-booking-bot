@@ -1846,6 +1846,7 @@ async def api_create_booking(data: DashboardBookingCreate):
 class CompleteBookingRequest(BaseModel):
     notes: Optional[str] = None
 
+
 @app.post("/api/bookings/{booking_id}/complete")
 async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
     """予約を「来店完了」にし、来店履歴（カルテ）に記録する"""
@@ -1853,36 +1854,24 @@ async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
     if not booking:
         return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
     
-    # 予約ステータスを completed に更新
-    db.update_booking_status(booking_id, "completed")
-    
-    # 来店履歴（カルテ）を登録
-    db.add_visit_history(
-        user_id=booking['user_id'],
-        booking_id=booking_id,
-        visited_date=booking['booking_date'],
-        notes=data.notes
-    )
-    
-    return {"status": "ok", "message": "来店完了を記録しました"}
-
-async def api_update_booking(booking_id: int, data: DashboardBookingCreate):
-    """予約更新"""
-    booking = db.get_booking(booking_id)
-    if not booking:
-        return JSONResponse({"error": "not found"}, status_code=404)
-    if not db.is_slot_available(data.booking_date, data.booking_time, exclude_booking_id=booking_id):
-        return JSONResponse({"error": "その時間帯はすでに予約が入っています"}, status_code=409)
-    original = dict(booking)
-    db.update_booking(booking_id, data.booking_date, data.booking_time, data.menu_id)
-    db.save_customer_profile(booking["user_id"], data.customer_name, phone=data.phone)
-    db.add_booking_history(
-        booking_id=booking_id, action="modified", user_id=booking["user_id"],
-        before_date=original.get("booking_date"), before_time=original.get("booking_time"),
-        after_date=data.booking_date, after_time=data.booking_time,
-        note="管理画面から変更"
-    )
-    return {"status": "ok"}
+    try:
+        # 予約ステータスを completed に更新
+        db.update_booking_status(booking_id, "completed")
+        
+        # 来店履歴（カルテ）を登録
+        user_id = booking.get('user_id') if isinstance(booking, dict) else booking['user_id']
+        booking_date = booking.get('booking_date') if isinstance(booking, dict) else booking['booking_date']
+        
+        db.add_visit_history(
+            user_id=user_id,
+            booking_id=booking_id,
+            visited_date=booking_date,
+            notes=data.notes
+        )
+        return {"status": "ok", "message": "来店完了を記録しました"}
+    except Exception as e:
+        logger.error(f"Error completing booking: {e}")
+        return JSONResponse({"error": f"処理に失敗しました: {str(e)}"}, status_code=500)
 
 @app.delete("/api/bookings/{booking_id}")
 async def api_delete_booking(booking_id: int):
