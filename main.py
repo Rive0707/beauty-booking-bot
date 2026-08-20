@@ -1289,6 +1289,80 @@ function renderCustomers() {
     holidays = (holRes && holRes.closed_days) ? holRes.closed_days : [];
     populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus(); renderCustomers(); renderHolidays();
   }
+
+// --- 来店完了（カルテ記録）機能 ---
+  let completingBookingId = null;
+
+  function openCompleteBookingModal(bookingId) {
+    const b = bookings.find(x => x.id === bookingId);
+    if (!b) return;
+    completingBookingId = bookingId;
+    document.getElementById('complete-customer-name').value = `${b.customer_name || 'お客様'} 様 (${b.booking_date} ${b.booking_time})`;
+    document.getElementById('complete-notes').value = b.notes || '';
+    document.getElementById('modal-complete-booking').classList.add('open');
+  }
+
+  function closeCompleteBookingModal() {
+    document.getElementById('modal-complete-booking').classList.remove('open');
+    completingBookingId = null;
+  }
+
+  async function submitCompleteBooking() {
+    if (!completingBookingId) return;
+    const notes = document.getElementById('complete-notes').value.trim();
+
+    const res = await fetch(`/api/bookings/${completingBookingId}/complete`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ notes: notes })
+    });
+
+    if (res.ok) {
+      toast('来店完了として記録しました！');
+      closeCompleteBookingModal();
+      loadData();
+    } else {
+      toast('処理に失敗しました');
+    }
+  }
+
+  // 予約一覧の自動更新（✅ボタンを自動差し込み）
+  const originalRenderList = renderList;
+  renderList = function() {
+    const tbody = document.getElementById('list-body');
+    if (!tbody) return;
+    tbody.innerHTML = bookings.map(function(b) {
+      const m = menus.find(x => x.id === b.menu_id);
+      const menuName = m ? m.name : '不明';
+      
+      const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
+        ? `<button class="icon-btn" title="来店完了" onclick="openCompleteBookingModal(${b.id})">✅</button>`
+        : '';
+
+      const statusBadge = b.status === 'completed'
+        ? '<span class="status-badge" style="background:#e5e5ea;color:#3a3a3c;">来店済み</span>'
+        : (b.status === 'cancelled' 
+            ? '<span class="status-badge status-cancelled">キャンセル</span>' 
+            : '<span class="status-badge status-confirmed">確定</span>');
+
+      return `<tr>
+        <td>${b.booking_date.replace(/-/g, '/')} ${b.booking_time}</td>
+        <td style="font-weight:500">${b.customer_name || 'お客様'}</td>
+        <td>${menuName}</td>
+        <td>${statusBadge}</td>
+        <td>
+          <div class="row-actions" style="opacity:1;">
+            ${completeBtn}
+            <button class="icon-btn danger" title="削除" onclick="deleteBooking(${b.id})">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    
+    const emptyEl = document.getElementById('list-empty');
+    if (emptyEl) emptyEl.style.display = bookings.length ? 'none' : 'block';
+  };
+  
   loadData();
 </script>
 </div>
