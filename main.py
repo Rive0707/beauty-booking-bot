@@ -1220,27 +1220,27 @@ function renderCustomers() {
     else { toast('更新に失敗しました'); }
   }
 
-  // HTMLエスケープ関数（※ここに追加します）
   function escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(str).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;');
   }
 
-// 来店履歴・カルテ表示
+  // 来店履歴・カルテ表示（文字列エラー完全防止版）
   async function showCustomerHistory(userId) {
-    const c = customers.find(function(x){ return x.user_id === userId; });
+    var c = customers.find(function(x){ return x.user_id === userId; });
     if (!c) return;
+    
     document.getElementById('history-modal-title').textContent = (c.name || 'お客様') + ' 様の来店履歴・カルテ';
-    const container = document.getElementById('customer-history-body');
+    var container = document.getElementById('customer-history-body');
     container.innerHTML = '<div class="empty">読み込み中…</div>';
 
     try {
-      const results = await Promise.all([
+      var results = await Promise.all([
         bookings.filter(function(b){ return b.user_id === userId; }).sort(function(a,b){ return (b.booking_date + b.booking_time).localeCompare(a.booking_date + a.booking_time); }),
         fetch('/api/customers/' + encodeURIComponent(userId) + '/visits').then(function(r){ return r.json(); }).catch(function(){ return []; })
       ]);
-      const userBookings = results[0];
-      const visitRes = results[1];
+      var userBookings = results[0];
+      var visitRes = results[1];
 
       if (userBookings.length === 0 && visitRes.length === 0) {
         container.innerHTML = '<div class="empty">履歴・カルテ情報がありません</div>';
@@ -1248,33 +1248,43 @@ function renderCustomers() {
         return;
       }
 
-      var htmlParts = [];
+      container.innerHTML = '';
       userBookings.forEach(function(b) {
-        const m = menus.find(function(x){ return x.id === b.menu_id; });
-        const statusLabel = b.status === 'completed' ? '来店済み' : (b.status === 'confirmed' ? '確定' : b.status === 'cancelled' ? 'キャンセル' : '仮');
-        const statusClass = b.status === 'completed' ? '' : 'status-' + (b.status || 'confirmed');
-        const statusStyle = b.status === 'completed' ? 'background:#e5e5ea;color:#3a3a3c;' : '';
+        var m = menus.find(function(x){ return x.id === b.menu_id; });
+        var statusLabel = (b.status === 'completed') ? '来店済み' : ((b.status === 'confirmed') ? '確定' : ((b.status === 'cancelled') ? 'キャンセル' : '仮'));
+        var statusClass = (b.status === 'completed') ? '' : ('status-' + (b.status || 'confirmed'));
+        var statusStyle = (b.status === 'completed') ? 'background:#e5e5ea;color:#3a3a3c;' : '';
 
-        const v = visitRes.find(function(x){ return x.booking_id === b.id; });
-        const karteMemo = (v && v.notes) ? v.notes : (b.notes || '');
-        const formattedMemo = karteMemo ? escapeHtml(karteMemo).split('\n').join('<br>') : '';
+        var v = visitRes.find(function(x){ return x.booking_id === b.id; });
+        var karteMemo = (v && v.notes) ? v.notes : (b.notes || '');
+        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split('\n').join('<br>') : '';
 
-        var itemHtml = '<div style="border-bottom:1px solid #e5e5ea; padding:12px 0;">' +
-          '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-            '<b>📅 ' + b.booking_date.replace(/-/g, '/') + ' ' + b.booking_time + '</b>' +
-            '<span class="status-badge ' + statusClass + '" style="' + statusStyle + '">' + statusLabel + '</span>' +
-          '</div>' +
-          '<div style="font-size:13px; color:#1d1d1f; margin-top:4px;">✂️ メニュー: ' + (m ? m.name : '不明') + '</div>';
+        var item = document.createElement('div');
+        item.style.cssText = 'border-bottom:1px solid #e5e5ea; padding:12px 0;';
+
+        var header = document.createElement('div');
+        header.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+        
+        var dateText = b.booking_date ? b.booking_date.split('-').join('/') : '';
+        header.innerHTML = '<b>📅 ' + dateText + ' ' + b.booking_time + '</b><span class="status-badge ' + statusClass + '" style="' + statusStyle + '">' + statusLabel + '</span>';
+        
+        var menuText = document.createElement('div');
+        menuText.style.cssText = 'font-size:13px; color:#1d1d1f; margin-top:4px;';
+        menuText.textContent = '✂️ メニュー: ' + (m ? m.name : '不明');
+
+        item.appendChild(header);
+        item.appendChild(menuText);
 
         if (formattedMemo) {
-          itemHtml += '<div style="font-size:13px; background:#fafafa; border-left:3px solid #007aff; padding:6px 10px; margin-top:6px; border-radius:4px; color:#1d1d1f;">📝 <b>カルテメモ:</b><br>' + formattedMemo + '</div>';
+          var memoBox = document.createElement('div');
+          memoBox.style.cssText = 'font-size:13px; background:#fafafa; border-left:3px solid #007aff; padding:6px 10px; margin-top:6px; border-radius:4px; color:#1d1d1f;';
+          memoBox.innerHTML = '📝 <b>カルテメモ:</b><br>' + formattedMemo;
+          item.appendChild(memoBox);
         }
 
-        itemHtml += '</div>';
-        htmlParts.push(itemHtml);
+        container.appendChild(item);
       });
 
-      container.innerHTML = htmlParts.join('');
       document.getElementById('modal-customer-history').classList.add('open');
     } catch (e) {
       container.innerHTML = '<div class="empty">データの取得に失敗しました</div>';
