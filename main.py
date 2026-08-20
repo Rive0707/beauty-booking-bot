@@ -795,10 +795,20 @@ dashboard_html = """
       }
     }
   }
-  function updateStats() {
+  
+function updateStats() {
     const today = fmtDate(new Date());
-    document.getElementById('stat-today').textContent = bookings.filter(function(b){ return b.booking_date === today && b.status === 'confirmed'; }).length;
-    document.getElementById('stat-upcoming').textContent = bookings.filter(function(b){ return b.booking_date >= today && b.status === 'confirmed'; }).length;
+    
+    // 本日の予約（確定＋来店済み）
+    document.getElementById('stat-today').textContent = bookings.filter(function(b){ 
+      return b.booking_date === today && b.status !== 'cancelled'; 
+    }).length;
+    
+    // 今後の予約（今日以降 かつ 「確定（confirmed）」のみ。キャンセルや来店済みは除外）
+    document.getElementById('stat-upcoming').textContent = bookings.filter(function(b){ 
+      return b.booking_date >= today && b.status === 'confirmed'; 
+    }).length;
+
     document.getElementById('stat-menus').textContent = menus.length;
     document.getElementById('stat-customers').textContent = customers.length;
   }
