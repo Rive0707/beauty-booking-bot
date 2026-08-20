@@ -756,7 +756,7 @@ dashboard_html = """
   let editingId = null;
   const times = [];
   for (let h = 9; h < 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
-　times.push("19:00");
+ times.push("19:00");
   function fmtDate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2, '0');
@@ -2091,9 +2091,34 @@ async def api_create_booking(data: DashboardBookingCreate):
     return JSONResponse({"error": "failed"}, status_code=500)
 
 @app.put("/api/bookings/{booking_id}")
+async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateRequest):
+    """予約の更新"""
+    booking = db.get_booking(booking_id)
+    if not booking:
+        return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
 
-class CompleteBookingRequest(BaseModel):
-    notes: Optional[str] = None
+    original_date = booking["booking_date"]
+    original_time = booking["booking_time"]
+
+    db.update_booking(
+        booking_id=booking_id,
+        booking_date=data.booking_date,
+        booking_time=data.booking_time,
+        menu_id=data.menu_id
+    )
+
+    db.add_booking_history(
+        booking_id=booking_id,
+        action="modified",
+        user_id=booking["user_id"],
+        before_date=original_date,
+        before_time=original_time,
+        after_date=data.booking_date,
+        after_time=data.booking_time,
+        note="管理画面から編集"
+    )
+
+    return {"status": "ok", "message": "予約を更新しました"}
 
 # --- 休業日 API ---
 class ClosedDayRequest(BaseModel):
