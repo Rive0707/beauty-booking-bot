@@ -593,10 +593,24 @@ class Database:
         return results
         
     def merge_customers(self, manual_user_id: str, line_user_id: str) -> bool:
-        """手動登録の顧客データをLINEユーザーへ統合し、旧手動データを削除"""
+        """手動登録の顧客データをLINEユーザーへ統合し、旧手動データを削除
+        情報の引き継ぎ: LINE側が未入力の項目だけ、手動側の値で埋める（LINE側の入力済みデータは上書きしない）"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
+            cursor.execute('SELECT * FROM customers WHERE user_id = ?', (manual_user_id,))
+            manual_customer = cursor.fetchone()
+            cursor.execute('SELECT * FROM customers WHERE user_id = ?', (line_user_id,))
+            line_customer = cursor.fetchone()
+
+            if manual_customer and line_customer:
+                for field in ("name", "phone", "furigana", "gender", "birthdate"):
+                    if not line_customer[field] and manual_customer[field]:
+                        cursor.execute(
+                            f'UPDATE customers SET {field} = ? WHERE user_id = ?',
+                            (manual_customer[field], line_user_id)
+                        )
+
             cursor.execute('UPDATE bookings SET user_id = ? WHERE user_id = ?', (line_user_id, manual_user_id))
             cursor.execute('UPDATE booking_history SET user_id = ? WHERE user_id = ?', (line_user_id, manual_user_id))
             cursor.execute('UPDATE visit_history SET user_id = ? WHERE user_id = ?', (line_user_id, manual_user_id))
