@@ -1884,29 +1884,6 @@ async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
         return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
     
     try:
-        db.update_booking_status(booking_id, "completed")
-        user_id = booking.get('user_id') if isinstance(booking, dict) else booking['user_id']
-        booking_date = booking.get('booking_date') if isinstance(booking, dict) else booking['booking_date']
-        
-        db.add_visit_history(
-            user_id=user_id,
-            booking_id=booking_id,
-            visited_date=booking_date,
-            notes=data.notes
-        )
-        return {"status": "ok", "message": "来店完了を記録しました"}
-    except Exception as e:
-        logger.error(f"Error completing booking: {e}")
-        return JSONResponse({"error": f"処理に失敗しました: {str(e)}"}, status_code=500)
-
-@app.post("/api/bookings/{booking_id}/complete")
-async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
-    """予約を「来店完了」にし、来店履歴（カルテ）に記録する"""
-    booking = db.get_booking(booking_id)
-    if not booking:
-        return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
-    
-    try:
         # 予約ステータスを completed に更新
         db.update_booking_status(booking_id, "completed")
         
