@@ -1466,7 +1466,35 @@ function renderCustomers() {
     if (emptyEl) emptyEl.style.display = bookings.length ? 'none' : 'block';
   };
   
+// --- スマート・ポーリング（自動更新＆負荷軽減） ---
+  let lastDataHash = "";
+
+  async function checkAndReloadData() {
+    // 予約登録・編集などのモーダルが開いている最中は入力の邪魔をしないよう更新スキップ
+    if (document.querySelector('.modal-overlay.open')) return;
+
+    try {
+      const res = await fetch('/api/bookings/all');
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      // データに変化（追加・変更・キャンセル）があった場合のみ再描画を実行
+      const currentHash = JSON.stringify(data);
+      if (lastDataHash !== "" && currentHash !== lastDataHash) {
+        toast('新しい予約・変更が反映されました');
+        loadData();
+      }
+      lastDataHash = currentHash;
+    } catch (e) {
+      // ネットワーク一時中断時は何もしない（次回に安全リトライ）
+    }
+  }
+
+  // 初回データ取得
   loadData();
+
+  // 15秒ごとに差分チェック（端末負荷と通信量を大幅軽減）
+  setInterval(checkAndReloadData, 15000);
 </script>
 </div>
 </body>
