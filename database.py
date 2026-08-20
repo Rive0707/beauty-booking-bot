@@ -123,6 +123,14 @@ class Database:
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS closed_days (
+                closed_date TEXT PRIMARY KEY,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
