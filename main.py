@@ -1942,6 +1942,12 @@ class CustomerUpdateRequest(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
 
+@app.get("/api/customers/{user_id}/visits")
+async def api_get_customer_visits(user_id: str):
+    """特定顧客の来店履歴（カルテ）一覧を取得"""
+    rows = db.get_visit_history(user_id, limit=20)
+    return [dict(r) for r in rows]
+
 @app.put("/api/customers/{user_id}")
 async def api_update_customer(user_id: str, data: CustomerUpdateRequest):
     """顧客情報（名前・電話番号）の更新"""
