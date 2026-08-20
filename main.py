@@ -1250,13 +1250,16 @@ function renderCustomers() {
       const v = visitRes.find(x => x.booking_id === b.id);
       const karteMemo = (v && v.notes) ? v.notes : (b.notes || '');
 
+      // 安全な改行変換（正規表現エラーを防止）
+      const formattedMemo = karteMemo ? escapeHtml(karteMemo).split('\n').join('<br>') : '';
+
       return `<div style="border-bottom:1px solid #e5e5ea; padding:12px 0;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <b>📅 ${b.booking_date.replace(/-/g, '/')} ${b.booking_time}</b>
           <span class="status-badge ${statusClass}" style="${statusStyle}">${statusLabel}</span>
         </div>
         <div style="font-size:13px; color:#1d1d1f; margin-top:4px;">✂️ メニュー: ${m ? m.name : '不明'}</div>
-        ${karteMemo ? `<div style="font-size:13px; background:#fafafa; border-left:3px solid #007aff; padding:6px 10px; margin-top:6px; border-radius:4px; color:#1d1d1f;">📝 <b>カルテメモ:</b><br>${karteMemo.replace(/\n/g, '<br>')}</div>` : ''}
+        ${formattedMemo ? `<div style="font-size:13px; background:#fafafa; border-left:3px solid #007aff; padding:6px 10px; margin-top:6px; border-radius:4px; color:#1d1d1f;">📝 <b>カルテメモ:</b><br>${formattedMemo}</div>` : ''}
       </div>`;
     }).join('');
 
