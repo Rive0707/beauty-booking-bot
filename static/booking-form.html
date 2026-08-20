@@ -309,8 +309,34 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       if(liff.isLoggedIn()){
         const profile = await liff.getProfile();
         liffUserId = profile.userId;
-        if(profile.displayName && !document.getElementById('name').value){
-          // 表示名は参考程度。氏名欄には自動入力しない（本名と異なる場合があるため）
+        
+        // 登録済みの顧客情報をサーバーから取得してフォームへ自動セット
+        try {
+          const res = await fetch(`${API_BASE}/api/customers/${encodeURIComponent(liffUserId)}`);
+          if(res.ok){
+            const data = await res.json();
+            
+            // 氏名・フリガナ・電話番号の自動保管
+            if(data.name) document.getElementById('name').value = data.name;
+            if(data.furigana) document.getElementById('furigana').value = data.furigana;
+            if(data.phone) document.getElementById('phone').value = data.phone;
+            
+            // 性別の自動補完
+            if(data.gender){
+              const genderRadio = document.querySelector(`input[name="gender"][value="${data.gender}"]`);
+              if(genderRadio) genderRadio.checked = true;
+            }
+            
+            // 生年月日の自動補完 (YYYY-MM-DD 形式)
+            if(data.birthdate && data.birthdate.includes('-')){
+              const [y, m, d] = data.birthdate.split('-');
+              if(yearSel) yearSel.value = parseInt(y, 10);
+              if(monthSel) monthSel.value = parseInt(m, 10);
+              if(daySel) daySel.value = parseInt(d, 10);
+            }
+          }
+        } catch(err) {
+          console.log('初回利用のお客さまです');
         }
       }
     }
