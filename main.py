@@ -1846,6 +1846,58 @@ async def api_create_booking(data: DashboardBookingCreate):
 class CompleteBookingRequest(BaseModel):
     notes: Optional[str] = None
 
+# --- 休業日 API ---
+class ClosedDayRequest(BaseModel):
+    closed_date: str
+    note: Optional[str] = None
+
+@app.get("/api/closed-days")
+async def api_get_closed_days():
+    """休業日一覧の取得"""
+    rows = db.get_closed_days()
+    return {"closed_days": [dict(r) for r in rows]}
+
+@app.post("/api/closed-days")
+async def api_add_closed_day(data: ClosedDayRequest):
+    """休業日の追加"""
+    if db.add_closed_day(data.closed_date, data.note):
+        return {"status": "ok"}
+    return JSONResponse({"error": "登録に失敗しました"}, status_code=500)
+
+@app.delete("/api/closed-days/{closed_date}")
+async def api_delete_closed_day(closed_date: str):
+    """休業日の削除"""
+    if db.delete_closed_day(closed_date):
+        return {"status": "ok"}
+    return JSONResponse({"error": "削除に失敗しました"}, status_code=500)
+
+
+# --- 来店完了（カルテ記録） API ---
+class CompleteBookingRequest(BaseModel):
+    notes: Optional[str] = None
+
+@app.post("/api/bookings/{booking_id}/complete")
+async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
+    """予約を「来店完了」にし、来店履歴（カルテ）に記録する"""
+    booking = db.get_booking(booking_id)
+    if not booking:
+        return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
+    
+    try:
+        db.update_booking_status(booking_id, "completed")
+        user_id = booking.get('user_id') if isinstance(booking, dict) else booking['user_id']
+        booking_date = booking.get('booking_date') if isinstance(booking, dict) else booking['booking_date']
+        
+        db.add_visit_history(
+            user_id=user_id,
+            booking_id=booking_id,
+            visited_date=booking_date,
+            notes=data.notes
+        )
+        return {"status": "ok", "message": "来店完了を記録しました"}
+    except Exception as e:
+        logger.error(f"Error completing booking: {e}")
+        return JSONResponse({"error": f"処理に失敗しました: {str(e)}"}, status_code=500)
 
 @app.post("/api/bookings/{booking_id}/complete")
 async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
