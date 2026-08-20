@@ -614,3 +614,45 @@ class Database:
             return False
         finally:
             conn.close()
+
+    def add_closed_day(self, closed_date: str, note: str = None) -> bool:
+        """休業日を追加"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('INSERT OR REPLACE INTO closed_days (closed_date, note) VALUES (?, ?)', (closed_date, note))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error adding closed day: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def get_closed_days(self):
+        """休業日一覧を取得"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('SELECT * FROM closed_days ORDER BY closed_date ASC')
+            results = cursor.fetchall()
+            return results
+        except Exception as e:
+            logger.error(f"Error getting closed days: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def delete_closed_day(self, closed_date: str) -> bool:
+        """休業日を削除"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('DELETE FROM closed_days WHERE closed_date = ?', (closed_date,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting closed day: {e}")
+            return False
+        finally:
+            conn.close()
