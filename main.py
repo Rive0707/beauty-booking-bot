@@ -826,21 +826,36 @@ function renderBoard() {
 
     times.forEach(function(time) {
       const slot = document.createElement('div'); slot.className = 'time-slot';
-      const label = document.createElement('div'); label.className = 'time-label'; label.textContent = time;
-      const content = document.createElement('div'); content.className = 'time-content';
+      
+      // 時間ラベルをクリックしても予約追加できるように設定
+      const label = document.createElement('div'); 
+      label.className = 'time-label'; 
+      label.textContent = time;
+      label.style.cursor = 'pointer';
+      label.onclick = function() { openModalWithTime(time); };
+
+      // 時間枠枠線エリア（空き部分をタップで予約追加）
+      const content = document.createElement('div'); 
+      content.className = 'time-content';
+      content.style.cursor = 'pointer';
+      content.onclick = function(e) {
+        // カード自身のクリック時はモーダルを開かない（カード操作を優先）
+        if (e.target === content) {
+          openModalWithTime(time);
+        }
+      };
+
       const bs = dayBookings.filter(function(b){ return b.booking_time === time; });
       bs.forEach(function(b) {
         const menu = menus.find(function(m){ return m.id === b.menu_id; });
         const c = customers.find(function(x){ return x.user_id === b.user_id; });
         const card = document.createElement('div');
         
-        // ステータスに応じたクラス（completed時は見た目を来店済みに変更）
         const statusClass = b.status === 'completed' ? 'completed' : (b.status || 'confirmed');
         card.className = 'booking-card ' + statusClass;
 
-        // 来店未完了の場合のみ「✅」ボタンを表示
         const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
-          ? `<button class="icon-btn" title="来店完了" onclick="openCompleteBookingModal(${b.id})">✅</button>`
+          ? `<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(${b.id})">✅</button>`
           : '';
 
         card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === 'completed' ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : '') + '</div>' +
@@ -850,13 +865,23 @@ function renderBoard() {
           '</div>' +
           '<div class="booking-actions">' +
             completeBtn +
-            '<button class="icon-btn" title="編集" onclick="editBooking(' + b.id + ')">✏️</button>' +
-            '<button class="icon-btn danger" title="削除" onclick="deleteBooking(' + b.id + ')">🗑</button>' +
+            '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
+            '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
           '</div>';
         content.appendChild(card);
       });
       slot.appendChild(label); slot.appendChild(content); container.appendChild(slot);
     });
+  }
+
+  // 時間指定付きで新規予約モーダルを開く関数
+  function openModalWithTime(timeStr) {
+    editingId = null;
+    document.getElementById('modal-title').textContent = `${timeStr} の予約を登録`;
+    clearForm();
+    document.getElementById('form-date').value = document.getElementById('board-date').value;
+    document.getElementById('form-time').value = timeStr;
+    document.getElementById('modal').classList.add('open');
   }
 
   function renderList() {
