@@ -1220,35 +1220,47 @@ function renderCustomers() {
     else { toast('更新に失敗しました'); }
   }
 
-  // 来店履歴モーダル表示
-  function showCustomerHistory(userId) {
+// 来店履歴・カルテ表示
+  async function showCustomerHistory(userId) {
     const c = customers.find(x => x.user_id === userId);
     if (!c) return;
-    document.getElementById('history-modal-title').textContent = `${c.name || 'お客様'} 様の来店・予約履歴`;
-    const userBookings = bookings.filter(b => b.user_id === userId)
-      .sort((a,b) => (b.booking_date + b.booking_time).localeCompare(a.booking_date + a.booking_time));
+    document.getElementById('history-modal-title').textContent = `${c.name || 'お客様'} 様の来店履歴・カルテ`;
     const container = document.getElementById('customer-history-body');
-    if (userBookings.length === 0) {
-      container.innerHTML = '<div class="empty">予約・来店履歴がありません</div>';
-    } else {
-      container.innerHTML = userBookings.map(b => {
-        const m = menus.find(x => x.id === b.menu_id);
-        const statusLabel = b.status === 'confirmed' ? '確定' : b.status === 'cancelled' ? 'キャンセル' : '仮';
-        const statusClass = 'status-' + (b.status || 'confirmed');
-        return `<div style="border-bottom:1px solid #e5e5ea; padding:10px 0;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b>${b.booking_date.replace(/-/g, '/')} ${b.booking_time}</b>
-            <span class="status-badge ${statusClass}">${statusLabel}</span>
-          </div>
-          <div style="font-size:13px; color:#1d1d1f; margin-top:4px;">メニュー: ${m ? m.name : '不明'}</div>
-          ${b.notes ? `<div style="font-size:12px; color:#8e8e93; margin-top:2px;">メモ: ${b.notes}</div>` : ''}
-        </div>`;
-      }).join('');
+    container.innerHTML = '<div class="empty">読み込み中…</div>';
+
+    // 予約データとカルテ（来店履歴）データを並行取得
+    const [userBookings, visitRes] = await Promise.all([
+      bookings.filter(b => b.user_id === userId).sort((a,b) => (b.booking_date + b.booking_time).localeCompare(a.booking_date + a.booking_time)),
+      fetch(`/api/customers/${encodeURIComponent(userId)}/visits`).then(r => r.json()).catch(() => [])
+    ]);
+
+    if (userBookings.length === 0 && visitRes.length === 0) {
+      container.innerHTML = '<div class="empty">履歴・カルテ情報がありません</div>';
+      document.getElementById('modal-customer-history').classList.add('open');
+      return;
     }
+
+    container.innerHTML = userBookings.map(b => {
+      const m = menus.find(x => x.id === b.menu_id);
+      const statusLabel = b.status === 'completed' ? '来店済み' : (b.status === 'confirmed' ? '確定' : b.status === 'cancelled' ? 'キャンセル' : '仮');
+      const statusClass = b.status === 'completed' ? '' : 'status-' + (b.status || 'confirmed');
+      const statusStyle = b.status === 'completed' ? 'background:#e5e5ea;color:#3a3a3c;' : '';
+
+      // 該当する予約のカルテメモ（visit_history）を探す
+      const v = visitRes.find(x => x.booking_id === b.id);
+      const karteMemo = (v && v.notes) ? v.notes : (b.notes || '');
+
+      return `<div style="border-bottom:1px solid #e5e5ea; padding:12px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <b>📅 ${b.booking_date.replace(/-/g, '/')} ${b.booking_time}</b>
+          <span class="status-badge ${statusClass}" style="${statusStyle}">${statusLabel}</span>
+        </div>
+        <div style="font-size:13px; color:#1d1d1f; margin-top:4px;">✂️ メニュー: ${m ? m.name : '不明'}</div>
+        ${karteMemo ? `<div style="font-size:13px; background:#fafafa; border-left:3px solid #007aff; padding:6px 10px; margin-top:6px; border-radius:4px; color:#1d1d1f;">📝 <b>カルテメモ:</b><br>${karteMemo.replace(/\n/g, '<br>')}</div>` : ''}
+      </div>`;
+    }).join('');
+
     document.getElementById('modal-customer-history').classList.add('open');
-  }
-  function closeCustomerHistoryModal() {
-    document.getElementById('modal-customer-history').classList.remove('open');
   }
 
   // --- 来店完了（カルテ記録）スクリプト ---
