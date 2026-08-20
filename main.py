@@ -309,7 +309,6 @@ dashboard_html = """
   }
   .booking-card.tentative { border-left-color: #ff9500; background: #fff4e5; }
   .booking-card.cancelled { border-left-color: #ff3b30; background: #ffe5e5; opacity: 0.7; }
-  .booking-card.completed { border-left-color: #8e8e93; background: #f2f2f7; opacity: 0.8; }
   .booking-name { font-weight: 500; font-size: 13px; }
   .booking-meta { font-size: 12px; color: #8e8e93; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
   .booking-tag {
@@ -658,45 +657,6 @@ dashboard_html = """
   </div>
 </div>
 
-<!-- 顧客編集モーダル -->
-<div class="modal-overlay" id="modal-customer-edit" onclick="if(event.target===this)closeCustomerEditModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">お客様情報の編集</span>
-      <button class="icon-btn" onclick="closeCustomerEditModal()" style="width:32px;height:32px;">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label>お名前 <span class="req">*</span></label>
-        <input type="text" id="edit-customer-name" placeholder="山田 花子">
-      </div>
-      <div class="form-group">
-        <label>電話番号</label>
-        <input type="tel" id="edit-customer-phone" placeholder="090-1234-5678" oninput="formatPhone(this)">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeCustomerEditModal()">キャンセル</button>
-      <button class="btn btn-primary" onclick="saveCustomerEdit()">保存する</button>
-    </div>
-  </div>
-</div>
-
-<!-- 来店履歴（📋）モーダル -->
-<div class="modal-overlay" id="modal-customer-history" onclick="if(event.target===this)closeCustomerHistoryModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title" id="history-modal-title">来店・予約履歴</span>
-      <button class="icon-btn" onclick="closeCustomerHistoryModal()" style="width:32px;height:32px;">✕</button>
-    </div>
-    <div class="modal-body" id="customer-history-body" style="max-height:60vh; overflow-y:auto;">
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeCustomerHistoryModal()">閉じる</button>
-    </div>
-  </div>
-</div>
-
 <!-- LINE個別メッセージ送信モーダル -->
 <div class="modal-overlay" id="modal-send-message" onclick="if(event.target===this)closeSendMessageModal()">
   <div class="modal">
@@ -756,7 +716,7 @@ dashboard_html = """
   let editingId = null;
   const times = [];
   for (let h = 9; h < 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
- times.push("19:00");
+　times.push("19:00");
   function fmtDate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2, '0');
@@ -790,7 +750,7 @@ dashboard_html = """
   function populateMenus() {
     const sel = document.getElementById('form-menu');
     sel.innerHTML = '<option value="">選択</option>';
-    menus.forEach(function(m) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.name + ' (฿' + m.price.toLocaleString() + ', ' + m.duration_minutes + '分)'; sel.appendChild(o); });
+    menus.forEach(function(m) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.name + ' (¥' + m.price.toLocaleString() + ', ' + m.duration_minutes + '分)'; sel.appendChild(o); });
   }
   
   let selectedUserId = null;
@@ -834,20 +794,10 @@ dashboard_html = """
       }
     }
   }
-  
-function updateStats() {
+  function updateStats() {
     const today = fmtDate(new Date());
-    
-    // 本日の予約（確定＋来店済み）
-    document.getElementById('stat-today').textContent = bookings.filter(function(b){ 
-      return b.booking_date === today && b.status !== 'cancelled'; 
-    }).length;
-    
-    // 今後の予約（今日以降 かつ 「確定（confirmed）」のみ。キャンセルや来店済みは除外）
-    document.getElementById('stat-upcoming').textContent = bookings.filter(function(b){ 
-      return b.booking_date >= today && b.status === 'confirmed'; 
-    }).length;
-
+    document.getElementById('stat-today').textContent = bookings.filter(function(b){ return b.booking_date === today && b.status === 'confirmed'; }).length;
+    document.getElementById('stat-upcoming').textContent = bookings.filter(function(b){ return b.booking_date >= today && b.status === 'confirmed'; }).length;
     document.getElementById('stat-menus').textContent = menus.length;
     document.getElementById('stat-customers').textContent = customers.length;
   }
@@ -864,8 +814,7 @@ function updateStats() {
     document.getElementById('board-date').value = fmtDate(currentDate);
     renderBoard();
   }
-  
-function renderBoard() {
+  function renderBoard() {
     const date = document.getElementById('board-date').value;
     currentDate = new Date(date + 'T00:00:00');
     document.getElementById('board-date-label').textContent = fmtDateJp(date);
@@ -875,115 +824,27 @@ function renderBoard() {
 
     times.forEach(function(time) {
       const slot = document.createElement('div'); slot.className = 'time-slot';
-      
-      const label = document.createElement('div'); 
-      label.className = 'time-label'; 
-      label.textContent = time;
-      label.style.cursor = 'pointer';
-      label.onclick = function() { openModalWithTime(time); };
-
-      const content = document.createElement('div'); 
-      content.className = 'time-content';
-      content.style.cursor = 'pointer';
-      
-      content.ondragover = function(e) {
-        e.preventDefault();
-        content.style.background = '#e8f4fd';
-      };
-      content.ondragleave = function() {
-        content.style.background = '';
-      };
-      content.ondrop = async function(e) {
-        e.preventDefault();
-        content.style.background = '';
-        const bookingId = e.dataTransfer.getData('text/plain');
-        if (bookingId) {
-          await handleCardDrop(parseInt(bookingId), date, time);
-        }
-      };
-
-      content.onclick = function(e) {
-        if (e.target === content) {
-          openModalWithTime(time);
-        }
-      };
-
+      const label = document.createElement('div'); label.className = 'time-label'; label.textContent = time;
+      const content = document.createElement('div'); content.className = 'time-content';
       const bs = dayBookings.filter(function(b){ return b.booking_time === time; });
       bs.forEach(function(b) {
         const menu = menus.find(function(m){ return m.id === b.menu_id; });
         const c = customers.find(function(x){ return x.user_id === b.user_id; });
         const card = document.createElement('div');
-        
-        const statusClass = b.status === 'completed' ? 'completed' : (b.status || 'confirmed');
-        card.className = 'booking-card ' + statusClass;
-
-        if (b.status !== 'completed' && b.status !== 'cancelled') {
-          card.draggable = true;
-          card.style.cursor = 'grab';
-          card.ondragstart = function(e) {
-            e.dataTransfer.setData('text/plain', b.id);
-            card.style.opacity = '0.5';
-          };
-          card.ondragend = function() {
-            card.style.opacity = '1';
-          };
-        }
-
-        const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
-          ? `<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(${b.id})">✅</button>`
-          : '';
-
-        card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === 'completed' ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : '') + '</div>' +
+        card.className = 'booking-card ' + (b.status || 'confirmed');
+        card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + '</div>' +
           '<div class="booking-meta">' +
             '<span class="booking-tag">' + (menu ? menu.name : '不明') + '</span>' +
             (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') +
           '</div>' +
           '<div class="booking-actions">' +
-            completeBtn +
-            '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
-            '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
+            '<button class="icon-btn" onclick="editBooking(' + b.id + ')">✏️</button>' +
+            '<button class="icon-btn danger" onclick="deleteBooking(' + b.id + ')">🗑</button>' +
           '</div>';
         content.appendChild(card);
       });
       slot.appendChild(label); slot.appendChild(content); container.appendChild(slot);
     });
-  }
-
-  // 時間指定付きで新規予約モーダルを開く関数
-  function openModalWithTime(timeStr) {
-    editingId = null;
-    document.getElementById('modal-title').textContent = `${timeStr} の予約を登録`;
-    clearForm();
-    document.getElementById('form-date').value = document.getElementById('board-date').value;
-    document.getElementById('form-time').value = timeStr;
-    document.getElementById('modal').classList.add('open');
-  }
-
-  // ドラッグ＆ドロップで時間を変更する処理
-  async function handleCardDrop(bookingId, targetDate, targetTime) {
-    const b = bookings.find(x => x.id === bookingId);
-    if (!b || b.booking_time === targetTime) return;
-
-    if (!confirm(`${b.customer_name || 'お客様'} 様の予約時間を ${targetTime} に変更しますか？`)) {
-      return;
-    }
-
-    const res = await fetch('/api/booking/' + bookingId, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        booking_date: targetDate,
-        booking_time: targetTime,
-        menu_id: b.menu_id
-      })
-    });
-
-    if (res.ok) {
-      toast(`予約時間を ${targetTime} に変更しました`);
-      loadData();
-    } else {
-      toast('時間の変更に失敗しました');
-    }
   }
 
   function renderList() {
@@ -1220,85 +1081,35 @@ function renderCustomers() {
     else { toast('更新に失敗しました'); }
   }
 
-  function escapeHtml(str) {
-    if (!str) return "";
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  }
-
-  // 来店履歴・カルテ表示（文字列エラー完全防止版）
-  async function showCustomerHistory(userId) {
-    var c = customers.find(function(x){ return x.user_id === userId; });
+  // 来店履歴モーダル表示
+  function showCustomerHistory(userId) {
+    const c = customers.find(x => x.user_id === userId);
     if (!c) return;
-    
-    document.getElementById("history-modal-title").textContent = (c.name || "お客様") + " 様の来店履歴・カルテ";
-    var container = document.getElementById("customer-history-body");
-    container.innerHTML = '<div class="empty">読み込み中…</div>';
-
-    try {
-      var results = await Promise.all([
-        bookings.filter(function(b){ return b.user_id === userId; }).sort(function(a,b){ return (b.booking_date + b.booking_time).localeCompare(a.booking_date + a.booking_time); }),
-        fetch("/api/customers/" + encodeURIComponent(userId) + "/visits").then(function(r){ return r.json(); }).catch(function(){ return []; })
-      ]);
-      var userBookings = results[0];
-      var visitRes = results[1];
-
-      if (userBookings.length === 0 && visitRes.length === 0) {
-        container.innerHTML = '<div class="empty">履歴・カルテ情報がありません</div>';
-        document.getElementById("modal-customer-history").classList.add("open");
-        return;
-      }
-
-      container.innerHTML = "";
-      userBookings.forEach(function(b) {
-        var m = menus.find(function(x){ return x.id === b.menu_id; });
-        var statusLabel = (b.status === "completed") ? "来店済み" : ((b.status === "confirmed") ? "確定" : ((b.status === "cancelled") ? "キャンセル" : "仮"));
-        var statusClass = (b.status === "completed") ? "" : ("status-" + (b.status || "confirmed"));
-        var statusStyle = (b.status === "completed") ? "background:#e5e5ea;color:#3a3a3c;" : "";
-
-        var v = visitRes.find(function(x){ return x.booking_id === b.id; });
-        var karteMemo = (v && v.notes) ? v.notes : (b.notes || "");
-        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split("\n").join("<br>") : "";
-
-        var item = document.createElement("div");
-        item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
-
-        var header = document.createElement("div");
-        header.style.cssText = "display:flex; justify-content:space-between; align-items:center;";
-        
-        var dateText = b.booking_date ? b.booking_date.split("-").join("/") : "";
-        
-        var dateBold = document.createElement("b");
-        dateBold.textContent = "📅 " + dateText + " " + b.booking_time;
-        
-        var badge = document.createElement("span");
-        badge.className = "status-badge " + statusClass;
-        if (statusStyle) badge.style.cssText = statusStyle;
-        badge.textContent = statusLabel;
-
-        header.appendChild(dateBold);
-        header.appendChild(badge);
-        
-        var menuText = document.createElement("div");
-        menuText.style.cssText = "font-size:13px; color:#1d1d1f; margin-top:4px;";
-        menuText.textContent = "✂️ メニュー: " + (m ? m.name : "不明");
-
-        item.appendChild(header);
-        item.appendChild(menuText);
-
-        if (formattedMemo) {
-          var memoBox = document.createElement("div");
-          memoBox.style.cssText = "font-size:13px; background:#fafafa; border-left:3px solid #007aff; padding:6px 10px; margin-top:6px; border-radius:4px; color:#1d1d1f;";
-          memoBox.innerHTML = "📝 <b>カルテメモ:</b><br>" + formattedMemo;
-          item.appendChild(memoBox);
-        }
-
-        container.appendChild(item);
-      });
-
-      document.getElementById("modal-customer-history").classList.add("open");
-    } catch (e) {
-      container.innerHTML = '<div class="empty">データの取得に失敗しました</div>';
+    document.getElementById('history-modal-title').textContent = `${c.name || 'お客様'} 様の来店・予約履歴`;
+    const userBookings = bookings.filter(b => b.user_id === userId)
+      .sort((a,b) => (b.booking_date + b.booking_time).localeCompare(a.booking_date + a.booking_time));
+    const container = document.getElementById('customer-history-body');
+    if (userBookings.length === 0) {
+      container.innerHTML = '<div class="empty">予約・来店履歴がありません</div>';
+    } else {
+      container.innerHTML = userBookings.map(b => {
+        const m = menus.find(x => x.id === b.menu_id);
+        const statusLabel = b.status === 'confirmed' ? '確定' : b.status === 'cancelled' ? 'キャンセル' : '仮';
+        const statusClass = 'status-' + (b.status || 'confirmed');
+        return `<div style="border-bottom:1px solid #e5e5ea; padding:10px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b>${b.booking_date.replace(/-/g, '/')} ${b.booking_time}</b>
+            <span class="status-badge ${statusClass}">${statusLabel}</span>
+          </div>
+          <div style="font-size:13px; color:#1d1d1f; margin-top:4px;">メニュー: ${m ? m.name : '不明'}</div>
+          ${b.notes ? `<div style="font-size:12px; color:#8e8e93; margin-top:2px;">メモ: ${b.notes}</div>` : ''}
+        </div>`;
+      }).join('');
     }
+    document.getElementById('modal-customer-history').classList.add('open');
+  }
+  function closeCustomerHistoryModal() {
+    document.getElementById('modal-customer-history').classList.remove('open');
   }
 
   // --- 来店完了（カルテ記録）スクリプト ---
@@ -1389,7 +1200,7 @@ function renderCustomers() {
     menus.forEach(function(m) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td style="font-weight:500">' + m.name + '</td>' +
-        '<td>฿' + m.price.toLocaleString() + '</td>' +
+        '<td>¥' + m.price.toLocaleString() + '</td>' +
         '<td>' + m.duration_minutes + '分</td>' +
         '<td><button class="icon-btn danger" onclick="deleteMenu(' + m.id + ')">🗑️</button></td>';
       tbody.appendChild(tr);
@@ -1516,35 +1327,7 @@ function renderCustomers() {
     if (emptyEl) emptyEl.style.display = bookings.length ? 'none' : 'block';
   };
   
-// --- スマート・ポーリング（自動更新＆負荷軽減） ---
-  let lastDataHash = "";
-
-  async function checkAndReloadData() {
-    // 予約登録・編集などのモーダルが開いている最中は入力の邪魔をしないよう更新スキップ
-    if (document.querySelector('.modal-overlay.open')) return;
-
-    try {
-      const res = await fetch('/api/bookings/all');
-      if (!res.ok) return;
-      const data = await res.json();
-      
-      // データに変化（追加・変更・キャンセル）があった場合のみ再描画を実行
-      const currentHash = JSON.stringify(data);
-      if (lastDataHash !== "" && currentHash !== lastDataHash) {
-        toast('新しい予約・変更が反映されました');
-        loadData();
-      }
-      lastDataHash = currentHash;
-    } catch (e) {
-      // ネットワーク一時中断時は何もしない（次回に安全リトライ）
-    }
-  }
-
-  // 初回データ取得
   loadData();
-
-  // 15秒ごとに差分チェック（端末負荷と通信量を大幅軽減）
-  setInterval(checkAndReloadData, 15000);
 </script>
 </div>
 </body>
@@ -1988,38 +1771,6 @@ async def api_get_customers():
     rows = db.get_all_customers()
     return [dict(r) for r in rows]
 
-class CustomerUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    phone: Optional[str] = None
-
-@app.get("/api/customers/{user_id}/visits")
-async def api_get_customer_visits(user_id: str):
-    """特定顧客の来店履歴（カルテ）一覧を取得"""
-    rows = db.get_visit_history(user_id, limit=20)
-    return [dict(r) for r in rows]
-
-@app.put("/api/customers/{user_id}")
-async def api_update_customer(user_id: str, data: CustomerUpdateRequest):
-    """顧客情報（名前・電話番号）の更新"""
-    customer = db.get_customer(user_id)
-    if not customer:
-        return JSONResponse({"error": "顧客が見つかりません"}, status_code=404)
-    
-    try:
-        db.update_customer(user_id, name=data.name, phone=data.phone)
-        return {"status": "ok", "message": "顧客情報を更新しました"}
-    except Exception as e:
-        logger.error(f"Error updating customer: {e}")
-        return JSONResponse({"error": "更新に失敗しました"}, status_code=500)
-
-@app.get("/api/customers/{user_id}")
-async def api_get_customer_detail(user_id: str):
-    """指定したuser_idのお客様情報を取得（LIFF自動入力用）"""
-    customer = db.get_customer(user_id)
-    if not customer:
-        return JSONResponse({"error": "not_found"}, status_code=404)
-    return dict(customer)
-
 @app.delete("/api/customers/{user_id}")
 async def api_delete_customer(user_id: str):
     """顧客削除（予約が残っている場合は削除不可）"""
@@ -2091,34 +1842,9 @@ async def api_create_booking(data: DashboardBookingCreate):
     return JSONResponse({"error": "failed"}, status_code=500)
 
 @app.put("/api/bookings/{booking_id}")
-async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateRequest):
-    """予約の更新"""
-    booking = db.get_booking(booking_id)
-    if not booking:
-        return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
 
-    original_date = booking["booking_date"]
-    original_time = booking["booking_time"]
-
-    db.update_booking(
-        booking_id=booking_id,
-        booking_date=data.booking_date,
-        booking_time=data.booking_time,
-        menu_id=data.menu_id
-    )
-
-    db.add_booking_history(
-        booking_id=booking_id,
-        action="modified",
-        user_id=booking["user_id"],
-        before_date=original_date,
-        before_time=original_time,
-        after_date=data.booking_date,
-        after_time=data.booking_time,
-        note="管理画面から編集"
-    )
-
-    return {"status": "ok", "message": "予約を更新しました"}
+class CompleteBookingRequest(BaseModel):
+    notes: Optional[str] = None
 
 # --- 休業日 API ---
 class ClosedDayRequest(BaseModel):
@@ -2149,6 +1875,29 @@ async def api_delete_closed_day(closed_date: str):
 # --- 来店完了（カルテ記録） API ---
 class CompleteBookingRequest(BaseModel):
     notes: Optional[str] = None
+
+@app.post("/api/bookings/{booking_id}/complete")
+async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
+    """予約を「来店完了」にし、来店履歴（カルテ）に記録する"""
+    booking = db.get_booking(booking_id)
+    if not booking:
+        return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
+    
+    try:
+        db.update_booking_status(booking_id, "completed")
+        user_id = booking.get('user_id') if isinstance(booking, dict) else booking['user_id']
+        booking_date = booking.get('booking_date') if isinstance(booking, dict) else booking['booking_date']
+        
+        db.add_visit_history(
+            user_id=user_id,
+            booking_id=booking_id,
+            visited_date=booking_date,
+            notes=data.notes
+        )
+        return {"status": "ok", "message": "来店完了を記録しました"}
+    except Exception as e:
+        logger.error(f"Error completing booking: {e}")
+        return JSONResponse({"error": f"処理に失敗しました: {str(e)}"}, status_code=500)
 
 @app.post("/api/bookings/{booking_id}/complete")
 async def api_complete_booking(booking_id: int, data: CompleteBookingRequest):
