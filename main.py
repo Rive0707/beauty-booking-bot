@@ -309,6 +309,7 @@ dashboard_html = """
   }
   .booking-card.tentative { border-left-color: #ff9500; background: #fff4e5; }
   .booking-card.cancelled { border-left-color: #ff3b30; background: #ffe5e5; opacity: 0.7; }
+  .booking-card.completed { border-left-color: #8e8e93; background: #f2f2f7; opacity: 0.8; }
   .booking-name { font-weight: 500; font-size: 13px; }
   .booking-meta { font-size: 12px; color: #8e8e93; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
   .booking-tag {
