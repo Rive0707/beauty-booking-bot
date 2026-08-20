@@ -1211,7 +1211,7 @@ function renderCustomers() {
     menus.forEach(function(m) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td style="font-weight:500">' + m.name + '</td>' +
-        '<td>¥' + m.price.toLocaleString() + '</td>' +
+        '<td>฿' + m.price.toLocaleString() + '</td>' +
         '<td>' + m.duration_minutes + '分</td>' +
         '<td><button class="icon-btn danger" onclick="deleteMenu(' + m.id + ')">🗑️</button></td>';
       tbody.appendChild(tr);
