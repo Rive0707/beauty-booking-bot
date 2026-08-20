@@ -1938,6 +1938,24 @@ async def api_get_customers():
     rows = db.get_all_customers()
     return [dict(r) for r in rows]
 
+class CustomerUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+@app.put("/api/customers/{user_id}")
+async def api_update_customer(user_id: str, data: CustomerUpdateRequest):
+    """顧客情報（名前・電話番号）の更新"""
+    customer = db.get_customer(user_id)
+    if not customer:
+        return JSONResponse({"error": "顧客が見つかりません"}, status_code=404)
+    
+    try:
+        db.update_customer(user_id, name=data.name, phone=data.phone)
+        return {"status": "ok", "message": "顧客情報を更新しました"}
+    except Exception as e:
+        logger.error(f"Error updating customer: {e}")
+        return JSONResponse({"error": "更新に失敗しました"}, status_code=500)
+
 @app.get("/api/customers/{user_id}")
 async def api_get_customer_detail(user_id: str):
     """指定したuser_idのお客様情報を取得（LIFF自動入力用）"""
