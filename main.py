@@ -1938,6 +1938,14 @@ async def api_get_customers():
     rows = db.get_all_customers()
     return [dict(r) for r in rows]
 
+@app.get("/api/customers/{user_id}")
+async def api_get_customer_detail(user_id: str):
+    """指定したuser_idのお客様情報を取得（LIFF自動入力用）"""
+    customer = db.get_customer(user_id)
+    if not customer:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    return dict(customer)
+
 @app.delete("/api/customers/{user_id}")
 async def api_delete_customer(user_id: str):
     """顧客削除（予約が残っている場合は削除不可）"""
