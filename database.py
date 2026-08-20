@@ -656,3 +656,18 @@ class Database:
             return False
         finally:
             conn.close()
+
+    def update_booking_status(self, booking_id: int, status: str) -> bool:
+        """予約のステータス（confirmed / completed / cancelled など）を更新"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('UPDATE bookings SET status = ? WHERE id = ?', (status, booking_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating booking status: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
