@@ -882,6 +882,16 @@ function renderBoard() {
           };
         }
 
+        // 時間指定付きで新規予約モーダルを開く関数
+  function openModalWithTime(timeStr) {
+    editingId = null;
+    document.getElementById('modal-title').textContent = `${timeStr} の予約を登録`;
+    clearForm();
+    document.getElementById('form-date').value = document.getElementById('board-date').value;
+    document.getElementById('form-time').value = timeStr;
+    document.getElementById('modal').classList.add('open');
+  }
+
         const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
           ? `<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(${b.id})">✅</button>`
           : '';
