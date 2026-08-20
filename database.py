@@ -103,6 +103,11 @@ class Database:
             )
         ''')
 
+        try:
+            cursor.execute("ALTER TABLE visit_history ADD COLUMN notes TEXT")
+        except sqlite3.OperationalError:
+            pass
+        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS booking_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
