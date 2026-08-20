@@ -837,10 +837,9 @@ function renderBoard() {
       content.className = 'time-content';
       content.style.cursor = 'pointer';
       
-      // ドロップ受け入れ設定
       content.ondragover = function(e) {
         e.preventDefault();
-        content.style.background = '#e8f4fd'; // ホバー時の色変化
+        content.style.background = '#e8f4fd';
       };
       content.ondragleave = function() {
         content.style.background = '';
@@ -869,7 +868,6 @@ function renderBoard() {
         const statusClass = b.status === 'completed' ? 'completed' : (b.status || 'confirmed');
         card.className = 'booking-card ' + statusClass;
 
-        // ドラッグ可能に設定
         if (b.status !== 'completed' && b.status !== 'cancelled') {
           card.draggable = true;
           card.style.cursor = 'grab';
@@ -882,7 +880,27 @@ function renderBoard() {
           };
         }
 
-// 時間指定付きで新規予約モーダルを開く関数
+        const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
+          ? `<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(${b.id})">✅</button>`
+          : '';
+
+        card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === 'completed' ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : '') + '</div>' +
+          '<div class="booking-meta">' +
+            '<span class="booking-tag">' + (menu ? menu.name : '不明') + '</span>' +
+            (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') +
+          '</div>' +
+          '<div class="booking-actions">' +
+            completeBtn +
+            '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
+            '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
+          '</div>';
+        content.appendChild(card);
+      });
+      slot.appendChild(label); slot.appendChild(content); container.appendChild(slot);
+    });
+  }
+
+  // 時間指定付きで新規予約モーダルを開く関数
   function openModalWithTime(timeStr) {
     editingId = null;
     document.getElementById('modal-title').textContent = `${timeStr} の予約を登録`;
