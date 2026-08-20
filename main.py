@@ -658,6 +658,45 @@ dashboard_html = """
   </div>
 </div>
 
+<!-- 顧客編集モーダル -->
+<div class="modal-overlay" id="modal-customer-edit" onclick="if(event.target===this)closeCustomerEditModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">お客様情報の編集</span>
+      <button class="icon-btn" onclick="closeCustomerEditModal()" style="width:32px;height:32px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>お名前 <span class="req">*</span></label>
+        <input type="text" id="edit-customer-name" placeholder="山田 花子">
+      </div>
+      <div class="form-group">
+        <label>電話番号</label>
+        <input type="tel" id="edit-customer-phone" placeholder="090-1234-5678" oninput="formatPhone(this)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeCustomerEditModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveCustomerEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 来店履歴（📋）モーダル -->
+<div class="modal-overlay" id="modal-customer-history" onclick="if(event.target===this)closeCustomerHistoryModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="history-modal-title">来店・予約履歴</span>
+      <button class="icon-btn" onclick="closeCustomerHistoryModal()" style="width:32px;height:32px;">✕</button>
+    </div>
+    <div class="modal-body" id="customer-history-body" style="max-height:60vh; overflow-y:auto;">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeCustomerHistoryModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- LINE個別メッセージ送信モーダル -->
 <div class="modal-overlay" id="modal-send-message" onclick="if(event.target===this)closeSendMessageModal()">
   <div class="modal">
