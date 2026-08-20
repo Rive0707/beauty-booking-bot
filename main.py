@@ -827,19 +827,34 @@ function renderBoard() {
     times.forEach(function(time) {
       const slot = document.createElement('div'); slot.className = 'time-slot';
       
-      // 時間ラベルをクリックしても予約追加できるように設定
       const label = document.createElement('div'); 
       label.className = 'time-label'; 
       label.textContent = time;
       label.style.cursor = 'pointer';
       label.onclick = function() { openModalWithTime(time); };
 
-      // 時間枠枠線エリア（空き部分をタップで予約追加）
       const content = document.createElement('div'); 
       content.className = 'time-content';
       content.style.cursor = 'pointer';
+      
+      // ドロップ受け入れ設定
+      content.ondragover = function(e) {
+        e.preventDefault();
+        content.style.background = '#e8f4fd'; // ホバー時の色変化
+      };
+      content.ondragleave = function() {
+        content.style.background = '';
+      };
+      content.ondrop = async function(e) {
+        e.preventDefault();
+        content.style.background = '';
+        const bookingId = e.dataTransfer.getData('text/plain');
+        if (bookingId) {
+          await handleCardDrop(parseInt(bookingId), date, time);
+        }
+      };
+
       content.onclick = function(e) {
-        // カード自身のクリック時はモーダルを開かない（カード操作を優先）
         if (e.target === content) {
           openModalWithTime(time);
         }
@@ -853,6 +868,19 @@ function renderBoard() {
         
         const statusClass = b.status === 'completed' ? 'completed' : (b.status || 'confirmed');
         card.className = 'booking-card ' + statusClass;
+
+        // ドラッグ可能に設定
+        if (b.status !== 'completed' && b.status !== 'cancelled') {
+          card.draggable = true;
+          card.style.cursor = 'grab';
+          card.ondragstart = function(e) {
+            e.dataTransfer.setData('text/plain', b.id);
+            card.style.opacity = '0.5';
+          };
+          card.ondragend = function() {
+            card.style.opacity = '1';
+          };
+        }
 
         const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
           ? `<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(${b.id})">✅</button>`
@@ -874,14 +902,31 @@ function renderBoard() {
     });
   }
 
-  // 時間指定付きで新規予約モーダルを開く関数
-  function openModalWithTime(timeStr) {
-    editingId = null;
-    document.getElementById('modal-title').textContent = `${timeStr} の予約を登録`;
-    clearForm();
-    document.getElementById('form-date').value = document.getElementById('board-date').value;
-    document.getElementById('form-time').value = timeStr;
-    document.getElementById('modal').classList.add('open');
+  // ドロップ時の予約時間更新処理
+  async function handleCardDrop(bookingId, targetDate, targetTime) {
+    const b = bookings.find(x => x.id === bookingId);
+    if (!b || b.booking_time === targetTime) return;
+
+    if (!confirm(`${b.customer_name || 'お客様'} 様の予約時間を ${targetTime} に変更しますか？`)) {
+      return;
+    }
+
+    const res = await fetch('/api/booking/' + bookingId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        booking_date: targetDate,
+        booking_time: targetTime,
+        menu_id: b.menu_id
+      })
+    });
+
+    if (res.ok) {
+      toast(`予約時間を ${targetTime} に変更しました`);
+      loadData();
+    } else {
+      toast('時間の変更に失敗しました');
+    }
   }
 
   function renderList() {
