@@ -750,7 +750,7 @@ dashboard_html = """
   function populateMenus() {
     const sel = document.getElementById('form-menu');
     sel.innerHTML = '<option value="">選択</option>';
-    menus.forEach(function(m) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.name + ' (¥' + m.price.toLocaleString() + ', ' + m.duration_minutes + '分)'; sel.appendChild(o); });
+    menus.forEach(function(m) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.name + ' (฿' + m.price.toLocaleString() + ', ' + m.duration_minutes + '分)'; sel.appendChild(o); });
   }
   
   let selectedUserId = null;
