@@ -814,7 +814,8 @@ dashboard_html = """
     document.getElementById('board-date').value = fmtDate(currentDate);
     renderBoard();
   }
-  function renderBoard() {
+  
+function renderBoard() {
     const date = document.getElementById('board-date').value;
     currentDate = new Date(date + 'T00:00:00');
     document.getElementById('board-date-label').textContent = fmtDateJp(date);
@@ -831,15 +832,25 @@ dashboard_html = """
         const menu = menus.find(function(m){ return m.id === b.menu_id; });
         const c = customers.find(function(x){ return x.user_id === b.user_id; });
         const card = document.createElement('div');
-        card.className = 'booking-card ' + (b.status || 'confirmed');
-        card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + '</div>' +
+        
+        // ステータスに応じたクラス（completed時は見た目を来店済みに変更）
+        const statusClass = b.status === 'completed' ? 'completed' : (b.status || 'confirmed');
+        card.className = 'booking-card ' + statusClass;
+
+        // 来店未完了の場合のみ「✅」ボタンを表示
+        const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
+          ? `<button class="icon-btn" title="来店完了" onclick="openCompleteBookingModal(${b.id})">✅</button>`
+          : '';
+
+        card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === 'completed' ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : '') + '</div>' +
           '<div class="booking-meta">' +
             '<span class="booking-tag">' + (menu ? menu.name : '不明') + '</span>' +
             (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') +
           '</div>' +
           '<div class="booking-actions">' +
-            '<button class="icon-btn" onclick="editBooking(' + b.id + ')">✏️</button>' +
-            '<button class="icon-btn danger" onclick="deleteBooking(' + b.id + ')">🗑</button>' +
+            completeBtn +
+            '<button class="icon-btn" title="編集" onclick="editBooking(' + b.id + ')">✏️</button>' +
+            '<button class="icon-btn danger" title="削除" onclick="deleteBooking(' + b.id + ')">🗑</button>' +
           '</div>';
         content.appendChild(card);
       });
