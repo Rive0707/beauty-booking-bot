@@ -1220,6 +1220,12 @@ function renderCustomers() {
     else { toast('更新に失敗しました'); }
   }
 
+  // HTMLエスケープ関数（※ここに追加します）
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
 // 来店履歴・カルテ表示
   async function showCustomerHistory(userId) {
     const c = customers.find(function(x){ return x.user_id === userId; });
