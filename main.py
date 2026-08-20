@@ -882,7 +882,7 @@ function renderBoard() {
           };
         }
 
-        // 時間指定付きで新規予約モーダルを開く関数
+// 時間指定付きで新規予約モーダルを開く関数
   function openModalWithTime(timeStr) {
     editingId = null;
     document.getElementById('modal-title').textContent = `${timeStr} の予約を登録`;
@@ -892,27 +892,7 @@ function renderBoard() {
     document.getElementById('modal').classList.add('open');
   }
 
-        const completeBtn = (b.status !== 'completed' && b.status !== 'cancelled')
-          ? `<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(${b.id})">✅</button>`
-          : '';
-
-        card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === 'completed' ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : '') + '</div>' +
-          '<div class="booking-meta">' +
-            '<span class="booking-tag">' + (menu ? menu.name : '不明') + '</span>' +
-            (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') +
-          '</div>' +
-          '<div class="booking-actions">' +
-            completeBtn +
-            '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
-            '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
-          '</div>';
-        content.appendChild(card);
-      });
-      slot.appendChild(label); slot.appendChild(content); container.appendChild(slot);
-    });
-  }
-
-  // ドロップ時の予約時間更新処理
+  // ドラッグ＆ドロップで時間を変更する処理
   async function handleCardDrop(bookingId, targetDate, targetTime) {
     const b = bookings.find(x => x.id === bookingId);
     if (!b || b.booking_time === targetTime) return;
