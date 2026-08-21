@@ -130,6 +130,9 @@ class CustomerUpdateRequest(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
 
+class VisitNotesUpdateRequest(BaseModel):
+    notes: str
+
 class CustomerMergeRequest(BaseModel):
     manual_user_id: str
     line_user_id: str
@@ -803,7 +806,11 @@ def get_dashboard_html():
   }
 
   /* --- ④ カルテ（過去履歴・メモ）の表示 --- */
+  var currentHistoryUserId = null;
+  var visitNotesMap = {};
+
   async function showCustomerHistory(userId) {
+    currentHistoryUserId = userId;
     var c = customers.find(function(x){ return x.user_id === userId; }); if (!c) return;
     document.getElementById("history-modal-title").textContent = (c.name || "お客様") + " 様の来店履歴・カルテ";
     var container = document.getElementById("customer-history-body"); container.innerHTML = '<div class="empty">読み込み中…</div>';
@@ -822,23 +829,39 @@ def get_dashboard_html():
       }
 
       container.innerHTML = "";
+      visitNotesMap = {};
       userBookings.forEach(function(b) {
         var m = menus.find(function(x){ return x.id === b.menu_id; });
         var statusLabel = (b.status === "completed") ? "来店済み" : ((b.status === "confirmed") ? "確定" : ((b.status === "cancelled") ? "キャンセル" : "仮"));
         var v = visitRes.find(function(x){ return x.booking_id === b.id; });
         var karteMemo = (v && v.notes) ? v.notes : (b.notes || "");
         var formattedMemo = karteMemo ? escapeHtml(karteMemo).split("\\n").join("<br>") : "";
+        var editLink = "";
+        if (v && v.id) {
+          visitNotesMap[v.id] = karteMemo;
+          editLink = " <a href='javascript:void(0)' onclick='editKarteMemo(" + v.id + ")' style='color:#007aff;'>✏️編集</a>";
+        }
 
         var item = document.createElement("div"); item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
         item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + b.booking_date.replace(/-/g,"/") + " " + b.booking_time + "</b><span class='status-badge'>" + statusLabel + "</span></div>" +
           "<div style='font-size:13px;margin-top:4px;'>✂️ メニュー: " + (m ? m.name : "不明") + "</div>" +
-          (formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + "</div>" : "");
+          (formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + editLink + "</div>" : "");
         container.appendChild(item);
       });
       document.getElementById("modal-customer-history").classList.add("open");
     } catch (e) {
       container.innerHTML = '<div class="empty">データの取得に失敗しました</div>';
     }
+  }
+
+  async function editKarteMemo(visitId) {
+    var current = visitNotesMap[visitId] || "";
+    var updated = prompt("カルテメモを編集", current);
+    if (updated === null) return;
+    var res = await fetch("/api/visits/" + visitId, { method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ notes: updated }) });
+    var data = await res.json().catch(function(){ return {}; });
+    if (res.ok) { toast("カルテメモを更新しました"); if (currentHistoryUserId) showCustomerHistory(currentHistoryUserId); }
+    else { toast(data.error || "更新に失敗しました"); }
   }
   function closeCustomerHistoryModal() { document.getElementById("modal-customer-history").classList.remove("open"); }
 
@@ -1059,6 +1082,12 @@ async def api_get_customer(user_id: str):
 @app.get("/api/customers/{user_id}/visits")
 async def api_get_customer_visits(user_id: str):
     return [dict(r) for r in db.get_visit_history(user_id, limit=20)]
+
+@app.put("/api/visits/{visit_id}")
+async def api_update_visit_notes(visit_id: int, data: VisitNotesUpdateRequest):
+    if db.update_visit_history_notes(visit_id, data.notes):
+        return {"status": "ok"}
+    return JSONResponse({"error": "更新に失敗しました"}, status_code=500)
 
 @app.put("/api/customers/{user_id}")
 async def api_update_customer(user_id: str, data: CustomerUpdateRequest):

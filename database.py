@@ -648,6 +648,21 @@ class Database:
         finally:
             conn.close()
 
+    def update_visit_history_notes(self, visit_id: int, notes: str) -> bool:
+        """既存のカルテメモを更新（追記・修正）"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('UPDATE visit_history SET notes = ? WHERE id = ?', (notes, visit_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating visit history: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def add_closed_day(self, closed_date: str, note: str = None) -> bool:
         """休業日を追加"""
         conn = self.get_connection()
