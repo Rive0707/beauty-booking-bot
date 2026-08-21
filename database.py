@@ -431,13 +431,19 @@ class Database:
         conn.close()
         return results
 
-    def get_booked_times_in_range(self, start_date_str: str, end_date_str: str):
+    def get_booked_times_in_range(self, start_date_str: str, end_date_str: str, exclude_booking_id: int = None):
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT booking_date, booking_time FROM bookings
-            WHERE booking_date >= ? AND booking_date <= ? AND status = 'confirmed'
-        ''', (start_date_str, end_date_str))
+        if exclude_booking_id:
+            cursor.execute('''
+                SELECT booking_date, booking_time FROM bookings
+                WHERE booking_date >= ? AND booking_date <= ? AND status = 'confirmed' AND id != ?
+            ''', (start_date_str, end_date_str, exclude_booking_id))
+        else:
+            cursor.execute('''
+                SELECT booking_date, booking_time FROM bookings
+                WHERE booking_date >= ? AND booking_date <= ? AND status = 'confirmed'
+            ''', (start_date_str, end_date_str))
         results = cursor.fetchall()
         conn.close()
 
