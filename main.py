@@ -18,6 +18,8 @@ import logging
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
 
 # 自作モジュール
 from database import Database
