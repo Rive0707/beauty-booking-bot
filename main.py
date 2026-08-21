@@ -201,12 +201,11 @@ def handle_message(event):
         line_handler.start_booking(user_id)
     elif text in ["予約確認", "マイページ", "履歴"]:
         line_handler.show_my_page(user_id)
-    elif text in ["ヘルプ", "メニュー"]:
-        line_handler.show_help(user_id)
     elif user_id == OWNER_USER_ID:
         handle_owner_command(user_id, text)
     else:
-        line_handler.send_text(user_id, "「予約」「マイページ」などのボタンを使ってください")
+        # メッセージ入力時は予約案内を送信
+        line_handler.start_booking(user_id)
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
@@ -215,18 +214,8 @@ def handle_postback(event):
     params = dict(p.split("=", 1) for p in postback_data.split("&") if "=" in p)
     action = params.get("action")
     
-    if action == "select_date":
-        line_handler.on_date_selected(user_id, event.postback.params.get("date"))
-    elif action == "select_time":
-        line_handler.on_time_selected(user_id, event.postback.params.get("time") or params.get("time"))
-    elif action == "select_menu":
-        line_handler.on_menu_selected(user_id, params.get("menu_id"))
-    elif action == "confirm_booking":
-        line_handler.confirm_booking(user_id)
-    elif action == "cancel_booking":
+    if action == "cancel_booking":
         line_handler.cancel_booking(user_id, params.get("booking_id"))
-    elif action == "modify_booking":
-        line_handler.start_modify_booking(user_id, params.get("booking_id"))
 
 @handler.add(FollowEvent)
 def handle_follow(event):
