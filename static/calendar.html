@@ -249,7 +249,7 @@ rangeStart.setHours(0,0,0,0);
 let selected = null;
 
 const urlParams = new URLSearchParams(location.search);
-const menuId = urlParams.get('menu_id');
+const menuIds = urlParams.get('menu_ids') || urlParams.get('menu_id');
 const menuName = urlParams.get('menu_name');
 const menuDuration = urlParams.get('duration'); // メニューの所要時間（分）
 const modifyBookingId = urlParams.get('modify_booking_id'); // 予約変更モードかどうか
