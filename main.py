@@ -1184,17 +1184,30 @@ def get_dashboard_html():
     populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus(); renderCustomers(); renderHolidays(); renderReport();
   }
 
-  var lastDataHash = "";
+  var lastAppliedHash = "";
+  var pendingHash = null;
   async function checkAndReloadData() {
-    if (document.querySelector(".modal-overlay.open")) return;
     try {
       var res = await fetch("/api/bookings/all"); if (!res.ok) return;
       var data = await res.json();
       var currentHash = JSON.stringify(data);
-      if (lastDataHash !== "" && currentHash !== lastDataHash) { toast("最新のデータに更新されました"); loadData(); }
-      lastDataHash = currentHash;
+      if (lastAppliedHash === "") { lastAppliedHash = currentHash; return; }
+      if (currentHash === lastAppliedHash) { pendingHash = null; return; }
+
+      if (document.querySelector(".modal-overlay.open")) {
+        if (pendingHash !== currentHash) { pendingHash = currentHash; toast("新しいデータがあります（入力を終えると反映されます）"); }
+        return;
+      }
+      pendingHash = null;
+      lastAppliedHash = currentHash;
+      toast("最新のデータに更新されました");
+      loadData();
     } catch (e) {}
   }
+
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "visible") checkAndReloadData();
+  });
 
   loadData();
   setInterval(checkAndReloadData, 15000);
