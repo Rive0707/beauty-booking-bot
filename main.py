@@ -1300,7 +1300,6 @@ async def api_merge_customer(data: CustomerMergeRequest):
 {b_date} {b_time}
 
 ✂️ メニュー: {menu_name}
-📍 予約ID: {b_id}
 
 ご来店を心よりお待ちしております。"""
             line_handler.send_text(data.line_user_id, msg)
