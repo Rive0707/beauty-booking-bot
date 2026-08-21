@@ -1164,7 +1164,7 @@ def get_dashboard_html():
     ]);
     bookings = results[0]; histories = results[1]; customers = results[2]; menus = results[3].menus || [];
     holidays = (results[4] && results[4].closed_days) ? results[4].closed_days : [];
-    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus(); renderCustomers(); renderHolidays();
+    populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus(); renderCustomers(); renderHolidays(); renderReport();
   }
 
   var lastDataHash = "";
