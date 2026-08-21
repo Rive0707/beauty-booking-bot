@@ -1517,7 +1517,7 @@ async def api_reschedule_booking(data: RescheduleRequest):
     menu = db.get_menu(booking["menu_id"])
     menu_name = menu["name"] if menu else "不明"
 
-    line_handler.send_text(data.user_id, f"""📝 ご予約日時を変更しました
+    line_handler.send_text(data.user_id, f""" ご予約日時を変更しました
 
 📅 {data.booking_date} {data.booking_time}
 🎨 メニュー: {menu_name}
