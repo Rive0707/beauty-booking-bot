@@ -1492,7 +1492,6 @@ async def api_create_booking_from_liff(data: BookingCreateFromLiffRequest):
         f"お客様: {data.name}\n"
         f"予約日時: {data.booking_date} {data.booking_time}\n"
         f"メニュー: {menu_name}\n"
-        f"予約ID: {booking_id}"
     )
 
     return {"status": "ok", "booking_id": booking_id}
