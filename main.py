@@ -654,7 +654,7 @@ def get_dashboard_html():
     var el = document.createElement("div"); el.className = "toast"; el.textContent = msg;
     c.appendChild(el); setTimeout(function(){ el.remove(); }, 3000);
   }
-  function escapeHtml(str) {
+　function escapeHtml(str) {
     if (!str) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
@@ -664,10 +664,17 @@ def get_dashboard_html():
   var timeSel = document.getElementById("form-time");
   times.forEach(function(t) { var o = document.createElement("option"); o.value = t; o.textContent = t; timeSel.appendChild(o); });
 
-  function populateMenus() {
-    var sel = document.getElementById("form-menu");
-    sel.innerHTML = '<option value="">選択</option>';
-    menus.forEach(function(m) { var o = document.createElement("option"); o.value = m.id; o.textContent = m.name + " (฿" + m.price.toLocaleString() + ", " + m.duration_minutes + "分)"; sel.appendChild(o); });
+　function populateMenus() {
+    var container = document.getElementById("form-menu-container");
+    if (!container) return;
+    container.innerHTML = "";
+    menus.forEach(function(m) {
+      var label = document.createElement("label");
+      label.style.cssText = "display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; font-size: 13px;";
+      label.innerHTML = '<input type="checkbox" name="form-menu-item" value="' + m.id + '" style="width: 16px; height: 16px;"> ' +
+                        '<span>' + escapeHtml(m.name) + ' (฿' + m.price.toLocaleString() + ')</span>';
+      container.appendChild(label);
+    });
   }
 
   function populateCustomers() {
