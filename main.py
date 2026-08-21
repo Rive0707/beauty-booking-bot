@@ -1270,6 +1270,41 @@ async def api_delete_customer(user_id: str):
 @app.post("/api/customers/merge")
 async def api_merge_customer(data: CustomerMergeRequest):
     if db.merge_customers(data.manual_user_id, data.line_user_id):
+        # ★ ガッチャンコ成功後、そのお客様の「今後の予約」を取得してLINEを送信する
+        upcoming_bookings = db.get_bookings_by_user(data.line_user_id, status='confirmed')
+        if upcoming_bookings:
+            # 直近の予約情報を取得
+            next_booking = upcoming_bookings[0]
+            b_date = next_booking['booking_date']
+            b_time = next_booking['booking_time']
+            b_id = next_booking['id']
+            
+            # 複数メニュー名を取得
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT GROUP_CONCAT(m.name, ' + ') as menu_names
+                FROM booking_menus bm
+                JOIN menus m ON bm.menu_id = m.id
+                WHERE bm.booking_id = ?
+            ''', (b_id,))
+            row = cursor.fetchone()
+            conn.close()
+            
+            menu_name = row['menu_names'] if (row and row['menu_names']) else 'メニュー'
+
+            # LINEメッセージ作成＆送信
+            msg = f"""✅ LINEアカウントとの連携が完了しました！
+
+📅 次回ご予約日時:
+{b_date} {b_time}
+
+✂️ メニュー: {menu_name}
+📍 予約ID: {b_id}
+
+ご来店を心よりお待ちしております。"""
+            line_handler.send_text(data.line_user_id, msg)
+
         return {"status": "ok"}
     return JSONResponse({"error": "失敗しました"}, status_code=500)
 
