@@ -78,25 +78,9 @@ class LineHandler:
     # =======================================
     
     def on_user_follow(self, user_id: str):
-        """友達追加時のウェルカムメッセージ"""
+        """友達追加時の処理（データベース登録のみ行う）"""
         self.db.add_customer(user_id)
-        
-        welcome_text = """
-👋 ようこそ！
-
-私たちのLINE予約ボットへ。
-こちらから簡単に予約・変更・キャンセルができます。
-
-🎯 できることは...
-✅ 予約受付（日時・メニュー選択）
-✅ 予約の変更・キャンセル
-✅ あなたの来店履歴確認
-✅ ご質問へのお応答
-
-「予約」ボタンをタップして、さっそく予約してみましょう！
-"""
-        self.send_text(user_id, welcome_text)
-        self.show_help(user_id)
+        # メッセージ送信（self.send_text や self.show_help）を削除
     
     def show_help(self, user_id: str):
         """ヘルプメッセージ（メニュー表示）"""
