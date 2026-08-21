@@ -105,7 +105,7 @@ class MenuAddRequest(BaseModel):
 
 class BookingCreateFromLiffRequest(BaseModel):
     user_id: str
-    menu_id: int
+    menu_ids: list[int]  # ★ int から list[int] に変更
     booking_date: str
     booking_time: str
     name: str
@@ -113,6 +113,15 @@ class BookingCreateFromLiffRequest(BaseModel):
     gender: Optional[str] = None
     birthdate: Optional[str] = None
     phone: Optional[str] = None
+
+class DashboardDashboardBookingCreate(BaseModel):
+    customer_name: str
+    phone: Optional[str] = None
+    booking_date: str
+    booking_time: str
+    menu_ids: list[int]  # ★ int から list[int] に変更
+    notes: Optional[str] = None
+    existing_user_id: Optional[str] = None
 
 class RescheduleRequest(BaseModel):
     user_id: str
