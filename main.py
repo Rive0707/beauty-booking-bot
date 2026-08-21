@@ -148,7 +148,7 @@ class DashboardBookingCreate(BaseModel):
     phone: Optional[str] = None
     booking_date: str
     booking_time: str
-    menu_id: int
+    menu_ids: list[int]  # ★ 複数メニューの配列
     notes: Optional[str] = None
     existing_user_id: Optional[str] = None
 
