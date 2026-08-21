@@ -200,7 +200,7 @@ const LIFF_ID = '2011089217-uEvBgkD3'; // 本番用LIFF ID
 const API_BASE = window.location.origin;
 const params = new URLSearchParams(location.search);
 const bookingInfo = {
-  menu_id: params.get('menu_id'),
+  menu_ids: params.get('menu_ids') || params.get('menu_id'),
   menu_name: params.get('menu_name'),
   date: params.get('date'),
   time: params.get('time'),
@@ -255,7 +255,7 @@ function validate(){
 }
 
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
-  if(!bookingInfo.menu_id || !bookingInfo.date || !bookingInfo.time){
+  if(!bookingInfo.menu_ids || !bookingInfo.date || !bookingInfo.time){
     showToast('メニューまたは日時が選択されていません。前の画面からやり直してください。');
     return;
   }
@@ -271,9 +271,12 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const gender = document.querySelector('input[name="gender"]:checked');
   const birthdate = `${yearSel.value}-${String(monthSel.value).padStart(2,'0')}-${String(daySel.value).padStart(2,'0')}`;
 
+  // カンマ区切りの文字列（"1,2"）を数値の配列（[1, 2]）に変換
+  const menuIdsArray = bookingInfo.menu_ids.split(',').map(id => parseInt(id, 10));
+
   const payload = {
     user_id: liffUserId,
-    menu_id: parseInt(bookingInfo.menu_id, 10),
+    menu_ids: menuIdsArray, // ★ menu_ids として配列で送信
     booking_date: bookingInfo.date,
     booking_time: bookingInfo.time,
     name: document.getElementById('name').value.trim(),
