@@ -988,20 +988,38 @@ def get_dashboard_html():
     document.querySelectorAll('input[name="form-menu-item"]').forEach(function(cb) { cb.checked = false; });
   }
 
-  async function submitBooking() {
-    var name = document.getElementById("form-name").value.trim();
-    var date = document.getElementById("form-date").value;
-    var time = document.getElementById("form-time").value;
-    var menuId = document.getElementById("form-menu").value;
-    if (!name || !date || !time || !menuId) { toast("必須項目を入力してください"); return; }
-
-    var payload = { customer_name: name, phone: document.getElementById("form-phone").value.trim(), booking_date: date, booking_time: time, menu_id: parseInt(menuId), notes: document.getElementById("form-memo").value.trim(), existing_user_id: selectedUserId };
-    var url = editingId ? "/api/bookings/" + editingId : "/api/bookings";
-    var method = editingId ? "PUT" : "POST";
-    var res = await fetch(url, { method: method, headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
-    if (res.ok) { toast(editingId ? "予約を更新しました" : "予約を登録しました"); closeModal(); loadData(); }
-    else { toast("エラーが発生しました"); }
-  }
+    async function submitBooking() {
+        var name = document.getElementById("form-name").value.trim();
+        var date = document.getElementById("form-date").value;
+        var time = document.getElementById("form-time").value;
+        
+        // チェックが入っている全メニューのIDを配列で取得
+        var selectedMenuIds = [];
+        document.querySelectorAll('input[name="form-menu-item"]:checked').forEach(function(cb) {
+          selectedMenuIds.push(parseInt(cb.value, 10));
+        });
+    
+        if (!name || !date || !time || selectedMenuIds.length === 0) {
+          toast("必須項目およびメニューを1つ以上選択してください");
+          return;
+        }
+    
+        var payload = {
+          customer_name: name,
+          phone: document.getElementById("form-phone").value.trim(),
+          booking_date: date,
+          booking_time: time,
+          menu_ids: selectedMenuIds, // ★ menu_ids として配列で送信
+          notes: document.getElementById("form-memo").value.trim(),
+          existing_user_id: selectedUserId
+        };
+        
+        var url = editingId ? "/api/bookings/" + editingId : "/api/bookings";
+        var method = editingId ? "PUT" : "POST";
+        var res = await fetch(url, { method: method, headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+        if (res.ok) { toast(editingId ? "予約を更新しました" : "予約を登録しました"); closeModal(); loadData(); }
+        else { toast("エラーが発生しました"); }
+      }
 
   function editBooking(id) {
     var b = bookings.find(function(x){ return x.id === id; }); if (!b) return;
