@@ -1547,8 +1547,24 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     booking = db.get_booking(booking_id)
     if not booking:
         return JSONResponse({"error": "not found"}, status_code=404)
+    
+    # 変更前と変更後の日時を取得
+    new_date = data.booking_date or booking["booking_date"]
+    new_time = data.booking_time or booking["booking_time"]
+
     db.update_booking(booking_id, data.booking_date, data.booking_time, data.menu_id)
-    db.add_booking_history(booking_id, "modified", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"], after_date=data.booking_date, after_time=data.booking_time)
+    db.add_booking_history(booking_id, "modified", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"], after_date=new_date, after_time=new_time)
+    
+    # 手動登録の顧客（manual_...）でなければLINE通知を送信
+    user_id = booking["user_id"]
+    if user_id and not user_id.startswith("manual_"):
+        line_handler.send_text(user_id, f"""📝 ご予約日時が変更されました
+
+📅 変更後の日時: {new_date} {new_time}
+📍 予約ID: {booking_id}
+
+ご来店を心よりお待ちしております。""")
+
     return {"status": "ok"}
 
 @app.post("/api/bookings/{booking_id}/complete")
