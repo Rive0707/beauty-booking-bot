@@ -1484,7 +1484,6 @@ async def api_create_booking_from_liff(data: BookingCreateFromLiffRequest):
 
 📅 {data.booking_date} {data.booking_time}
 🎨 メニュー: {menu_name}
-📍 予約ID: {booking_id}
 
 ご来店を心よりお待ちしております。""")
 
