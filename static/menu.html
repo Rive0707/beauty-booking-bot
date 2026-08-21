@@ -184,7 +184,7 @@ function updateFooter(){
   let totalPrice = 0;
   selectedMenus.forEach(m => totalPrice += m.price);
 
-  document.getElementById('totalPrice').textContent = `¥${totalPrice.toLocaleString()}`;
+  document.getElementById('totalPrice').textContent = `฿${totalPrice.toLocaleString()}`;
   document.getElementById('nextBtn').disabled = selectedMenus.size === 0;
 }
 
