@@ -386,7 +386,7 @@ document.getElementById('confirmBtn').addEventListener('click', async ()=>{
 
   // ===== 新規予約モード：お客様情報フォームへ =====
   const params = new URLSearchParams({
-    menu_id: menuId || '',
+    menu_ids: menuIds || '',
     menu_name: menuName || '',
     date: selected.date,
     time: selected.time,
