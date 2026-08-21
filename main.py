@@ -1353,6 +1353,82 @@ def handle_owner_command(user_id: str, text: str):
             msg += f"⏰ {b[3]} - {c['name'] if c else '不明'} ({m['name'] if m else '不明'})\n"
         line_handler.send_text(user_id, msg)
 
+@app.get("/api/reports/monthly", dependencies=[Depends(verify_admin)])
+async def api_monthly_report(year: int, month: int):
+    import calendar
+    start_date = f"{year}-{month:02d}-01"
+    last_day = calendar.monthrange(year, month)[1]
+    end_date = f"{year}-{month:02d}-{last_day}"
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # 基本サマリー
+    cursor.execute("""
+        SELECT 
+            COUNT(*) as total_bookings,
+            SUM(CASE WHEN status != 'cancelled' THEN 1 ELSE 0 END) as active_bookings,
+            SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_bookings,
+            SUM(CASE WHEN status = 'completed' THEN m.price ELSE 0 END) as revenue,
+            AVG(CASE WHEN status = 'completed' THEN m.price END) as avg_price
+        FROM bookings b
+        LEFT JOIN menus m ON b.menu_id = m.id
+        WHERE b.booking_date >= ? AND b.booking_date <= ?
+    """, (start_date, end_date))
+    summary = dict(cursor.fetchone())
+    
+    # メニュー別売上ランキング
+    cursor.execute("""
+        SELECT m.name, COUNT(*) as count, SUM(m.price) as revenue
+        FROM bookings b
+        JOIN menus m ON b.menu_id = m.id
+        WHERE b.booking_date >= ? AND b.booking_date <= ? AND b.status = 'completed'
+        GROUP BY m.id
+        ORDER BY revenue DESC
+    """, (start_date, end_date))
+    menu_stats = [dict(r) for r in cursor.fetchall()]
+    
+    # 時間帯別予約分布
+    cursor.execute("""
+        SELECT substr(booking_time, 1, 2) as hour, COUNT(*) as count
+        FROM bookings
+        WHERE booking_date >= ? AND booking_date <= ? AND status IN ('confirmed', 'completed')
+        GROUP BY hour
+        ORDER BY hour
+    """, (start_date, end_date))
+    time_stats = [dict(r) for r in cursor.fetchall()]
+    
+    # 顧客ランキング（来店回数）
+    cursor.execute("""
+        SELECT c.name, COUNT(*) as visits, SUM(m.price) as total_spent
+        FROM bookings b
+        JOIN customers c ON b.user_id = c.user_id
+        JOIN menus m ON b.menu_id = m.id
+        WHERE b.booking_date >= ? AND b.booking_date <= ? AND b.status = 'completed'
+        GROUP BY b.user_id
+        ORDER BY visits DESC
+        LIMIT 10
+    """, (start_date, end_date))
+    customer_stats = [dict(r) for r in cursor.fetchall()]
+    
+    conn.close()
+    
+    # None対策
+    for k in ["total_bookings", "active_bookings", "cancelled_bookings"]:
+        summary[k] = summary[k] or 0
+    summary["revenue"] = summary["revenue"] or 0
+    summary["avg_price"] = int(summary["avg_price"] or 0)
+    summary["cancellation_rate"] = round(
+        (summary["cancelled_bookings"] / summary["total_bookings"] * 100), 1
+    ) if summary["total_bookings"] else 0
+    
+    return {
+        "summary": summary,
+        "menu_stats": menu_stats,
+        "time_stats": time_stats,
+        "customer_stats": customer_stats
+    }
+
 @app.get("/health")
 async def health():
     return JSONResponse({"status": "ok"})
