@@ -1423,8 +1423,8 @@ async def api_get_availability(start_date: str, days: int = 7, duration_minutes:
                 day_availability[slot] = "closed"
                 continue
 
-            # 2. 過去の日時（本日かつ現在時刻より前の時間枠）
-            if d < today_jst or (d == today_jst and slot_start <= now_total_minutes):
+            # 2. 過去の日時（本日かつタイの現在時刻より前の時間枠）
+            if d < today_local or (d == today_local and slot_start < now_total_minutes):
                 day_availability[slot] = "too_late"
                 continue
 
