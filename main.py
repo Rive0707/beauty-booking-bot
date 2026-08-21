@@ -985,7 +985,7 @@ def get_dashboard_html():
     var badgeEl = document.getElementById("customer-info-badge"); if (badgeEl) badgeEl.style.display = "none";
     document.getElementById("form-name").value = ""; document.getElementById("form-phone").value = "";
     document.getElementById("form-date").value = fmtDate(currentDate); document.getElementById("form-time").value = "";
-    document.getElementById("form-menu").value = ""; document.getElementById("form-memo").value = "";
+    document.querySelectorAll('input[name="form-menu-item"]').forEach(function(cb) { cb.checked = false; });
   }
 
   async function submitBooking() {
