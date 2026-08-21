@@ -1503,7 +1503,28 @@ async def api_monthly_report(year: int, month: int):
         LEFT JOIN menus m ON b.menu_id = m.id
         WHERE b.booking_date >= ? AND b.booking_date <= ?
     """, (start_date, end_date))
-    summary = dict(cursor.fetchone())
+    row = cursor.fetchone()
+    
+    # ★★★ ここが修正点：fetchone() が None の場合の対策 ★★★
+    if row is None:
+        summary = {
+            "total_bookings": 0, "active_bookings": 0,
+            "cancelled_bookings": 0, "revenue": 0, "avg_price": 0,
+            "cancellation_rate": 0.0
+        }
+    else:
+        summary = dict(row)
+        summary["total_bookings"] = summary.get("total_bookings") or 0
+        summary["active_bookings"] = summary.get("active_bookings") or 0
+        summary["cancelled_bookings"] = summary.get("cancelled_bookings") or 0
+        summary["revenue"] = summary.get("revenue") or 0
+        # ★★★ avg_price が None の場合の対策 ★★★
+        avg_val = summary.get("avg_price")
+        summary["avg_price"] = int(avg_val) if avg_val is not None else 0
+        total = summary["total_bookings"]
+        summary["cancellation_rate"] = round(
+            (summary["cancelled_bookings"] / total * 100), 1
+        ) if total else 0.0
     
     # メニュー別売上ランキング
     cursor.execute("""
@@ -1540,15 +1561,6 @@ async def api_monthly_report(year: int, month: int):
     customer_stats = [dict(r) for r in cursor.fetchall()]
     
     conn.close()
-    
-    # None対策
-    for k in ["total_bookings", "active_bookings", "cancelled_bookings"]:
-        summary[k] = summary[k] or 0
-    summary["revenue"] = summary["revenue"] or 0
-    summary["avg_price"] = int(summary["avg_price"] or 0)
-    summary["cancellation_rate"] = round(
-        (summary["cancelled_bookings"] / summary["total_bookings"] * 100), 1
-    ) if summary["total_bookings"] else 0
     
     return {
         "summary": summary,
