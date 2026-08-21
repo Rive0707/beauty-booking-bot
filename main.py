@@ -36,6 +36,21 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 OWNER_USER_ID = os.getenv("OWNER_USER_ID")
 LIFF_ID = os.getenv("LIFF_ID")
+DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "R")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "0707")
+
+security = HTTPBasic()
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    is_user = secrets.compare_digest(credentials.username, DASHBOARD_USERNAME)
+    is_pass = secrets.compare_digest(credentials.password, DASHBOARD_PASSWORD)
+    if not (is_user and is_pass):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 if not all([LINE_CHANNEL_ACCESS_TOKEN, LINE_CHANNEL_SECRET, OWNER_USER_ID]):
     raise ValueError("必須環境変数が設定されていません")
