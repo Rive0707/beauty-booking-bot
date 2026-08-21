@@ -320,10 +320,11 @@ def get_dashboard_html():
   <div class="tabs">
     <button class="tab active" onclick="switchTab('board')" id="tab-board">予約ボード</button>
     <button class="tab" onclick="switchTab('list')" id="tab-list">予約一覧</button>
-    <button class="tab" onclick="switchTab('history')" id="tab-history">履歴</button>
     <button class="tab" onclick="switchTab('customers')" id="tab-customers">顧客管理</button>
     <button class="tab" onclick="switchTab('holidays')" id="tab-holidays">臨時休業日</button>
     <button class="tab" onclick="switchTab('menus')" id="tab-menus">メニュー管理</button>
+    <button class="tab" onclick="switchTab('reports')" id="tab-reports">レポート</button>
+    <button class="tab" onclick="switchTab('history')" id="tab-history">履歴</button>
   </div>
 
   <!-- 予約ボード（タイムライン） -->
