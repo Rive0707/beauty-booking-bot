@@ -1560,6 +1560,23 @@ async def api_reschedule_booking(data: RescheduleRequest):
 # 管理画面向け 予約API
 # ===============================
 
+@app.post("/api/bookings")
+async def api_create_booking(data: DashboardBookingCreate):
+    """管理画面からの新規予約登録（複数メニュー対応）"""
+    if not db.is_slot_available(data.booking_date, data.booking_time):
+        return JSONResponse({"error": "時間重複"}, status_code=409)
+    
+    user_id = data.existing_user_id or f"manual_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}"
+    if not data.existing_user_id:
+        db.save_customer_profile(user_id, data.customer_name, phone=data.phone)
+    
+    # 複数メニューID（配列）を渡して保存
+    booking_id = db.add_booking(user_id, data.booking_date, data.booking_time, data.menu_ids, data.notes)
+    if booking_id:
+        db.add_booking_history(booking_id, "created", user_id, after_date=data.booking_date, after_time=data.booking_time, note="手動登録")
+        return {"id": booking_id, "status": "ok"}
+    return JSONResponse({"error": "failed"}, status_code=500)
+
 @app.put("/api/bookings/{booking_id}")
 async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateRequest):
     booking = db.get_booking(booking_id)
