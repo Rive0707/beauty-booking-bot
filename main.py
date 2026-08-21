@@ -1546,14 +1546,12 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     
     user_id = booking["user_id"]
     if user_id and not user_id.startswith("manual_"):
-        # 絵文字を取り除いてテキストのみに変更
-        msg_text = (
-            "【ご予約日時の変更通知】\n\n"
-            f"変更後の日時: {new_date} {new_time}\n"
-            f"予約ID: {booking_id}\n\n"
-            "ご来店を心よりお待ちしております。"
-        )
-        line_handler.send_text(user_id, msg_text)
+        # 予約IDを除外し、絵文字つきメッセージに修正
+        line_handler.send_text(user_id, f"""📝 ご予約日時が変更されました
+
+📅 変更後の日時: {new_date} {new_time}
+
+ご来店を心よりお待ちしております。""")
 
     return {"status": "ok"}
 
