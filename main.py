@@ -1384,10 +1384,12 @@ async def api_get_availability(start_date: str, days: int = 7, duration_minutes:
     end_h, end_m = map(int, BUSINESS_HOURS_END.split(":"))
     end_total = end_h * 60 + end_m
 
-    # 日本時間（JST = UTC+9）で現在時刻を取得
-    jst_now = datetime.utcnow() + timedelta(hours=9)
-    today_jst = jst_now.date()
-    now_total_minutes = jst_now.hour * 60 + jst_now.minute
+    from zoneinfo import ZoneInfo
+    
+    # 強制的にタイ時間（Asia/Bangkok = UTC+7）で現在時刻を取得
+    local_now = datetime.now(ZoneInfo("Asia/Bangkok"))
+    today_local = local_now.date()
+    now_total_minutes = local_now.hour * 60 + local_now.minute
 
     dates = []
     availability = {}
