@@ -26,12 +26,13 @@ class Database:
         cursor = conn.cursor()
 
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS customers (
+            CREATE TABLE IF NOT EXISTS booking_menus (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT UNIQUE NOT NULL,
-                name TEXT,
-                phone TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                booking_id INTEGER NOT NULL,
+                menu_id INTEGER NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+                FOREIGN KEY (menu_id) REFERENCES menus(id)
             )
         ''')
 
