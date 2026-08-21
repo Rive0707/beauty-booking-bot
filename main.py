@@ -428,6 +428,55 @@ def get_dashboard_html():
   </div>
 </div>
 
+  <div class="panel" id="panel-reports">
+    <div class="toolbar" style="align-items:center;">
+      <input type="month" id="report-month" class="filter-select" style="width:160px;" onchange="renderReport()">
+      <button class="btn btn-primary" onclick="renderReport()">表示</button>
+    </div>
+    
+    <div class="stats" style="margin-top:16px;">
+      <div class="stat-card">
+        <div class="stat-label">月間売上</div>
+        <div class="stat-value" id="r-revenue">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">予約総数</div>
+        <div class="stat-value" id="r-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">キャンセル率</div>
+        <div class="stat-value" id="r-cancel">0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">平均単価</div>
+        <div class="stat-value" id="r-avg">¥0</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+      <div style="background:#fff; border-radius:12px; border:1px solid #e5e5ea; padding:16px;">
+        <div style="font-weight:600; margin-bottom:12px; font-size:14px;">🏆 メニュー別売上</div>
+        <table class="data-table" style="font-size:13px;">
+          <thead><tr><th>メニュー</th><th style="text-align:right;">件数</th><th style="text-align:right;">売上</th></tr></thead>
+          <tbody id="report-menu-body"></tbody>
+        </table>
+      </div>
+      
+      <div style="background:#fff; border-radius:12px; border:1px solid #e5e5ea; padding:16px;">
+        <div style="font-weight:600; margin-bottom:12px; font-size:14px;">👑 顧客ランキング</div>
+        <table class="data-table" style="font-size:13px;">
+          <thead><tr><th>お客様</th><th style="text-align:right;">来店</th><th style="text-align:right;">総額</th></tr></thead>
+          <tbody id="report-customer-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="background:#fff; border-radius:12px; border:1px solid #e5e5ea; padding:16px; margin-top:16px;">
+      <div style="font-weight:600; margin-bottom:12px; font-size:14px;">⏰ 時間帯別予約分布</div>
+      <div id="report-time-chart" style="display:flex; align-items:flex-end; gap:4px; height:120px; padding-top:10px;"></div>
+    </div>
+  </div>
+
 <!-- 新規・編集モーダル -->
 <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
