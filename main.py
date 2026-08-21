@@ -1528,40 +1528,28 @@ async def api_reschedule_booking(data: RescheduleRequest):
 # 管理画面向け 予約API
 # ===============================
 
-@app.post("/api/bookings")
-async def api_create_booking(data: DashboardBookingCreate):
-    if not db.is_slot_available(data.booking_date, data.booking_time):
-        return JSONResponse({"error": "時間重複"}, status_code=409)
-    user_id = data.existing_user_id or f"manual_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}"
-    if not data.existing_user_id:
-        db.save_customer_profile(user_id, data.customer_name, phone=data.phone)
-    booking_id = db.add_booking(user_id, data.booking_date, data.booking_time, data.menu_id, data.notes)
-    if booking_id:
-        db.add_booking_history(booking_id, "created", user_id, after_date=data.booking_date, after_time=data.booking_time, note="手動登録")
-        return {"id": booking_id, "status": "ok"}
-    return JSONResponse({"error": "failed"}, status_code=500)
-
 @app.put("/api/bookings/{booking_id}")
 async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateRequest):
     booking = db.get_booking(booking_id)
     if not booking:
         return JSONResponse({"error": "not found"}, status_code=404)
     
-    # 変更前と変更後の日時を取得
     new_date = data.booking_date or booking["booking_date"]
     new_time = data.booking_time or booking["booking_time"]
 
     db.update_booking(booking_id, data.booking_date, data.booking_time, data.menu_id)
     db.add_booking_history(booking_id, "modified", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"], after_date=new_date, after_time=new_time)
     
-    # 手動登録の顧客（manual_...）でなければLINE通知を送信
     user_id = booking["user_id"]
     if user_id and not user_id.startswith("manual_"):
-        line_handler.send_text(user_id, f""" ご予約日時が変更されました
-
-📅 変更後の日時: {new_date} {new_time}
-
-ご来店を心よりお待ちしております。""")
+        # 絵文字を取り除いてテキストのみに変更
+        msg_text = (
+            "【ご予約日時の変更通知】\n\n"
+            f"変更後の日時: {new_date} {new_time}\n"
+            f"予約ID: {booking_id}\n\n"
+            "ご来店を心よりお待ちしております。"
+        )
+        line_handler.send_text(user_id, msg_text)
 
     return {"status": "ok"}
 
