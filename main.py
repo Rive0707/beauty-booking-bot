@@ -1521,7 +1521,6 @@ async def api_reschedule_booking(data: RescheduleRequest):
 
 📅 {data.booking_date} {data.booking_time}
 🎨 メニュー: {menu_name}
-📍 予約ID: {data.booking_id}""")
 
     return {"status": "ok"}
 
@@ -1561,7 +1560,6 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
         line_handler.send_text(user_id, f"""📝 ご予約日時が変更されました
 
 📅 変更後の日時: {new_date} {new_time}
-📍 予約ID: {booking_id}
 
 ご来店を心よりお待ちしております。""")
 
