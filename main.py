@@ -1567,7 +1567,7 @@ async def api_reschedule_booking(data: RescheduleRequest):
 
 @app.post("/api/bookings")
 async def api_create_booking(data: DashboardBookingCreate):
-    """管理画面からの新規予約登録（複数メニュー対応）"""
+    """管理画面からの新規予約登録（複数メニュー対応・LINE通知機能つき）"""
     if not db.is_slot_available(data.booking_date, data.booking_time):
         return JSONResponse({"error": "時間重複"}, status_code=409)
     
@@ -1579,8 +1579,29 @@ async def api_create_booking(data: DashboardBookingCreate):
     booking_id = db.add_booking(user_id, data.booking_date, data.booking_time, data.menu_ids, data.notes)
     if booking_id:
         db.add_booking_history(booking_id, "created", user_id, after_date=data.booking_date, after_time=data.booking_time, note="手動登録")
+        
+        # ★ LINE連携済み（manual_... ではない）のお客様にはLINEで予約完了通知を送信
+        if user_id and not user_id.startswith("manual_"):
+            # 選択された複数メニュー名を取得
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            placeholders = ','.join(['?'] * len(data.menu_ids))
+            cursor.execute(f"SELECT GROUP_CONCAT(name, ' + ') as menu_names FROM menus WHERE id IN ({placeholders})", data.menu_ids)
+            row = cursor.fetchone()
+            menu_name = row["menu_names"] if (row and row["menu_names"]) else "メニュー"
+            conn.close()
+
+            # LINEメッセージ作成＆送信
+            line_handler.send_text(user_id, f"""✅ ご予約が確定しました
+
+📅 {data.booking_date} {data.booking_time}
+🎨 メニュー: {menu_name}
+
+ご来店を心よりお待ちしております。""")
+
         return {"id": booking_id, "status": "ok"}
     return JSONResponse({"error": "failed"}, status_code=500)
+
 
 @app.put("/api/bookings/{booking_id}")
 async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateRequest):
