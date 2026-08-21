@@ -98,6 +98,22 @@
     display:inline-block;
     margin-bottom:10px;
   }
+  .menu-card { cursor: pointer; }
+  .menu-checkbox { width: 22px; height: 22px; accent-color: var(--plum); cursor: pointer; }
+  .footer-bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: #fff; border-top: 1px solid var(--paper-line);
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 10;
+  }
+  .next-btn {
+    all: unset; background: var(--plum); color: #fff;
+    padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 14px;
+    cursor: pointer;
+  }
+  .next-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+  
 </style>
 </head>
 <body>
@@ -129,6 +145,8 @@ async function loadMenus(){
   }
 }
 
+const selectedMenus = new Map();
+
 function render(menus){
   const list = document.getElementById('list');
   if(!menus.length){
@@ -136,28 +154,50 @@ function render(menus){
     return;
   }
   list.innerHTML = menus.map(m => `
-    <div class="menu-card">
-      <div>
+    <label class="menu-card">
+      <input type="checkbox" class="menu-checkbox" data-id="${m.id}" data-name="${escapeHtml(m.name)}" data-price="${m.price}" onchange="toggleMenu(this)">
+      <div style="flex:1;">
         <p class="menu-name">${escapeHtml(m.name)}</p>
         <div class="menu-meta">
           <span>¥${m.price.toLocaleString()}</span>
-          <span>${m.duration_minutes}分</span>
         </div>
       </div>
-      <button class="select-btn" data-id="${m.id}" data-name="${escapeHtml(m.name)}" data-duration="${m.duration_minutes}">選択する</button>
-    </div>
+    </label>
   `).join('');
+}
 
-  document.querySelectorAll('.select-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const params = new URLSearchParams({
-        menu_id: btn.dataset.id,
-        menu_name: btn.dataset.name,
-        duration: btn.dataset.duration
-      });
-      window.location.href = `calendar.html?${params.toString()}`;
+function toggleMenu(el){
+  const id = el.dataset.id;
+  if(el.checked){
+    selectedMenus.set(id, {
+      id: id,
+      name: el.dataset.name,
+      price: parseInt(el.dataset.price, 10)
     });
+  }else{
+    selectedMenus.delete(id);
+  }
+  updateFooter();
+}
+
+function updateFooter(){
+  let totalPrice = 0;
+  selectedMenus.forEach(m => totalPrice += m.price);
+
+  document.getElementById('totalPrice').textContent = `¥${totalPrice.toLocaleString()}`;
+  document.getElementById('nextBtn').disabled = selectedMenus.size === 0;
+}
+
+function goToCalendar(){
+  if(selectedMenus.size === 0) return;
+  const menuIds = Array.from(selectedMenus.keys()).join(',');
+  const menuNames = Array.from(selectedMenus.values()).map(m => m.name).join(' + ');
+
+  const params = new URLSearchParams({
+    menu_ids: menuIds,
+    menu_name: menuNames
   });
+  window.location.href = `calendar.html?${params.toString()}`;
 }
 
 function escapeHtml(str){
@@ -175,6 +215,12 @@ function escapeHtml(str){
   loadMenus();
 })();
 </script>
-
+<div class="footer-bar">
+  <div>
+    <div style="font-size:11px; color:var(--ink-soft);">選択中メニュー合計</div>
+    <div style="font-size:15px; font-weight:700;"><span id="totalPrice">¥0</span></div>
+  </div>
+  <button class="next-btn" id="nextBtn" disabled onclick="goToCalendar()">日時選択へ進む ›</button>
+</div>
 </body>
 </html>
