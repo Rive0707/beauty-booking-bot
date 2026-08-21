@@ -1428,6 +1428,7 @@ async def api_get_availability(start_date: str, days: int = 7, duration_minutes:
 @app.post("/api/booking/create")
 async def api_create_booking_from_liff(data: BookingCreateFromLiffRequest):
     """LIFF（booking-form.html）からの新規予約確定"""
+    # 空き枠チェック（従来の60分単位判定のまま）
     if not db.is_slot_available(data.booking_date, data.booking_time):
         return JSONResponse({"error": "この日時は既にご予約が入っています"}, status_code=409)
 
@@ -1435,7 +1436,9 @@ async def api_create_booking_from_liff(data: BookingCreateFromLiffRequest):
         data.user_id, data.name, furigana=data.furigana,
         gender=data.gender, birthdate=data.birthdate, phone=data.phone
     )
-    booking_id = db.add_booking(data.user_id, data.booking_date, data.booking_time, data.menu_id)
+    
+    # 選択された複数メニューIDの配列を渡して登録
+    booking_id = db.add_booking(data.user_id, data.booking_date, data.booking_time, data.menu_ids)
     if not booking_id:
         return JSONResponse({"error": "予約の作成に失敗しました"}, status_code=500)
 
@@ -1444,8 +1447,14 @@ async def api_create_booking_from_liff(data: BookingCreateFromLiffRequest):
         after_date=data.booking_date, after_time=data.booking_time, note="LIFF予約"
     )
 
-    menu = db.get_menu(data.menu_id)
-    menu_name = menu["name"] if menu else "不明"
+    # 通知用に選択メニュー名を結合して取得
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    placeholders = ','.join(['?'] * len(data.menu_ids))
+    cursor.execute(f"SELECT GROUP_CONCAT(name, ' + ') as menu_names FROM menus WHERE id IN ({placeholders})", data.menu_ids)
+    row = cursor.fetchone()
+    menu_name = row["menu_names"] if (row and row["menu_names"]) else "不明"
+    conn.close()
 
     line_handler.send_text(data.user_id, f"""✅ ご予約が確定しました
 
