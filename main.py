@@ -622,7 +622,11 @@ def get_dashboard_html():
   var editingId = null;
   var selectedUserId = null;
   var times = [];
-  for (var h = 9; h < 19; h++) { times.push(h + ":00"); times.push(h + ":30"); }
+  for (var h = 9; h < 19; h++) { 
+  var hh = (h < 10 ? "0" + h : h);
+  times.push(hh + ":00"); 
+  times.push(hh + ":30"); 
+}
   times.push("19:00");
 
   function fmtDate(d) {
