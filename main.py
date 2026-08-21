@@ -514,7 +514,10 @@ def get_dashboard_html():
         <div class="form-group"><label>日付 <span class="req">*</span></label><input type="date" id="form-date"></div>
         <div class="form-group"><label>時間 <span class="req">*</span></label><select id="form-time"><option value="">選択</option></select></div>
       </div>
-      <div class="form-group"><label>メニュー <span class="req">*</span></label><select id="form-menu"><option value="">選択</option></select></div>
+      <div class="form-group">
+  <label>メニュー <span class="req">*</span></label>
+  <div id="form-menu-container" style="max-height: 150px; overflow-y: auto; border: 1px solid #d1d1d6; border-radius: 10px; padding: 10px; background: #fff;"></div>
+</div>
       <div class="form-group"><label>メモ</label><textarea id="form-memo" placeholder="要望・注意事項など"></textarea></div>
     </div>
     <div class="modal-footer">
