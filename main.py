@@ -1078,6 +1078,82 @@ def get_dashboard_html():
     if (res.ok) { toast("LINEメッセージを送信しました！"); closeSendMessageModal(); }
   }
 
+    async function renderReport() {
+    var monthInput = document.getElementById("report-month").value;
+    if (!monthInput) {
+      var now = new Date();
+      monthInput = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+      document.getElementById("report-month").value = monthInput;
+    }
+    var parts = monthInput.split("-");
+    var year = parseInt(parts[0]);
+    var month = parseInt(parts[1]);
+
+    try {
+      var res = await fetch("/api/reports/monthly?year=" + year + "&month=" + month);
+      if (!res.ok) throw new Error("failed");
+      var data = await res.json();
+
+      // サマリー
+      document.getElementById("r-revenue").textContent = "¥" + (data.summary.revenue || 0).toLocaleString();
+      document.getElementById("r-total").textContent = (data.summary.total_bookings || 0).toLocaleString();
+      document.getElementById("r-cancel").textContent = (data.summary.cancellation_rate || 0) + "%";
+      document.getElementById("r-avg").textContent = "¥" + (data.summary.avg_price || 0).toLocaleString();
+
+      // メニュー別
+      var mBody = document.getElementById("report-menu-body");
+      mBody.innerHTML = "";
+      if (data.menu_stats && data.menu_stats.length) {
+        data.menu_stats.forEach(function(m) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = "<td>" + escapeHtml(m.name) + "</td>" +
+            "<td style='text-align:right'>" + m.count + "</td>" +
+            "<td style='text-align:right'>¥" + (m.revenue || 0).toLocaleString() + "</td>";
+          mBody.appendChild(tr);
+        });
+      } else {
+        mBody.innerHTML = "<tr><td colspan='3' class='empty'>データがありません</td></tr>";
+      }
+
+      // 顧客ランキング
+      var cBody = document.getElementById("report-customer-body");
+      cBody.innerHTML = "";
+      if (data.customer_stats && data.customer_stats.length) {
+        data.customer_stats.forEach(function(c) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = "<td>" + escapeHtml(c.name) + "</td>" +
+            "<td style='text-align:right'>" + c.visits + "回</td>" +
+            "<td style='text-align:right'>¥" + (c.total_spent || 0).toLocaleString() + "</td>";
+          cBody.appendChild(tr);
+        });
+      } else {
+        cBody.innerHTML = "<tr><td colspan='3' class='empty'>データがありません</td></tr>";
+      }
+
+      // 時間帯チャート（簡易バー）
+      var chart = document.getElementById("report-time-chart");
+      chart.innerHTML = "";
+      if (data.time_stats && data.time_stats.length) {
+        var maxCount = Math.max.apply(null, data.time_stats.map(function(t){ return t.count; }));
+        data.time_stats.forEach(function(t) {
+          var barWrap = document.createElement("div");
+          barWrap.style.cssText = "flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;";
+          var bar = document.createElement("div");
+          var h = Math.max((t.count / maxCount) * 80, 4);
+          bar.style.cssText = "width:100%; background:var(--plum,#A8556B); border-radius:4px 4px 0 0; opacity:0.85; height:" + h + "px;";
+          var label = document.createElement("div");
+          label.textContent = t.hour + "時";
+          label.style.cssText = "font-size:10px; color:#8e8e93;";
+          barWrap.appendChild(bar);
+          barWrap.appendChild(label);
+          chart.appendChild(barWrap);
+        });
+      }
+    } catch (e) {
+      toast("レポートの取得に失敗しました");
+    }
+  }
+
   async function loadData() {
     var results = await Promise.all([
       fetch("/api/bookings/all").then(function(r){ return r.json(); }),
