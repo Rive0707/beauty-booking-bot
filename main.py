@@ -1021,19 +1021,24 @@ def get_dashboard_html():
         else { toast("エラーが発生しました"); }
       }
 
-  function editBooking(id) {
-    var b = bookings.find(function(x){ return x.id === id; }); if (!b) return;
-    editingId = id;
-    var c = customers.find(function(x){ return x.user_id === b.user_id; });
-    document.getElementById("modal-title").textContent = "予約を編集";
-    document.getElementById("form-name").value = c ? c.name : "";
-    document.getElementById("form-phone").value = c ? c.phone : "";
-    document.getElementById("form-date").value = b.booking_date;
-    document.getElementById("form-time").value = b.booking_time;
-    document.getElementById("form-menu").value = b.menu_id;
-    document.getElementById("form-memo").value = b.notes || "";
-    document.getElementById("modal").classList.add("open");
-  }
+    function editBooking(id) {
+        var b = bookings.find(function(x){ return x.id === id; }); if (!b) return;
+        editingId = id;
+        var c = customers.find(function(x){ return x.user_id === b.user_id; });
+        document.getElementById("modal-title").textContent = "予約を編集";
+        document.getElementById("form-name").value = c ? c.name : "";
+        document.getElementById("form-phone").value = c ? c.phone : "";
+        document.getElementById("form-date").value = b.booking_date;
+        document.getElementById("form-time").value = b.booking_time;
+        document.getElementById("form-memo").value = b.notes || "";
+    
+        // ★チェックボックスの選択状態を更新する処理へ変更
+        document.querySelectorAll('input[name="form-menu-item"]').forEach(function(cb) {
+          cb.checked = (parseInt(cb.value, 10) === b.menu_id);
+        });
+    
+        document.getElementById("modal").classList.add("open");
+      }
 
   async function deleteBooking(id) {
     if (!confirm("この予約をキャンセルしますか？")) return;
