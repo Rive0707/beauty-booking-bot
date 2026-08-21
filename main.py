@@ -3,7 +3,7 @@ LINE美容室予約BOT メインアプリケーション - 完全統合版
 FastAPI + LINE Messaging API + SQLite + APScheduler
 """
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
