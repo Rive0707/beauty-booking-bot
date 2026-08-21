@@ -1557,7 +1557,7 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     # 手動登録の顧客（manual_...）でなければLINE通知を送信
     user_id = booking["user_id"]
     if user_id and not user_id.startswith("manual_"):
-        line_handler.send_text(user_id, f"""📝 ご予約日時が変更されました
+        line_handler.send_text(user_id, f""" ご予約日時が変更されました
 
 📅 変更後の日時: {new_date} {new_time}
 
