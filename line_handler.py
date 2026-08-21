@@ -531,8 +531,26 @@ class LineHandler:
         if bookings:
             for booking in bookings[:5]:
                 booking_id = booking['id']
-                menu = self.db.get_menu(booking['menu_id'])
-                menu_name = menu['name'] if menu else '不明'
+                
+                # 中間テーブル(booking_menus)から選択された全メニュー名を取得して結合する
+                conn = self.db.get_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT GROUP_CONCAT(m.name, ' + ') as menu_names
+                    FROM booking_menus bm
+                    JOIN menus m ON bm.menu_id = m.id
+                    WHERE bm.booking_id = ?
+                    ORDER BY bm.sort_order
+                ''', (booking_id,))
+                row = cursor.fetchone()
+                conn.close()
+                
+                # 複数メニュー名があればそれを使い、無ければ従来の単一メニューIDから取得
+                if row and row['menu_names']:
+                    menu_name = row['menu_names']
+                else:
+                    menu = self.db.get_menu(booking['menu_id'])
+                    menu_name = menu['name'] if menu else '不明'
 
                 actions = []
                 if self.liff_id:
