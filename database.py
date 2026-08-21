@@ -373,18 +373,29 @@ class Database:
         return True
 
     def add_booking(self, user_id: str, booking_date: str, booking_time: str,
-                    menu_id: int, notes: str = None) -> int:
+                    menu_ids: list, notes: str = None) -> int:
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
             self.add_customer(user_id)
+            
+            # ① 既存の bookings テーブルには「最初のメニューID」を入れる（後方互換）
+            primary_menu_id = menu_ids[0] if menu_ids else 1
             cursor.execute('''
                 INSERT INTO bookings (booking_date, user_id, booking_time, menu_id, notes, status)
                 VALUES (?, ?, ?, ?, ?, 'confirmed')
-            ''', (booking_date, user_id, booking_time, menu_id, notes))
-            conn.commit()
+            ''', (booking_date, user_id, booking_time, primary_menu_id, notes))
             booking_id = cursor.lastrowid
-            logger.info(f"Booking added: {booking_id}")
+            
+            # ② 新しい中間テーブル booking_menus に、選択したすべてのメニューを登録
+            for idx, mid in enumerate(menu_ids):
+                cursor.execute('''
+                    INSERT INTO booking_menus (booking_id, menu_id, sort_order)
+                    VALUES (?, ?, ?)
+                ''', (booking_id, mid, idx))
+            
+            conn.commit()
+            logger.info(f"Booking added: {booking_id} with menus {menu_ids}")
             return booking_id
         except Exception as e:
             logger.error(f"Error adding booking: {e}")
