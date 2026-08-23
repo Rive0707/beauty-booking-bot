@@ -1280,7 +1280,28 @@ async def api_get_history(limit: int = 50):
 
 @app.get("/api/customers")
 async def api_get_customers():
-    return [dict(r) for r in db.get_all_customers()]
+    customers = db.get_all_customers()
+    updated_list = []
+    
+    for c in customers:
+        c_dict = dict(c)
+        user_id = c_dict.get("user_id", "")
+        name = c_dict.get("name")
+        
+        # LINEユーザーかつ名前が空欄・未登録の場合、LINEからプロフィール名を自動再取得
+        if user_id and not user_id.startswith("manual_") and (not name or name == "(名前未登録)"):
+            try:
+                profile = line_bot_api.get_profile(user_id)
+                if profile.display_name:
+                    db.save_customer_profile(user_id, name=profile.display_name)
+                    c_dict["name"] = profile.display_name
+            except Exception as e:
+                logger.error(f"Failed to fetch profile for {user_id}: {e}")
+                
+        updated_list.append(c_dict)
+        
+    return updated_list
+
 
 @app.get("/api/customers/{user_id}")
 async def api_get_customer(user_id: str):
