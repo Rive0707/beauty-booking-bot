@@ -196,7 +196,22 @@ async def callback(request: Request):
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    text = event.message.text
+    text = event.message.text.strip()
+    
+    # 現在の顧客情報を取得
+    customer = db.get_customer(user_id)
+    
+    # ★ 名前が「未登録・空欄」の場合のみ、LINEの表示名を取得して初期セットする
+    if not customer or not customer.get("name"):
+        try:
+            profile = line_bot_api.get_profile(user_id)
+            # 送信されたテキストか、LINEの表示名をセット（1回きり）
+            init_name = text if len(text) <= 20 else profile.display_name
+            db.save_customer_profile(user_id, name=init_name)
+        except Exception:
+            pass
+
+    # コマンド判定
     if text in ["予約", "予約する"]:
         line_handler.start_booking(user_id)
     elif text in ["予約確認", "マイページ", "履歴"]:
@@ -204,8 +219,8 @@ def handle_message(event):
     elif user_id == OWNER_USER_ID:
         handle_owner_command(user_id, text)
     else:
-        # メッセージ入力時は予約案内を送信
-        line_handler.start_booking(user_id)
+        # すでに名前が登録されている場合は、何も自動返信せず会話をスルーする（勝手に上書きもされない）
+        pass
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
