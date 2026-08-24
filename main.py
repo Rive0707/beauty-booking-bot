@@ -1326,6 +1326,13 @@ async def api_update_visit_notes(visit_id: int, data: VisitNotesUpdateRequest):
         return {"status": "ok"}
     return JSONResponse({"error": "更新に失敗しました"}, status_code=500)
 
+@app.post("/api/visits")
+async def api_create_direct_visit(data: DirectVisitCreateRequest):
+    """予約なしで直接カルテを追加するAPI"""
+    if db.add_visit_history(data.user_id, None, data.visit_date, data.notes):
+        return {"status": "ok"}
+    return JSONResponse({"error": "保存に失敗しました"}, status_code=500)
+
 @app.put("/api/customers/{user_id}")
 async def api_update_customer(user_id: str, data: CustomerUpdateRequest):
     if not db.get_customer(user_id):
