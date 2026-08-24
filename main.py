@@ -952,6 +952,32 @@ def get_dashboard_html():
         return;
       }
 
+      // 予約なしで直接カルテを追加保存する処理
+  async function addDirectKarte() {
+    if (!currentHistoryUserId) return;
+    var date = document.getElementById("direct-karte-date").value;
+    var notes = document.getElementById("direct-karte-notes").value.trim();
+
+    if (!date || !notes) {
+      toast("日付とカルテ内容を入力してください");
+      return;
+    }
+
+    var res = await fetch("/api/visits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: currentHistoryUserId, visit_date: date, notes: notes })
+    });
+
+    if (res.ok) {
+      toast("カルテを保存しました");
+      document.getElementById("direct-karte-notes").value = "";
+      showCustomerHistory(currentHistoryUserId); // カルテ一覧を再読み込み
+    } else {
+      toast("保存に失敗しました");
+    }
+  }
+
       container.innerHTML = "";
       visitNotesMap = {};
       userBookings.forEach(function(b) {
