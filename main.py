@@ -103,6 +103,11 @@ class MenuAddRequest(BaseModel):
     price: int
     duration_minutes: int
 
+class MenuUpdateRequest(BaseModel):
+    name: str
+    price: int
+    duration_minutes: int
+
 class BookingCreateFromLiffRequest(BaseModel):
     user_id: str
     menu_ids: list[int]  # ★ int から list[int] に変更
