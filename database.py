@@ -643,14 +643,16 @@ class Database:
             conn.close()
 
     def add_visit_history(self, user_id: str, booking_id: int = None, visited_date: str = None, notes: str = None) -> bool:
-        """来店履歴（カルテ）を追加"""
+        """来店履歴（カルテ）を追加（予約なしの直接入力対応）"""
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
+            # booking_id が無ければ None (NULL) をセット
+            b_id = booking_id if booking_id else None
             cursor.execute('''
                 INSERT INTO visit_history (user_id, booking_id, visited_date, notes)
                 VALUES (?, ?, ?, ?)
-            ''', (user_id, booking_id, visited_date, notes))
+            ''', (user_id, b_id, visited_date, notes))
             conn.commit()
             return True
         except Exception as e:
