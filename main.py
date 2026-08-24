@@ -448,7 +448,7 @@ def get_dashboard_html():
       <div style="background:#fff; border-radius:12px; border:1px solid #e5e5ea; padding:16px;">
         <div style="font-weight:600; margin-bottom:12px;">新規メニュー追加</div>
         <div class="form-group"><label>メニュー名 <span class="req">*</span></label><input type="text" id="menu-name" placeholder="カット"></div>
-        <div class="form-group"><label>料金（B） <span class="req">*</span></label><input type="number" id="menu-price" placeholder="500"></div>
+        <div class="form-group"><label>料金（B） <span class="req">*</span></label><input type="number" id="menu-price" placeholder="500"><label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; cursor:pointer;"><input type="checkbox" id="menu-is-range" style="width:14px; height:14px;"> 料金に「〜」を表示する（例: ฿1,200〜）</label></div>
         <div class="form-group"><label>時間（分） <span class="req">*</span></label><input type="number" id="menu-duration" placeholder="60"></div>
         <button class="btn btn-primary" onclick="addMenu()" style="width:100%; justify-content:center;">追加する</button>
       </div>
