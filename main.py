@@ -934,17 +934,22 @@ def get_dashboard_html():
     document.getElementById("history-modal-title").textContent = (c.name || "お客様") + " 様の来店履歴・カルテ";
     
     // 今日の日付をセットし、メモ入力欄をリセット
-    document.getElementById("direct-karte-date").value = fmtDate(new Date());
-    document.getElementById("direct-karte-notes").value = "";
+    var dateEl = document.getElementById("direct-karte-date");
+    var notesEl = document.getElementById("direct-karte-notes");
+    if (dateEl) dateEl.value = fmtDate(new Date());
+    if (notesEl) notesEl.value = "";
 
-    var container = document.getElementById("customer-history-body"); container.innerHTML = '<div class="empty">読み込み中…</div>';
+    var container = document.getElementById("customer-history-body");
+    if (!container) return;
+    container.innerHTML = '<div class="empty">読み込み中…</div>';
 
     try {
       var results = await Promise.all([
         bookings.filter(function(b){ return b.user_id === userId; }).sort(function(a,b){ return (b.booking_date + b.booking_time).localeCompare(a.booking_date + a.booking_time); }),
         fetch("/api/customers/" + encodeURIComponent(userId) + "/visits").then(function(r){ return r.json(); }).catch(function(){ return []; })
       ]);
-      var userBookings = results[0]; var visitRes = results[1];
+      var userBookings = results[0];
+      var visitRes = results[1];
 
       if (userBookings.length === 0 && visitRes.length === 0) {
         container.innerHTML = '<div class="empty">過去のカルテ履歴はありません</div>';
@@ -954,31 +959,32 @@ def get_dashboard_html():
 
       container.innerHTML = "";
       visitNotesMap = {};
-      userBookings.forEach(function(b) {
-        var m = menus.find(function(x){ return x.id === b.menu_id; });
-        var statusLabel = (b.status === "completed") ? "来店済み" : ((b.status === "confirmed") ? "確定" : ((b.status === "cancelled") ? "キャンセル" : "仮"));
-        var v = visitRes.find(function(x){ return x.booking_id === b.id; });
-        var karteMemo = (v && v.notes) ? v.notes : (b.notes || "");
-        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split("\n").join("<br>") : "";
+      
+      // 既存の予約カルテと直接カルテを表示
+      visitRes.forEach(function(v) {
+        var karteMemo = v.notes || v.memo || "";
+        var formattedMemo = escapeHtml(karteMemo).replace(/\n/g, "<br>");
+        var vDate = v.visited_date || v.created_at || "";
+        
         var editLink = "";
         if (v && v.id) {
           visitNotesMap[v.id] = karteMemo;
           editLink = " <a href='javascript:void(0)' onclick='editKarteMemo(" + v.id + ")' style='color:#007aff;'>✏️編集</a>";
         }
 
-        var item = document.createElement("div"); item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
-        item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + b.booking_date.replace(/-/g,"/") + " " + b.booking_time + "</b><span class='status-badge'>" + statusLabel + "</span></div>" +
-          "<div style='font-size:13px;margin-top:4px;'>✂️ メニュー: " + (m ? m.name : "不明") + "</div>" +
+        var item = document.createElement("div");
+        item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
+        item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + escapeHtml(vDate).replace(/-/g,"/") + "</b></div>" +
           (formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + editLink + "</div>" : "");
         container.appendChild(item);
       });
+
       document.getElementById("modal-customer-history").classList.add("open");
     } catch (e) {
       container.innerHTML = '<div class="empty">データの取得に失敗しました</div>';
     }
   }
 
-  // ★ showCustomerHistory 関数の閉じカッコ「}」の外側に配置します ★
   async function addDirectKarte() {
     if (!currentHistoryUserId) return;
     var date = document.getElementById("direct-karte-date").value;
