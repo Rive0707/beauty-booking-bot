@@ -1251,21 +1251,6 @@ function renderMenus() {
     document.getElementById("history-empty").style.display = histories.length ? "none" : "block";
   }
 
-    function renderMenus() {
-        var tbody = document.getElementById("menu-body"); 
-        tbody.innerHTML = "";
-        menus.forEach(function(m) {
-          // m.name を直接使わず、整形関数を通す
-          var info = formatMenuPrice(m);
-          var tr = document.createElement("tr");
-          tr.innerHTML = "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td>" +
-                         "<td>" + info.priceStr + "</td>" +
-                         "<td>" + m.duration_minutes + "分</td>" +
-                         "<td><button class='icon-btn danger' onclick='deleteMenu(" + m.id + ")'>🗑️</button></td>";
-          tbody.appendChild(tr);
-        });
-        document.getElementById("menu-empty").style.display = menus.length ? "none" : "block";
-      }
     async function addMenu() {
         var name = document.getElementById("menu-name").value.trim();
         var price = parseInt(document.getElementById("menu-price").value);
