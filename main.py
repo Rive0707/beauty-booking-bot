@@ -765,7 +765,7 @@ def get_dashboard_html():
     renderBoard();
   }
 
-/* --- ① ドラッグ＆ドロップ ＋ ② 時間指定ダイレクト登録 ＋ ⑤ ボード上来店処理 --- */
+/* --- ① 予約ボード描画（カルテボタン付き・安全版） --- */
   function renderBoard() {
     var date = document.getElementById("board-date").value;
     currentDate = new Date(date + "T00:00:00");
@@ -806,8 +806,8 @@ def get_dashboard_html():
         var completeBtn = (b.status !== "completed" && b.status !== "cancelled")
           ? '<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(' + b.id + ')">✅</button>' : "";
 
-        // ★ カルテ表示ボタン（📋）をアクションに追加
-        var karteBtn = '<button class="icon-btn" title="カルテ" onclick="event.stopPropagation(); showCustomerHistory(\'' + b.user_id + '\')">📋</button>';
+        // エスケープエラーを防ぐため、文字列の連結方法を安全に変更
+        var karteBtn = '<button class="icon-btn" title="カルテ" onclick="event.stopPropagation(); showCustomerHistory(&quot;' + b.user_id + '&quot;)">📋</button>';
 
         card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === "completed" ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : "") + '</div>' +
           '<div class="booking-meta"><span class="booking-tag">' + (menu ? menu.name : "不明") + '</span>' + (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') + '</div>' +
