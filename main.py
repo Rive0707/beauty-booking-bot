@@ -757,13 +757,14 @@ function renderMenus() {
     menus.forEach(function(m) {
       var info = formatMenuPrice(m);
       var tr = document.createElement("tr");
+      // 鉛筆ボタン（✏️）とゴミ箱ボタン（🗑️）を直接並べて確実に表示
       tr.innerHTML = "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td>" +
                      "<td>" + info.priceStr + "</td>" +
                      "<td>" + m.duration_minutes + "分</td>" +
-                     "<td><div class='row-actions' style='opacity:1;'>" +
-                       "<button class='icon-btn' title='編集' onclick='openMenuEditModal(" + m.id + ")'>✏️</button>" +
+                     "<td style='white-space:nowrap;'>" +
+                       "<button class='icon-btn' title='編集' onclick='openMenuEditModal(" + m.id + ")' style='margin-right:4px;'>✏️</button>" +
                        "<button class='icon-btn danger' title='削除' onclick='deleteMenu(" + m.id + ")'>🗑️</button>" +
-                     "</div></td>";
+                     "</td>";
       tbody.appendChild(tr);
     });
     document.getElementById("menu-empty").style.display = menus.length ? "none" : "block";
