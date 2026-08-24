@@ -699,15 +699,24 @@ def get_dashboard_html():
   var timeSel = document.getElementById("form-time");
   times.forEach(function(t) { var o = document.createElement("option"); o.value = t; o.textContent = t; timeSel.appendChild(o); });
 
-　function populateMenus() {
+/* --- メニュー表示ユーティリティ（「〜」対応版） --- */
+  function formatMenuPrice(m) {
+    var hasTilde = m.name.includes("〜") || m.name.includes("~");
+    var cleanName = m.name.replace(/[〜~]/g, "").trim();
+    var priceStr = "฿" + m.price.toLocaleString() + (hasTilde ? "〜" : "");
+    return { name: cleanName, priceStr: priceStr };
+  }
+
+  function populateMenus() {
     var container = document.getElementById("form-menu-container");
     if (!container) return;
     container.innerHTML = "";
     menus.forEach(function(m) {
+      var info = formatMenuPrice(m);
       var label = document.createElement("label");
       label.style.cssText = "display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; font-size: 13px;";
       label.innerHTML = '<input type="checkbox" name="form-menu-item" value="' + m.id + '" style="width: 16px; height: 16px;"> ' +
-                        '<span>' + escapeHtml(m.name) + ' (฿' + m.price.toLocaleString() + ')</span>';
+                        '<span>' + escapeHtml(info.name) + ' (' + info.priceStr + ')</span>';
       container.appendChild(label);
     });
   }
