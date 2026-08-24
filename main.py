@@ -765,7 +765,7 @@ def get_dashboard_html():
     renderBoard();
   }
 
-  /* --- ① ドラッグ＆ドロップ ＋ ② 時間指定ダイレクト登録 ＋ ⑤ ボード上来店処理 --- */
+/* --- ① ドラッグ＆ドロップ ＋ ② 時間指定ダイレクト登録 ＋ ⑤ ボード上来店処理 --- */
   function renderBoard() {
     var date = document.getElementById("board-date").value;
     currentDate = new Date(date + "T00:00:00");
@@ -781,7 +781,6 @@ def get_dashboard_html():
       var content = document.createElement("div"); content.className = "time-content"; content.style.cursor = "pointer";
       content.onclick = function(e) { if (e.target === content) openModalWithTime(time); };
 
-      // ドラッグ＆ドロップ受け入れイベント
       content.ondragover = function(e) { e.preventDefault(); content.style.background = "#e8f4fd"; };
       content.ondragleave = function() { content.style.background = ""; };
       content.ondrop = async function(e) {
@@ -798,7 +797,6 @@ def get_dashboard_html():
         var statusClass = b.status === "completed" ? "completed" : (b.status || "confirmed");
         card.className = "booking-card " + statusClass;
 
-        // ドラッグ可能設定
         if (b.status !== "completed" && b.status !== "cancelled") {
           card.draggable = true;
           card.ondragstart = function(e) { e.dataTransfer.setData("text/plain", b.id); card.style.opacity = "0.5"; };
@@ -808,9 +806,12 @@ def get_dashboard_html():
         var completeBtn = (b.status !== "completed" && b.status !== "cancelled")
           ? '<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(' + b.id + ')">✅</button>' : "";
 
+        // ★ カルテ表示ボタン（📋）をアクションに追加
+        var karteBtn = '<button class="icon-btn" title="カルテ" onclick="event.stopPropagation(); showCustomerHistory(\'' + b.user_id + '\')">📋</button>';
+
         card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === "completed" ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : "") + '</div>' +
           '<div class="booking-meta"><span class="booking-tag">' + (menu ? menu.name : "不明") + '</span>' + (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') + '</div>' +
-          '<div class="booking-actions">' + completeBtn +
+          '<div class="booking-actions">' + completeBtn + karteBtn +
             '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
             '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
           '</div>';
