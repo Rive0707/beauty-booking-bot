@@ -924,7 +924,7 @@ def get_dashboard_html():
     if (res.ok) { toast("お客様を削除しました"); loadData(); } else { toast(data.error || "削除に失敗しました"); }
   }
 
-  /* --- ④ カルテ（過去履歴・メモ）の表示 --- */
+/* --- ④ カルテ（過去履歴・メモ）の表示 --- */
   var currentHistoryUserId = null;
   var visitNotesMap = {};
 
@@ -932,6 +932,11 @@ def get_dashboard_html():
     currentHistoryUserId = userId;
     var c = customers.find(function(x){ return x.user_id === userId; }); if (!c) return;
     document.getElementById("history-modal-title").textContent = (c.name || "お客様") + " 様の来店履歴・カルテ";
+    
+    // 今日の日付をセットし、メモ入力欄をリセット
+    document.getElementById("direct-karte-date").value = fmtDate(new Date());
+    document.getElementById("direct-karte-notes").value = "";
+
     var container = document.getElementById("customer-history-body"); container.innerHTML = '<div class="empty">読み込み中…</div>';
 
     try {
@@ -942,7 +947,7 @@ def get_dashboard_html():
       var userBookings = results[0]; var visitRes = results[1];
 
       if (userBookings.length === 0 && visitRes.length === 0) {
-        container.innerHTML = '<div class="empty">履歴・カルテ情報がありません</div>';
+        container.innerHTML = '<div class="empty">過去のカルテ履歴はありません</div>';
         document.getElementById("modal-customer-history").classList.add("open");
         return;
       }
