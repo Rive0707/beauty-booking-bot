@@ -1451,6 +1451,61 @@ def get_dashboard_html():
     if (document.visibilityState === "visible") checkAndReloadData();
   });
 
+  var editingMenuId = null;
+
+  function openMenuEditModal(id) {
+    var m = menus.find(function(x){ return x.id === id; }); 
+    if (!m) return;
+    
+    editingMenuId = id;
+    var info = formatMenuPrice(m);
+    var hasTilde = /[〜～~～]/g.test(m.name);
+
+    document.getElementById("edit-menu-name").value = info.name;
+    document.getElementById("edit-menu-price").value = m.price;
+    document.getElementById("edit-menu-duration").value = m.duration_minutes;
+    document.getElementById("edit-menu-is-range").checked = hasTilde;
+
+    document.getElementById("modal-menu-edit").classList.add("open");
+  }
+
+  function closeMenuEditModal() {
+    document.getElementById("modal-menu-edit").classList.remove("open");
+    editingMenuId = null;
+  }
+
+  async function saveMenuEdit() {
+    if (!editingMenuId) return;
+    
+    var name = document.getElementById("edit-menu-name").value.trim();
+    var price = parseInt(document.getElementById("edit-menu-price").value);
+    var duration = parseInt(document.getElementById("edit-menu-duration").value);
+    var isRange = document.getElementById("edit-menu-is-range").checked;
+
+    if (!name || isNaN(price) || isNaN(duration)) {
+      toast("全項目を入力してください");
+      return;
+    }
+
+    if (isRange) {
+      name = name + "〜";
+    }
+
+    var res = await fetch("/api/menus/" + editingMenuId, {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ name: name, price: price, duration_minutes: duration })
+    });
+
+    if (res.ok) {
+      toast("メニューを更新しました");
+      closeMenuEditModal();
+      loadData();
+    } else {
+      toast("更新に失敗しました");
+    }
+  }
+
   loadData();
   setInterval(checkAndReloadData, 15000);
 </script>
