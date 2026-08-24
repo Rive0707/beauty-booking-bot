@@ -751,23 +751,23 @@ def get_dashboard_html():
     });
   }
 
-    function renderMenus() {
-        var tbody = document.getElementById("menu-body"); 
-        tbody.innerHTML = "";
-        menus.forEach(function(m) {
-          var info = formatMenuPrice(m);
-          var tr = document.createElement("tr");
-          tr.innerHTML = "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td>" +
-                         "<td>" + info.priceStr + "</td>" +
-                         "<td>" + m.duration_minutes + "分</td>" +
-                         "<td><div class='row-actions' style='opacity:1;'>" +
-                           "<button class='icon-btn' title='編集' onclick='openMenuEditModal(" + m.id + ")'>✏️</button>" +
-                           "<button class='icon-btn danger' title='削除' onclick='deleteMenu(" + m.id + ")'>🗑️</button>" +
-                         "</div></td>";
-          tbody.appendChild(tr);
-        });
-        document.getElementById("menu-empty").style.display = menus.length ? "none" : "block";
-      }
+function renderMenus() {
+    var tbody = document.getElementById("menu-body"); 
+    tbody.innerHTML = "";
+    menus.forEach(function(m) {
+      var info = formatMenuPrice(m);
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td>" +
+                     "<td>" + info.priceStr + "</td>" +
+                     "<td>" + m.duration_minutes + "分</td>" +
+                     "<td><div class='row-actions' style='opacity:1;'>" +
+                       "<button class='icon-btn' title='編集' onclick='openMenuEditModal(" + m.id + ")'>✏️</button>" +
+                       "<button class='icon-btn danger' title='削除' onclick='deleteMenu(" + m.id + ")'>🗑️</button>" +
+                     "</div></td>";
+      tbody.appendChild(tr);
+    });
+    document.getElementById("menu-empty").style.display = menus.length ? "none" : "block";
+  }
 
   async function addMenu() {
     var name = document.getElementById("menu-name").value.trim();
