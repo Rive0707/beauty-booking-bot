@@ -651,6 +651,31 @@ def get_dashboard_html():
   </div>
 </div>
 
+<!-- メニュー編集モーダル -->
+<div class="modal-overlay" id="modal-menu-edit" onclick="if(event.target===this)closeMenuEditModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">メニューの編集</span>
+      <button class="icon-btn" onclick="closeMenuEditModal()" style="width:32px;height:32px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>メニュー名 <span class="req">*</span></label><input type="text" id="edit-menu-name"></div>
+      <div class="form-group">
+        <label>料金（B） <span class="req">*</span></label>
+        <input type="number" id="edit-menu-price">
+        <label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="edit-menu-is-range" style="width:14px; height:14px;"> 料金に「〜」を表示する（例: ฿1,200〜）
+        </label>
+      </div>
+      <div class="form-group"><label>時間（分） <span class="req">*</span></label><input type="number" id="edit-menu-duration"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeMenuEditModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveMenuEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toasts"></div>
 
 <script>
