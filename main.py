@@ -159,6 +159,11 @@ class CustomerUpdateRequest(BaseModel):
 class VisitNotesUpdateRequest(BaseModel):
     notes: str
 
+class DirectVisitCreateRequest(BaseModel):
+    user_id: str
+    visit_date: str
+    notes: str
+
 class CustomerMergeRequest(BaseModel):
     manual_user_id: str
     line_user_id: str
