@@ -735,3 +735,20 @@ class Database:
             return False
         finally:
             conn.close()
+
+    def update_menu(self, menu_id: int, name: str, price: int, duration_minutes: int):
+        """メニュー情報の更新"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE menus 
+                SET name = ?, price = ?, duration_minutes = ?
+                WHERE id = ?
+            """, (name, price, duration_minutes, menu_id))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating menu: {e}")
+            return False
