@@ -642,25 +642,26 @@ class Database:
         finally:
             conn.close()
 
-    def add_visit_history(self, user_id: str, booking_id: int = None, visited_date: str = None, notes: str = None) -> bool:
-        """来店履歴（カルテ）を追加（予約なしの直接入力対応）"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+    def add_visit_history(self, user_id: str, booking_id: Optional[int], visited_date: str, notes: str):
+        """来店履歴・カルテの追加保存"""
         try:
-            # booking_id が無ければ None (NULL) をセット
-            b_id = booking_id if booking_id else None
-            cursor.execute('''
-                INSERT INTO visit_history (user_id, booking_id, visited_date, notes)
-                VALUES (?, ?, ?, ?)
-            ''', (user_id, b_id, visited_date, notes))
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # booking_id が None の場合は NOT NULL 制約回避のため 0 を代入
+            valid_booking_id = booking_id if booking_id is not None else 0
+            
+            cursor.execute("""
+                INSERT INTO visit_history (user_id, booking_id, visited_date, notes, created_at)
+                VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'))
+            """, (user_id, valid_booking_id, visited_date, notes))
+            
             conn.commit()
+            conn.close()
             return True
         except Exception as e:
             logger.error(f"Error adding visit history: {e}")
-            conn.rollback()
             return False
-        finally:
-            conn.close()
 
     def update_visit_history_notes(self, visit_id: int, notes: str) -> bool:
         """既存のカルテメモを更新（追記・修正）"""
