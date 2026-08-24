@@ -458,10 +458,10 @@ def get_dashboard_html():
         <button class="btn btn-primary" onclick="addMenu()" style="width:100%; justify-content:center;">追加する</button>
       </div>
       <div>
-        <table class="data-table">
-          <thead><tr><th>メニュー名</th><th>料金</th><th>時間</th><th style="width:60px;"></th></tr></thead>
-          <tbody id="menu-body"></tbody>
-        </table>
+            <table class="data-table">
+              <thead><tr><th>メニュー名</th><th>料金</th><th>時間</th><th style="width:80px;">操作</th></tr></thead>
+              <tbody id="menu-body"></tbody>
+            </table>
         <div id="menu-empty" class="empty" style="display:none;">メニューが登録されていません</div>
       </div>
     </div>
