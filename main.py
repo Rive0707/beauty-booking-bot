@@ -924,7 +924,7 @@ def get_dashboard_html():
     if (res.ok) { toast("お客様を削除しました"); loadData(); } else { toast(data.error || "削除に失敗しました"); }
   }
 
-/* --- ④ カルテ（過去履歴・メモ）の表示 --- */
+/* --- ④ カルテ（過去履歴・メモ）の表示 統合版 --- */
   var currentHistoryUserId = null;
   var visitNotesMap = {};
 
@@ -960,13 +960,33 @@ def get_dashboard_html():
 
       container.innerHTML = "";
       visitNotesMap = {};
-      
-      visitRes.forEach(function(v) {
+
+      // 1. 予約履歴とカルテの統合表示
+      userBookings.forEach(function(b) {
+        var m = menus.find(function(x){ return x.id === b.menu_id; });
+        var statusLabel = (b.status === "completed") ? "来店済み" : ((b.status === "confirmed") ? "確定" : ((b.status === "cancelled") ? "キャンセル" : "仮"));
+        var v = visitRes.find(function(x){ return x.booking_id === b.id; });
+        var karteMemo = (v && v.notes) ? v.notes : (b.notes || "");
+        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split(String.fromCharCode(10)).join("<br>") : "";
+        var editLink = "";
+        if (v && v.id) {
+          visitNotesMap[v.id] = karteMemo;
+          editLink = " <a href='javascript:void(0)' onclick='editKarteMemo(" + v.id + ")' style='color:#007aff;'>✏️編集</a>";
+        }
+
+        var item = document.createElement("div"); 
+        item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
+        item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + b.booking_date.replace(/-/g,"/") + " " + b.booking_time + "</b><span class='status-badge'>" + statusLabel + "</span></div>" +
+          "<div style='font-size:13px;margin-top:4px;'>✂️ メニュー: " + (m ? m.name : "不明") + "</div>" +
+          (formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + editLink + "</div>" : "");
+        container.appendChild(item);
+      });
+
+      // 2. 予約なしで直接追加された独立カルテの表示
+      visitRes.filter(function(v){ return !v.booking_id; }).forEach(function(v) {
         var karteMemo = v.notes || v.memo || "";
-        // \u000A を使用することでPythonのエスケープ事故を完全防止
-        var formattedMemo = escapeHtml(karteMemo).split(String.fromCharCode(10)).join("<br>");
+        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split(String.fromCharCode(10)).join("<br>") : "";
         var vDate = v.visited_date || v.created_at || "";
-        
         var editLink = "";
         if (v && v.id) {
           visitNotesMap[v.id] = karteMemo;
@@ -975,7 +995,7 @@ def get_dashboard_html():
 
         var item = document.createElement("div");
         item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
-        item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + escapeHtml(vDate).replace(/-/g,"/") + "</b></div>" +
+        item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + escapeHtml(vDate).replace(/-/g,"/") + " (直接入力)</b></div>" +
           (formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + editLink + "</div>" : "");
         container.appendChild(item);
       });
