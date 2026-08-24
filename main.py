@@ -952,7 +952,33 @@ def get_dashboard_html():
         return;
       }
 
-      // 予約なしで直接カルテを追加保存する処理
+      container.innerHTML = "";
+      visitNotesMap = {};
+      userBookings.forEach(function(b) {
+        var m = menus.find(function(x){ return x.id === b.menu_id; });
+        var statusLabel = (b.status === "completed") ? "来店済み" : ((b.status === "confirmed") ? "確定" : ((b.status === "cancelled") ? "キャンセル" : "仮"));
+        var v = visitRes.find(function(x){ return x.booking_id === b.id; });
+        var karteMemo = (v && v.notes) ? v.notes : (b.notes || "");
+        var formattedMemo = karteMemo ? escapeHtml(karteMemo).split("\n").join("<br>") : "";
+        var editLink = "";
+        if (v && v.id) {
+          visitNotesMap[v.id] = karteMemo;
+          editLink = " <a href='javascript:void(0)' onclick='editKarteMemo(" + v.id + ")' style='color:#007aff;'>✏️編集</a>";
+        }
+
+        var item = document.createElement("div"); item.style.cssText = "border-bottom:1px solid #e5e5ea; padding:12px 0;";
+        item.innerHTML = "<div style='display:flex;justify-content:space-between;'><b>📅 " + b.booking_date.replace(/-/g,"/") + " " + b.booking_time + "</b><span class='status-badge'>" + statusLabel + "</span></div>" +
+          "<div style='font-size:13px;margin-top:4px;'>✂️ メニュー: " + (m ? m.name : "不明") + "</div>" +
+          (formattedMemo ? "<div style='font-size:13px;background:#fafafa;border-left:3px solid #007aff;padding:6px 10px;margin-top:6px;'>📝 <b>カルテメモ:</b><br>" + formattedMemo + editLink + "</div>" : "");
+        container.appendChild(item);
+      });
+      document.getElementById("modal-customer-history").classList.add("open");
+    } catch (e) {
+      container.innerHTML = '<div class="empty">データの取得に失敗しました</div>';
+    }
+  }
+
+  // ★ showCustomerHistory 関数の閉じカッコ「}」の外側に配置します ★
   async function addDirectKarte() {
     if (!currentHistoryUserId) return;
     var date = document.getElementById("direct-karte-date").value;
@@ -972,10 +998,24 @@ def get_dashboard_html():
     if (res.ok) {
       toast("カルテを保存しました");
       document.getElementById("direct-karte-notes").value = "";
-      showCustomerHistory(currentHistoryUserId); // カルテ一覧を再読み込み
+      showCustomerHistory(currentHistoryUserId);
     } else {
       toast("保存に失敗しました");
     }
+  }
+
+  async function editKarteMemo(visitId) {
+    var current = visitNotesMap[visitId] || "";
+    var updated = prompt("カルテメモを編集", current);
+    if (updated === null) return;
+    var res = await fetch("/api/visits/" + visitId, { method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ notes: updated }) });
+    var data = await res.json().catch(function(){ return {}; });
+    if (res.ok) { toast("カルテメモを更新しました"); if (currentHistoryUserId) showCustomerHistory(currentHistoryUserId); }
+    else { toast(data.error || "更新に失敗しました"); }
+  }
+
+  function closeCustomerHistoryModal() { 
+    document.getElementById("modal-customer-history").classList.remove("open"); 
   }
 
       container.innerHTML = "";
