@@ -1051,17 +1051,6 @@ def get_dashboard_html():
     }
   }
 
-  async function editKarteMemo(visitId) {
-    var current = visitNotesMap[visitId] || "";
-    var updated = prompt("カルテメモを編集", current);
-    if (updated === null) return;
-    var res = await fetch("/api/visits/" + visitId, { method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ notes: updated }) });
-    var data = await res.json().catch(function(){ return {}; });
-    if (res.ok) { toast("カルテメモを更新しました"); if (currentHistoryUserId) showCustomerHistory(currentHistoryUserId); }
-    else { toast(data.error || "更新に失敗しました"); }
-  }
-  function closeCustomerHistoryModal() { document.getElementById("modal-customer-history").classList.remove("open"); }
-
   /* --- ⑥ 臨時休業日の登録・解除 --- */
   function renderHolidays() {
     var tbody = document.getElementById("holiday-body"); if (!tbody) return;
