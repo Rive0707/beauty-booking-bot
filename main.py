@@ -1564,6 +1564,12 @@ async def delete_menu(menu_id: int):
     db.delete_menu(menu_id)
     return {"status": "ok"}
 
+@app.put("/api/menus/{menu_id}")
+async def update_menu_endpoint(menu_id: int, data: MenuUpdateRequest):
+    if db.update_menu(menu_id, data.name, data.price, data.duration_minutes):
+        return {"status": "ok"}
+    return JSONResponse({"error": "更新に失敗しました"}, status_code=500)
+
 @app.get("/api/closed-days")
 async def api_get_closed_days():
     return {"closed_days": [dict(r) for r in db.get_closed_days()]}
