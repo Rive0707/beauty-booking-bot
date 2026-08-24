@@ -699,10 +699,10 @@ def get_dashboard_html():
   var timeSel = document.getElementById("form-time");
   times.forEach(function(t) { var o = document.createElement("option"); o.value = t; o.textContent = t; timeSel.appendChild(o); });
 
-/* --- メニュー表示ユーティリティ（「〜」対応版） --- */
+/* --- メニュー料金・表記ユーティリティ --- */
   function formatMenuPrice(m) {
-    var hasTilde = m.name.includes("〜") || m.name.includes("~");
-    var cleanName = m.name.replace(/[〜~]/g, "").trim();
+    var hasTilde = m.name.indexOf("~RANGE~") !== -1 || /[〜~]/g.test(m.name);
+    var cleanName = m.name.replace("~RANGE~", "").replace(/[〜~]/g, "").trim();
     var priceStr = "฿" + m.price.toLocaleString() + (hasTilde ? "〜" : "");
     return { name: cleanName, priceStr: priceStr };
   }
@@ -719,6 +719,41 @@ def get_dashboard_html():
                         '<span>' + escapeHtml(info.name) + ' (' + info.priceStr + ')</span>';
       container.appendChild(label);
     });
+  }
+
+  function renderMenus() {
+    var tbody = document.getElementById("menu-body"); tbody.innerHTML = "";
+    menus.forEach(function(m) {
+      var info = formatMenuPrice(m);
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td><td>" + info.priceStr + "</td><td>" + m.duration_minutes + "分</td><td><button class='icon-btn danger' onclick='deleteMenu(" + m.id + ")'>🗑️</button></td>";
+      tbody.appendChild(tr);
+    });
+    document.getElementById("menu-empty").style.display = menus.length ? "none" : "block";
+  }
+
+  async function addMenu() {
+    var name = document.getElementById("menu-name").value.trim();
+    var price = parseInt(document.getElementById("menu-price").value);
+    var duration = parseInt(document.getElementById("menu-duration").value);
+    var isRange = document.getElementById("menu-is-range").checked;
+
+    if (!name || isNaN(price) || isNaN(duration)) { toast("全項目を入力してください"); return; }
+    
+    // チェックが入っている場合は識別タグを付与
+    if (isRange) {
+      name = name + " ~RANGE~";
+    }
+
+    var res = await fetch("/api/menus", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({name: name, price: price, duration_minutes: duration}) });
+    if (res.ok) {
+      toast("メニューを追加しました");
+      document.getElementById("menu-name").value = "";
+      document.getElementById("menu-price").value = "";
+      document.getElementById("menu-duration").value = "";
+      document.getElementById("menu-is-range").checked = false;
+      loadData();
+    }
   }
 
   function populateCustomers() {
