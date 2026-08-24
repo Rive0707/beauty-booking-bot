@@ -933,7 +933,6 @@ def get_dashboard_html():
     var c = customers.find(function(x){ return x.user_id === userId; }); if (!c) return;
     document.getElementById("history-modal-title").textContent = (c.name || "お客様") + " 様の来店履歴・カルテ";
     
-    // 今日の日付をセットし、メモ入力欄をリセット
     var dateEl = document.getElementById("direct-karte-date");
     var notesEl = document.getElementById("direct-karte-notes");
     if (dateEl) dateEl.value = fmtDate(new Date());
@@ -960,10 +959,9 @@ def get_dashboard_html():
       container.innerHTML = "";
       visitNotesMap = {};
       
-      // 既存の予約カルテと直接カルテを表示
       visitRes.forEach(function(v) {
         var karteMemo = v.notes || v.memo || "";
-        var formattedMemo = escapeHtml(karteMemo).replace(/\n/g, "<br>");
+        var formattedMemo = escapeHtml(karteMemo).split("\n").join("<br>");
         var vDate = v.visited_date || v.created_at || "";
         
         var editLink = "";
