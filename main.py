@@ -930,7 +930,9 @@ def get_dashboard_html():
 
   async function showCustomerHistory(userId) {
     currentHistoryUserId = userId;
-    var c = customers.find(function(x){ return x.user_id === userId; }); if (!c) return;
+    var c = customers.find(function(x){ return x.user_id === userId; }); 
+    if (!c) return;
+    
     document.getElementById("history-modal-title").textContent = (c.name || "お客様") + " 様の来店履歴・カルテ";
     
     var dateEl = document.getElementById("direct-karte-date");
@@ -961,7 +963,8 @@ def get_dashboard_html():
       
       visitRes.forEach(function(v) {
         var karteMemo = v.notes || v.memo || "";
-        var formattedMemo = escapeHtml(karteMemo).split("\n").join("<br>");
+        // \u000A を使用することでPythonのエスケープ事故を完全防止
+        var formattedMemo = escapeHtml(karteMemo).split(String.fromCharCode(10)).join("<br>");
         var vDate = v.visited_date || v.created_at || "";
         
         var editLink = "";
