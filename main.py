@@ -572,7 +572,22 @@ def get_dashboard_html():
       <span class="modal-title" id="history-modal-title">来店履歴・カルテ</span>
       <button class="icon-btn" onclick="closeCustomerHistoryModal()" style="width:32px;height:32px;">✕</button>
     </div>
-    <div class="modal-body" id="customer-history-body" style="max-height:60vh; overflow-y:auto;"></div>
+    <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+      <!-- いつでもカルテを追加できる入力エリア -->
+      <div style="background:#fafafa; border:1px solid #e5e5ea; border-radius:10px; padding:12px; margin-bottom:16px;">
+        <div style="font-weight:600; font-size:13px; margin-bottom:8px;">➕ 新しいカルテを記入</div>
+        <div class="form-group" style="margin-bottom:8px;">
+          <label style="font-size:11px;">来店/施術日</label>
+          <input type="date" id="direct-karte-date" style="padding:6px 10px; font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+          <textarea id="direct-karte-notes" rows="3" placeholder="施術メモ・カルテ内容を入力..." style="font-size:13px;"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="addDirectKarte()" style="width:100%; justify-content:center; font-size:13px; padding:6px 12px;">カルテを保存</button>
+      </div>
+
+      <div id="customer-history-body"></div>
+    </div>
     <div class="modal-footer"><button class="btn" onclick="closeCustomerHistoryModal()">閉じる</button></div>
   </div>
 </div>
