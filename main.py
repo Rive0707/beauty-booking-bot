@@ -1725,7 +1725,7 @@ function filterDormant(minDays, maxDays) {
       "前回のご来店から少しお時間が経ちましたが、髪の状態はいかがでしょうか？",
       "またのご来店を心よりお待ちしております✂️"
     ];
-    var text = lines.join("\n");
+    var text = lines.join("\\n");
     navigator.clipboard.writeText(text).then(function() {
       toast("メッセージ定型文をコピーしました！");
     });
