@@ -903,7 +903,7 @@ function renderMenus() {
     renderBoard();
   }
 
-/* --- ① 予約ボード描画（カルテボタン付き・安全版） --- */
+/* --- ① 予約ボード描画（複数メニュー対応・安全版） --- */
   function renderBoard() {
     var date = document.getElementById("board-date").value;
     currentDate = new Date(date + "T00:00:00");
@@ -929,7 +929,6 @@ function renderMenus() {
 
       var bs = dayBookings.filter(function(b){ return b.booking_time === time; });
       bs.forEach(function(b) {
-        var menu = menus.find(function(m){ return m.id === b.menu_id; });
         var c = customers.find(function(x){ return x.user_id === b.user_id; });
         var card = document.createElement("div");
         var statusClass = b.status === "completed" ? "completed" : (b.status || "confirmed");
@@ -944,11 +943,25 @@ function renderMenus() {
         var completeBtn = (b.status !== "completed" && b.status !== "cancelled")
           ? '<button class="icon-btn" title="来店完了" onclick="event.stopPropagation(); openCompleteBookingModal(' + b.id + ')">✅</button>' : "";
 
-        // エスケープエラーを防ぐため、文字列の連結方法を安全に変更
         var karteBtn = '<button class="icon-btn" title="カルテ" onclick="event.stopPropagation(); showCustomerHistory(&quot;' + b.user_id + '&quot;)">📋</button>';
 
+        // ★ 複数メニューの名称を取得・生成する処理
+        var menuNameStr = "不明";
+        if (b.menu_names) {
+          menuNameStr = b.menu_names;
+        } else if (b.menu_ids && Array.isArray(b.menu_ids)) {
+          var names = b.menu_ids.map(function(id) {
+            var m = menus.find(function(x) { return x.id === id; });
+            return m ? m.name : "";
+          }).filter(Boolean);
+          if (names.length > 0) menuNameStr = names.join(" + ");
+        } else {
+          var singleMenu = menus.find(function(m){ return m.id === b.menu_id; });
+          if (singleMenu) menuNameStr = singleMenu.name;
+        }
+
         card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === "completed" ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : "") + '</div>' +
-          '<div class="booking-meta"><span class="booking-tag">' + (menu ? menu.name : "不明") + '</span>' + (b.notes ? '<span class="booking-tag">' + b.notes + '</span>' : '') + '</div>' +
+          '<div class="booking-meta"><span class="booking-tag">' + escapeHtml(menuNameStr) + '</span>' + (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') + '</div>' +
           '<div class="booking-actions">' + completeBtn + karteBtn +
             '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
             '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
