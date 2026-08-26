@@ -946,19 +946,21 @@ function renderMenus() {
         var karteBtn = '<button class="icon-btn" title="カルテ" onclick="event.stopPropagation(); showCustomerHistory(&quot;' + b.user_id + '&quot;)">📋</button>';
 
         // ★ 複数メニューの名称を取得・生成する処理
-        var menuNameStr = "不明";
         if (b.menu_names) {
           menuNameStr = b.menu_names;
         } else if (b.menu_ids && Array.isArray(b.menu_ids)) {
           var names = b.menu_ids.map(function(id) {
             var m = menus.find(function(x) { return x.id === id; });
-            return m ? m.name : "";
+            return m ? formatMenuPrice(m).name : "";
           }).filter(Boolean);
           if (names.length > 0) menuNameStr = names.join(" + ");
         } else {
           var singleMenu = menus.find(function(m){ return m.id === b.menu_id; });
-          if (singleMenu) menuNameStr = singleMenu.name;
+          if (singleMenu) menuNameStr = formatMenuPrice(singleMenu).name;
         }
+
+        // データベースから取得した "カラー〜" などの表記から「〜」を取り除く処理
+        menuNameStr = menuNameStr.replace(/~RANGE~/g, "").replace(/[〜～~～]/g, "").trim();
 
         card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === "completed" ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : "") + '</div>' +
           '<div class="booking-meta"><span class="booking-tag">' + escapeHtml(menuNameStr) + '</span>' + (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') + '</div>' +
