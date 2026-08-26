@@ -113,7 +113,8 @@ class MenuReorderRequest(BaseModel):
 
 class BookingCreateFromLiffRequest(BaseModel):
     user_id: str
-    menu_ids: list[int]  # ★ int から list[int] に変更
+    shop_name: Optional[str] = "URU SALON"
+    menu_ids: list[int]
     booking_date: str
     booking_time: str
     name: str
@@ -122,12 +123,13 @@ class BookingCreateFromLiffRequest(BaseModel):
     birthdate: Optional[str] = None
     phone: Optional[str] = None
 
-class DashboardDashboardBookingCreate(BaseModel):
+class DashboardBookingCreate(BaseModel):
     customer_name: str
+    shop_name: Optional[str] = "URU SALON"
     phone: Optional[str] = None
     booking_date: str
     booking_time: str
-    menu_ids: list[int]  # ★ int から list[int] に変更
+    menu_ids: list[int]
     notes: Optional[str] = None
     existing_user_id: Optional[str] = None
 
