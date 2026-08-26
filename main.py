@@ -1285,8 +1285,16 @@ function renderMenus() {
     selectedUserId = null;
     var inputEl = document.getElementById("form-customer-input"); if (inputEl) inputEl.value = "";
     var badgeEl = document.getElementById("customer-info-badge"); if (badgeEl) badgeEl.style.display = "none";
-    document.getElementById("form-name").value = ""; document.getElementById("form-phone").value = "";
-    document.getElementById("form-date").value = fmtDate(currentDate); document.getElementById("form-time").value = "";
+    
+    var defaultShop = document.querySelector('input[name="form-shop"][value="URU SALON"]');
+    if (defaultShop) defaultShop.checked = true;
+
+    document.getElementById("form-name").value = ""; 
+    document.getElementById("form-phone").value = "";
+    document.getElementById("form-date").value = fmtDate(currentDate); 
+    document.getElementById("form-time").value = "";
+    document.getElementById("form-last-visit-date").value = ""; // ★ リセット
+    document.getElementById("form-memo").value = "";
     document.querySelectorAll('input[name="form-menu-item"]').forEach(function(cb) { cb.checked = false; });
   }
 
