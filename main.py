@@ -2085,6 +2085,15 @@ async def api_create_booking(data: DashboardBookingCreate):
 
 
 @app.put("/api/bookings/{booking_id}")
+class BookingUpdateRequest(BaseModel):
+    booking_date: Optional[str] = None
+    booking_time: Optional[str] = None
+    menu_ids: Optional[list[int]] = None
+    shop_name: Optional[str] = None
+    last_visit_date: Optional[str] = None
+    notes: Optional[str] = None
+
+@app.put("/api/bookings/{booking_id}")
 async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateRequest):
     booking = db.get_booking(booking_id)
     if not booking:
@@ -2093,15 +2102,38 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     new_date = data.booking_date or booking["booking_date"]
     new_time = data.booking_time or booking["booking_time"]
 
-    db.update_booking(booking_id, data.booking_date, data.booking_time, data.menu_id)
+    # データベースの予約情報を上書き更新
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE bookings 
+        SET booking_date = ?, booking_time = ?, shop_name = ?, last_visit_date = ?, notes = ?
+        WHERE id = ?
+    """, (
+        new_date, 
+        new_time, 
+        data.shop_name or booking.get("shop_name", "URU SALON"), 
+        data.last_visit_date if data.last_visit_date is not None else booking.get("last_visit_date"), 
+        data.notes if data.notes is not None else booking.get("notes"), 
+        booking_id
+    ))
+    
+    # メニューIDの更新処理（配列で送られてきた場合）
+    if data.menu_ids:
+        cursor.execute("DELETE FROM booking_menus WHERE booking_id = ?", (booking_id,))
+        for m_id in data.menu_ids:
+            cursor.execute("INSERT INTO booking_menus (booking_id, menu_id) VALUES (?, ?)", (booking_id, m_id))
+            
+    conn.commit()
+    conn.close()
+
     db.add_booking_history(booking_id, "modified", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"], after_date=new_date, after_time=new_time)
     
     user_id = booking["user_id"]
     if user_id and not user_id.startswith("manual_"):
-        # 予約IDを除外し、絵文字つきメッセージに修正
-        line_handler.send_text(user_id, f"""📝 ご予約日時が変更されました
+        line_handler.send_text(user_id, f"""📝 ご予約内容が更新されました
 
-📅 変更後の日時: {new_date} {new_time}
+📅 日時: {new_date} {new_time}
 
 ご来店を心よりお待ちしております。""")
 
