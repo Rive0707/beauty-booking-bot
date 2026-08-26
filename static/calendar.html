@@ -394,7 +394,8 @@ function renderDateStrip(){
     });
   });
 }
-
+  
+let isLoadingMore = false;
 // 追加読み込み処理（関数の外に配置）
 async function loadMoreDays(){
   if(isLoadingMore) return;
