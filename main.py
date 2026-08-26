@@ -2107,9 +2107,9 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     """, (
         new_date, 
         new_time, 
-        data.shop_name or booking.get("shop_name", "URU SALON"), 
-        data.last_visit_date if data.last_visit_date is not None else booking.get("last_visit_date"), 
-        data.notes if data.notes is not None else booking.get("notes"), 
+        data.shop_name or booking["shop_name"] or "URU SALON", 
+        data.last_visit_date if data.last_visit_date is not None else booking["last_visit_date"], 
+        data.notes if data.notes is not None else booking["notes"], 
         booking_id
     ))
     
