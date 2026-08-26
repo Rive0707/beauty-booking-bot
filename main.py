@@ -361,6 +361,7 @@ def get_dashboard_html():
     <button class="tab active" onclick="switchTab('board')" id="tab-board">予約ボード</button>
     <button class="tab" onclick="switchTab('list')" id="tab-list">予約一覧</button>
     <button class="tab" onclick="switchTab('customers')" id="tab-customers">顧客管理</button>
+    <button class="tab" onclick="switchTab('dormant')" id="tab-dormant">休眠・追客</button>
     <button class="tab" onclick="switchTab('holidays')" id="tab-holidays">臨時休業日</button>
     <button class="tab" onclick="switchTab('menus')" id="tab-menus">メニュー管理</button>
     <button class="tab" onclick="switchTab('reports')" id="tab-reports">レポート</button>
