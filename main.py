@@ -1718,7 +1718,7 @@ function renderMenus() {
   }
 
   function copyDormantText(name) {
-    var text = (name || "お客様") + " 様\n\nこんにちは！いつもご来店ありがとうございます。\n前回のご来店から少しお時間が経ちましたが、髪の状態はいかがでしょうか？\nまたのご来店を心よりお待ちしております✂️";
+    var text = (name || "お客様") + " 様\\n\\nこんにちは！いつもご来店ありがとうございます。\\n前回のご来店から少しお時間が経ちましたが、髪の状態はいかがでしょうか？\\nまたのご来店を心よりお待ちしております✂️";
     navigator.clipboard.writeText(text).then(function() {
       toast("メッセージ定型文をコピーしました！");
     });
