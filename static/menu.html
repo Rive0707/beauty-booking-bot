@@ -160,17 +160,20 @@ function render(menus){
     list.innerHTML = '<div class="empty"><span class="brush"></span><br>現在ご案内できるメニューがありません</div>';
     return;
   }
-  list.innerHTML = menus.map(m => `
+  list.innerHTML = menus.map(m => {
+    const info = formatMenuPrice(m);
+    return `
     <label class="menu-card">
-      <input type="checkbox" class="menu-checkbox" data-id="${m.id}" data-name="${escapeHtml(m.name)}" data-price="${m.price}" onchange="toggleMenu(this)">
+      <input type="checkbox" class="menu-checkbox" data-id="${m.id}" data-name="${escapeHtml(info.name)}" data-price="${m.price}" onchange="toggleMenu(this)">
       <div style="flex:1;">
-        <p class="menu-name">${escapeHtml(m.name)}</p>
+        <p class="menu-name">${escapeHtml(info.name)}</p>
         <div class="menu-meta">
-          <span>฿${m.price.toLocaleString()}</span>
+          <span>${info.priceStr}</span>
         </div>
       </div>
     </label>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function toggleMenu(el){
