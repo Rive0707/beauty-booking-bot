@@ -1328,15 +1328,22 @@ function renderMenus() {
         editingId = id;
         var c = customers.find(function(x){ return x.user_id === b.user_id; });
         document.getElementById("modal-title").textContent = "予約を編集";
+        
+        // 店舗選択のラジオボタンをセット
+        var shopRadio = document.querySelector('input[name="form-shop"][value="' + (b.shop_name || "URU SALON") + '"]');
+        if (shopRadio) shopRadio.checked = true;
+
         document.getElementById("form-name").value = c ? c.name : "";
         document.getElementById("form-phone").value = c ? c.phone : "";
         document.getElementById("form-date").value = b.booking_date;
         document.getElementById("form-time").value = b.booking_time;
+        document.getElementById("form-last-visit-date").value = b.last_visit_date || ""; // ★ 前回来店日
         document.getElementById("form-memo").value = b.notes || "";
     
-        // ★チェックボックスの選択状態を更新する処理へ変更
         document.querySelectorAll('input[name="form-menu-item"]').forEach(function(cb) {
-          cb.checked = (parseInt(cb.value, 10) === b.menu_id);
+          cb.checked = (b.menu_ids && Array.isArray(b.menu_ids)) 
+            ? b.menu_ids.includes(parseInt(cb.value, 10))
+            : (parseInt(cb.value, 10) === b.menu_id);
         });
     
         document.getElementById("modal").classList.add("open");
