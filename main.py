@@ -550,7 +550,15 @@ def get_dashboard_html():
             <input type="date" id="form-last-visit-date">
           </div>
           
-　        <div class="modal-footer">
+          <div class="form-group">
+            <label>メニュー <span class="req">*</span></label>
+            <div id="form-menu-container" style="max-height: 150px; overflow-y: auto; border: 1px solid #d1d1d6; border-radius: 10px; padding: 10px; background: #fff;"></div>
+          </div>
+          
+          <div class="form-group"><label>メモ</label><textarea id="form-memo" placeholder="要望・注意事項など"></textarea></div>
+        </div> 
+        
+        <div class="modal-footer">
           <button class="btn" onclick="closeModal()">キャンセル</button>
           <button class="btn" onclick="submitBlockSlot()" style="background:#8e8e93; color:#fff; border-color:#8e8e93;">🚫 この枠をブロック</button>
           <button class="btn btn-primary" onclick="submitBooking()">登録する</button>
