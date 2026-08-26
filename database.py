@@ -122,6 +122,18 @@ class Database:
             )
         ''')
 
+        # 8. 時間枠ブロックテーブル（予約不可枠）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS blocked_slots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                block_date TEXT NOT NULL,
+                block_time TEXT NOT NULL,
+                reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(block_date, block_time)
+            )
+        ''')
+
         # 8. 顧客メモテーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS customer_notes (
