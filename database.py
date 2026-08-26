@@ -26,42 +26,32 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
 
+        # 1. 顧客テーブル
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS booking_menus (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                booking_id INTEGER NOT NULL,
-                menu_id INTEGER NOT NULL,
-                sort_order INTEGER DEFAULT 0,
-                FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
-                FOREIGN KEY (menu_id) REFERENCES menus(id)
+            CREATE TABLE IF NOT EXISTS customers (
+                user_id TEXT PRIMARY KEY,
+                name TEXT,
+                furigana TEXT,
+                gender TEXT,
+                birthdate TEXT,
+                phone TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
 
-        for column_def in [
-            "ALTER TABLE customers ADD COLUMN furigana TEXT",
-            "ALTER TABLE customers ADD COLUMN gender TEXT",
-            "ALTER TABLE customers ADD COLUMN birthdate TEXT",
-        ]:
-            try:
-                cursor.execute(column_def)
-            except sqlite3.OperationalError:
-                pass
-
+        # 2. メニューテーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS menus (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 price INTEGER NOT NULL,
                 duration_minutes INTEGER NOT NULL,
+                sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        try:
-            cursor.execute("ALTER TABLE menus ADD COLUMN sort_order INTEGER DEFAULT 0")
-            cursor.execute("UPDATE menus SET sort_order = id")
-        except sqlite3.OperationalError:
-            pass
 
+        # 3. 予約テーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS bookings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,57 +70,37 @@ class Database:
             )
         ''')
 
-        for column_def in [
-            "ALTER TABLE bookings ADD COLUMN reminder_7d_sent INTEGER DEFAULT 0",
-            "ALTER TABLE bookings ADD COLUMN reminder_3d_sent INTEGER DEFAULT 0",
-        ]:
-            try:
-                cursor.execute(column_def)
-            except sqlite3.OperationalError:
-                pass
-
+        # 4. 複数メニュー中間テーブル
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS customer_notes (
+            CREATE TABLE IF NOT EXISTS booking_menus (
+                booking_id INTEGER NOT NULL,
+                menu_id INTEGER NOT NULL,
+                PRIMARY KEY (booking_id, menu_id),
+                FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+                FOREIGN KEY (menu_id) REFERENCES menus(id) ON DELETE CASCADE
+            )
+        ''')
+
+        # 5. 来店履歴・カルテテーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS visit_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT NOT NULL,
-                note TEXT NOT NULL,
+                booking_id INTEGER,
+                visit_date TEXT NOT NULL,
+                notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES customers(user_id)
             )
         ''')
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS visit_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT NOT NULL,
-                booking_id INTEGER NOT NULL,
-                visited_date TEXT,
-                memo TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES customers(user_id),
-                FOREIGN KEY (booking_id) REFERENCES bookings(id)
-            )
-        ''')
-
-        try:
-            cursor.execute("ALTER TABLE visit_history ADD COLUMN notes TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS closed_days (
-                closed_date TEXT PRIMARY KEY,
-                note TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
+        # 6. 変更履歴テーブル
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS booking_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 booking_id INTEGER NOT NULL,
-                user_id TEXT,
                 action TEXT NOT NULL,
+                user_id TEXT NOT NULL,
                 before_date TEXT,
                 before_time TEXT,
                 after_date TEXT,
@@ -139,6 +109,25 @@ class Database:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # 7. 臨時休業日テーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS closed_days (
+                closed_date TEXT PRIMARY KEY,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # ★ 既存データベースのカラム自動マイグレーション（カラム不足による500エラー防止）
+        cursor.execute("PRAGMA table_info(bookings)")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        if "shop_name" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN shop_name TEXT DEFAULT 'URU SALON'")
+
+        if "last_visit_date" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN last_visit_date TEXT")
 
         conn.commit()
         conn.close()
