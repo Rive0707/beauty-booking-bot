@@ -1859,6 +1859,11 @@ async def api_get_availability(start_date: str, days: int = 7, duration_minutes:
     
     # 期間内の全予約データを詳細（所要時間付き）で取得
     existing_bookings = db.get_bookings_with_details_in_range(start.isoformat(), end.isoformat())
+    blocked_slots = db.get_blocked_slots_in_range(start.isoformat(), end.isoformat())
+    
+    blocked_dict = {}
+    for row in blocked_slots:
+        blocked_dict.setdefault(row["block_date"], []).append(row["block_time"])
 
     all_slots = _generate_time_slots()
     end_h, end_m = map(int, BUSINESS_HOURS_END.split(":"))
