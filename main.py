@@ -969,15 +969,28 @@ function renderMenus() {
         var shopBadgeStyle = isCutman ? "background:#e3f2fd; color:#1565c0; font-weight:bold;" : "background:#fce4ec; color:#c2185b; font-weight:bold;";
         var shopLabel = isCutman ? "CUTMAN" : "URU SALON";
 
-        // 前回来店日・日数経過バッジ
+        // 前回来店日・日数経過バッジ (安全版)
         var lastVisitTagHtml = '';
-        var lastVisitStr = b.last_visit_date || (b.notes && b.notes.match(/(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2})/)? [0]);
+        var lastVisitStr = b.last_visit_date;
+        if (!lastVisitStr && b.notes) {
+          var matched = b.notes.match(/(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2})/);
+          if (matched) {
+            lastVisitStr = matched[0];
+          }
+        }
+
         if (lastVisitStr) {
           var bDate = new Date(b.booking_date + "T00:00:00");
-          var vDate = lastVisitStr.includes("-") 
-            ? new Date(lastVisitStr + "T00:00:00")
-            : new Date(bDate.getFullYear(), parseInt(lastVisitStr.split("/")[0], 10) - 1, parseInt(lastVisitStr.split("/")[1], 10));
-          if (vDate > bDate) vDate.setFullYear(vDate.getFullYear() - 1);
+          var vDate;
+          if (lastVisitStr.indexOf("-") !== -1) {
+            vDate = new Date(lastVisitStr + "T00:00:00");
+          } else {
+            var parts = lastVisitStr.split("/");
+            vDate = new Date(bDate.getFullYear(), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+          }
+          if (vDate > bDate) {
+            vDate.setFullYear(vDate.getFullYear() - 1);
+          }
 
           var diffDays = Math.round((bDate - vDate) / (1000 * 60 * 60 * 24));
           var displayDate = (vDate.getMonth() + 1) + "/" + vDate.getDate();
