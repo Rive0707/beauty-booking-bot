@@ -476,7 +476,13 @@ function renderTimeList(){
   listEl.innerHTML = currentData.time_slots.map(slot => {
     const status = dayAvailability[slot];
 
-    if (status === 'available') {
+    if (status === 'blocked') {
+      return `
+        <button class="time-slot-btn disabled" disabled>
+          <span class="mark">ー</span>${slot} <span style="font-size:12px; margin-left:auto; color:var(--ink-soft);">予約不可</span>
+        </button>
+      `;
+    } else if (status === 'available') {
       return `
         <button class="time-slot-btn" data-time="${slot}">
           <span class="mark"></span>${slot}
