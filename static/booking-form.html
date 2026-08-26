@@ -59,6 +59,16 @@
     color:var(--ink-soft);
     margin-bottom:6px;
   }
+  .req-badge{
+    color: var(--plum);
+    font-weight: 700;
+    margin-left: 4px;
+  }
+  .opt-badge{
+    color: var(--ink-soft);
+    font-size: 11px;
+    margin-left: 4px;
+  }
   input[type="text"], input[type="tel"], select{
     width:100%;
     border:1px solid var(--paper-line);
@@ -74,10 +84,10 @@
     border-color:var(--plum);
   }
   .hint{ font-size:11px; color:var(--ink-soft); margin-top:5px; }
-  .radio-row{ display:flex; gap:20px; padding:4px 0; }
+  .radio-row{ display:flex; gap:16px; padding:4px 0; flex-wrap:wrap; }
   .radio-row label{
     display:flex; align-items:center; gap:6px;
-    font-size:14px; color:var(--ink);
+    font-size:13.5px; color:var(--ink);
     margin:0;
   }
   .birth-row{ display:flex; gap:8px; }
@@ -139,7 +149,7 @@
 
 <header>
   <h1>お客様情報のご入力</h1>
-  <p class="sub">ご予約の確定に必要な情報をご入力ください</p>
+  <p class="sub">Please enter your booking details / お客様情報をご入力ください</p>
 </header>
 
 <div class="steps">✓ メニュー ・ ✓ 日時 ・ <span class="cur">③ お客様情報</span></div>
@@ -147,44 +157,48 @@
 <div class="summary" id="summary"></div>
 
 <p class="hint" id="prefillNotice" style="display:none; margin:10px 20px 0; padding:10px 12px; background:#fff; border:1px solid var(--paper-line); border-radius:10px;">
-  前回のご登録情報を自動で入力しました。内容が変わっている場合は修正してください。
+  前回のご登録情報を自動で入力しました。
 </p>
 
 <form id="bookingForm">
+  <!-- 氏名（必須） -->
   <div class="field">
-    <label for="name">氏名</label>
-    <input type="text" id="name" placeholder="山田 太郎" autocomplete="name">
-    <p class="hint">姓名の間にスペースを入れてください</p>
-    <p class="err-text">氏名をご入力ください</p>
+    <label for="name">お名前 / Full Name<span class="req-badge">※必須</span></label>
+    <input type="text" id="name" placeholder="Taro Yamada (ローマ字/漢字)" autocomplete="name">
+    <p class="hint">ローマ字または漢字でご入力ください</p>
+    <p class="err-text">お名前をご入力ください</p>
   </div>
 
+  <!-- フリガナ（任意・自動補完） -->
   <div class="field">
-    <label for="furigana">フリガナ</label>
-    <input type="text" id="furigana" placeholder="ヤマダ タロウ" autocomplete="off">
-    <p class="hint">姓名の間にスペースを入れてください</p>
-    <p class="err-text">フリガナをご入力ください</p>
+    <label for="furigana">フリガナ / Reading<span class="opt-badge">（任意）</span></label>
+    <input type="text" id="furigana" placeholder="自動入力されます / Auto-filled" autocomplete="off">
+    <p class="hint">未入力の場合はお名前がそのまま使用されます</p>
   </div>
 
+  <!-- 性別（任意） -->
   <div class="field">
-    <label>性別</label>
+    <label>性別 / Gender<span class="opt-badge">（任意）</span></label>
     <div class="radio-row">
-      <label><input type="radio" name="gender" value="女性"> 女性</label>
-      <label><input type="radio" name="gender" value="男性"> 男性</label>
-      <label><input type="radio" name="gender" value="回答しない"> 回答しない</label>
+      <label><input type="radio" name="gender" value="女性"> 女性 (Female)</label>
+      <label><input type="radio" name="gender" value="男性"> 男性 (Male)</label>
+      <label><input type="radio" name="gender" value="回答しない"> なし (Other)</label>
     </div>
   </div>
 
+  <!-- 生年月日（任意） -->
   <div class="field">
-    <label>誕生日</label>
+    <label>誕生日 / Date of Birth<span class="opt-badge">（任意）</span></label>
     <div class="birth-row">
-      <select id="birthYear"></select>
-      <select id="birthMonth"></select>
-      <select id="birthDay"></select>
+      <select id="birthYear"><option value="">年(Year)</option></select>
+      <select id="birthMonth"><option value="">月(Month)</option></select>
+      <select id="birthDay"><option value="">日(Day)</option></select>
     </div>
   </div>
 
+  <!-- 電話番号（必須） -->
   <div class="field">
-    <label for="phone">電話番号</label>
+    <label for="phone">電話番号 / Phone Number<span class="req-badge">※必須</span></label>
     <input type="tel" id="phone" placeholder="09012345678" autocomplete="tel" inputmode="numeric">
     <p class="err-text">電話番号をご入力ください</p>
   </div>
@@ -228,6 +242,21 @@ for(let d = 1; d <= 31; d++){
   daySel.innerHTML += `<option value="${d}">${d}日</option>`;
 }
 
+// 氏名入力時にフリガナ欄へ自動コピー・簡易カタカナ変換
+document.getElementById('name').addEventListener('input', (e) => {
+  const furiganaInput = document.getElementById('furigana');
+  if (!furiganaInput.dataset.manuallyEdited) {
+    let val = e.target.value.trim();
+    // ひらがなをカタカナに変換
+    val = val.replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+    furiganaInput.value = val.toUpperCase();
+  }
+});
+
+document.getElementById('furigana').addEventListener('input', () => {
+  document.getElementById('furigana').dataset.manuallyEdited = "true";
+});
+
 let liffUserId = null;
 
 function showToast(msg){
@@ -240,15 +269,12 @@ function showToast(msg){
 function validate(){
   let ok = true;
   const nameField = document.getElementById('name').closest('.field');
-  const furiganaField = document.getElementById('furigana').closest('.field');
   const phoneField = document.getElementById('phone').closest('.field');
 
   nameField.classList.toggle('invalid', !document.getElementById('name').value.trim());
-  furiganaField.classList.toggle('invalid', !document.getElementById('furigana').value.trim());
   phoneField.classList.toggle('invalid', !document.getElementById('phone').value.trim());
 
   if(nameField.classList.contains('invalid')) ok = false;
-  if(furiganaField.classList.contains('invalid')) ok = false;
   if(phoneField.classList.contains('invalid')) ok = false;
 
   return ok;
@@ -260,7 +286,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
     return;
   }
   if(!validate()){
-    showToast('未入力の項目があります');
+    showToast('必須項目（お名前・電話番号）をご入力ください');
     return;
   }
   if(!liffUserId){
@@ -268,19 +294,25 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
     return;
   }
 
-  const gender = document.querySelector('input[name="gender"]:checked');
-  const birthdate = `${yearSel.value}-${String(monthSel.value).padStart(2,'0')}-${String(daySel.value).padStart(2,'0')}`;
+  const nameVal = document.getElementById('name').value.trim();
+  const furiganaVal = document.getElementById('furigana').value.trim() || nameVal;
 
-  // カンマ区切りの文字列（"1,2"）を数値の配列（[1, 2]）に変換
+  const gender = document.querySelector('input[name="gender"]:checked');
+  
+  let birthdate = null;
+  if (yearSel.value && monthSel.value && daySel.value) {
+    birthdate = `${yearSel.value}-${String(monthSel.value).padStart(2,'0')}-${String(daySel.value).padStart(2,'0')}`;
+  }
+
   const menuIdsArray = bookingInfo.menu_ids.split(',').map(id => parseInt(id, 10));
 
   const payload = {
     user_id: liffUserId,
-    menu_ids: menuIdsArray, // ★ menu_ids として配列で送信
+    menu_ids: menuIdsArray,
     booking_date: bookingInfo.date,
     booking_time: bookingInfo.time,
-    name: document.getElementById('name').value.trim(),
-    furigana: document.getElementById('furigana').value.trim(),
+    name: nameVal,
+    furigana: furiganaVal,
     gender: gender ? gender.value : null,
     birthdate: birthdate,
     phone: document.getElementById('phone').value.trim()
@@ -317,7 +349,6 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
         const profile = await liff.getProfile();
         liffUserId = profile.userId;
 
-        // 既存のお客様情報を取得できれば自動入力する（毎回の再入力を省くため）
         try{
           const res = await fetch(`${API_BASE}/api/customers/${encodeURIComponent(liffUserId)}`);
           if(res.ok){
@@ -345,9 +376,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
               document.getElementById('prefillNotice').style.display = 'block';
             }
           }
-        }catch(e){
-          // 取得できなくても通常の新規入力フローにフォールバックする
-        }
+        }catch(e){}
       }
     }
   }catch(e){
