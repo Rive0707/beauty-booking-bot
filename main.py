@@ -1330,10 +1330,12 @@ function renderMenus() {
     
         var payload = {
           customer_name: name,
+          shop_name: shop,
+          last_visit_date: lastVisit || null,
           phone: document.getElementById("form-phone").value.trim(),
           booking_date: date,
           booking_time: time,
-          menu_ids: selectedMenuIds, // ★ menu_ids として配列で送信
+          menu_ids: selectedMenuIds,
           notes: document.getElementById("form-memo").value.trim(),
           existing_user_id: selectedUserId
         };
