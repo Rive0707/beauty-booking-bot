@@ -1879,6 +1879,28 @@ async def api_delete_closed_day(closed_date: str):
     return JSONResponse({"error": "削除失敗"}, status_code=500)
 
 # ===============================
+# ブロック枠（予約不可）API
+# ===============================
+
+@app.post("/api/blocked-slots")
+async def api_add_blocked_slot(data: BlockSlotRequest):
+    if db.is_slot_blocked(data.block_date, data.block_time):
+        return JSONResponse({"error": "既にブロックされています"}, status_code=409)
+    if db.add_blocked_slot(data.block_date, data.block_time, data.reason):
+        return {"status": "ok"}
+    return JSONResponse({"error": "登録に失敗しました"}, status_code=500)
+
+@app.get("/api/blocked-slots")
+async def api_get_blocked_slots(start_date: str, end_date: str):
+    return [dict(r) for r in db.get_blocked_slots_in_range(start_date, end_date)]
+
+@app.delete("/api/blocked-slots/{slot_id}")
+async def api_delete_blocked_slot(slot_id: int):
+    if db.delete_blocked_slot(slot_id):
+        return {"status": "ok"}
+    return JSONResponse({"error": "削除に失敗しました"}, status_code=500)
+
+# ===============================
 # LIFF（お客様向け予約画面）API
 # ===============================
 
