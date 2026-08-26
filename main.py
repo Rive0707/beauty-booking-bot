@@ -2131,11 +2131,14 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
 
     db.add_booking_history(booking_id, "modified", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"], after_date=new_date, after_time=new_time)
     
+    # 日時（日付または時間）に変更があった場合のみ LINE 通知を送る
+    is_date_changed = (booking["booking_date"] != new_date) or (booking["booking_time"] != new_time)
+    
     user_id = booking["user_id"]
-    if user_id and not user_id.startswith("manual_"):
-        line_handler.send_text(user_id, f"""📝 ご予約内容が更新されました
+    if is_date_changed and user_id and not user_id.startswith("manual_"):
+        line_handler.send_text(user_id, f"""📝 ご予約日時が変更されました
 
-📅 日時: {new_date} {new_time}
+📅 変更後の日時: {new_date} {new_time}
 
 ご来店を心よりお待ちしております。""")
 
