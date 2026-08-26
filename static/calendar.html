@@ -292,7 +292,7 @@ async function loadAvailability(){
   try{
     const durationParam = menuDuration ? `&duration_minutes=${menuDuration}` : '';
     const excludeParam = modifyBookingId ? `&exclude_booking_id=${modifyBookingId}` : '';
-    const res = await fetch(`${API_BASE}/api/availability?start_date=${toDateStr(rangeStart)}&days=${DAYS_PER_VIEW}${durationParam}${excludeParam}`);
+    const res = await fetch(`${API_BASE}/api/availability?start_date=${toDateStr(rangeStart)}&days=${daysLoaded}${durationParam}${excludeParam}`);
     if(!res.ok) throw new Error('failed');
     currentData = await res.json();
     render();
