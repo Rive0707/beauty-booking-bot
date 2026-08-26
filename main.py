@@ -1312,18 +1312,16 @@ function renderMenus() {
     document.querySelectorAll('input[name="form-menu-item"]').forEach(function(cb) { cb.checked = false; });
   }
 
-    　async function submitBooking() {
+    async function submitBooking() {
         var name = document.getElementById("form-name").value.trim();
         var date = document.getElementById("form-date").value;
         var time = document.getElementById("form-time").value;
         
-        // ★ shop と lastVisit の定義をここに追加
         var shopRadio = document.querySelector('input[name="form-shop"]:checked');
         var shop = shopRadio ? shopRadio.value : 'URU SALON';
         var lastVisitInput = document.getElementById("form-last-visit-date");
         var lastVisit = lastVisitInput ? lastVisitInput.value : null;
 
-        // チェックが入っている全メニューのIDを配列で取得
         var selectedMenuIds = [];
         document.querySelectorAll('input[name="form-menu-item"]:checked').forEach(function(cb) {
           selectedMenuIds.push(parseInt(cb.value, 10));
@@ -1351,14 +1349,7 @@ function renderMenus() {
         var res = await fetch(url, { method: method, headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
         if (res.ok) { toast(editingId ? "予約を更新しました" : "予約を登録しました"); closeModal(); loadData(); }
         else { toast("エラーが発生しました"); }
-      }
-        
-        var url = editingId ? "/api/bookings/" + editingId : "/api/bookings";
-        var method = editingId ? "PUT" : "POST";
-        var res = await fetch(url, { method: method, headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
-        if (res.ok) { toast(editingId ? "予約を更新しました" : "予約を登録しました"); closeModal(); loadData(); }
-        else { toast("エラーが発生しました"); }
-      }
+    }
 
     async　function editBooking(id) {
         var b = bookings.find(function(x){ return x.id === id; }); if (!b) return;
