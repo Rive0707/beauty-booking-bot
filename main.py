@@ -1058,10 +1058,16 @@ function renderMenus() {
   }
 
   function openModalWithTime(timeStr) {
+    var dateStr = document.getElementById("board-date").value;
+    var blockedSlot = window.blockedSlots && window.blockedSlots[dateStr] ? window.blockedSlots[dateStr].find(function(s){ return s.time === timeStr; }) : null;
+    if (blockedSlot) {
+      toast("この時間枠はブロックされています");
+      return;
+    }
     editingId = null;
     document.getElementById("modal-title").textContent = timeStr + " の予約を登録";
     clearForm();
-    document.getElementById("form-date").value = document.getElementById("board-date").value;
+    document.getElementById("form-date").value = dateStr;
     document.getElementById("form-time").value = timeStr;
     document.getElementById("modal").classList.add("open");
   }
