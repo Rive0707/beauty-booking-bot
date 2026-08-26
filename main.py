@@ -1778,7 +1778,7 @@ function filterDormant(minDays, maxDays) {
         "<td><b style='color:#e65100;'>" + item.diffDays + "日ぶり</b></td>" +
         "<td>" +
           "<button class='btn btn-copy' style='font-size:12px; padding:4px 8px; margin-right:6px;'>📋 文章コピー</button>" +
-          (isLine ? "<button class='btn btn-primary' style='font-size:12px; padding:4px 8px;' onclick='openLineOfficialChat()'>💬 チャットを開く</button>" : "<span style='font-size:12px; color:#8e8e93;'>LINE未連携</span>") +
+          (isLine ? "<button class='btn btn-primary' style='font-size:12px; padding:4px 8px;' onclick='openSendMessageModal(\\"" + id + "\\")'>💬 メッセージ送信</button>" : "<span style='font-size:12px; color:#8e8e93;'>LINE未連携</span>") +
         "</td>";
 
       // エラー回避のため、ボタンのクリックイベントをここで紐付け
