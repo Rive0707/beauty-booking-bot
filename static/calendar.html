@@ -26,6 +26,7 @@
     color:var(--ink);
     font-family:'Zen Kaku Gothic New', sans-serif;
     -webkit-font-smoothing:antialiased;
+    padding-bottom:100px;
   }
   header{
     padding:20px 20px 14px;
@@ -70,110 +71,115 @@
     font-size:15px;
     font-weight:500;
   }
-  .legend{
-    display:flex;
-    gap:16px;
-    padding:12px 20px;
-    font-size:11.5px;
-    color:var(--ink-soft);
-  }
-  .legend span{display:flex; align-items:center; gap:5px;}
-  .dot{width:11px;height:11px;border-radius:var(--radius-brush);display:inline-block;}
-  .dot.avail{border:1.6px solid var(--plum);}
-  .dot.booked{background:var(--booked);}
-  .dot.closed{background:transparent;}
 
   .steps{
-    padding:0 20px 14px;
+    padding:14px 20px 0;
     font-size:11px;
     color:var(--ink-soft);
   }
   .steps .cur{ color:var(--plum); font-weight:700; }
 
-  .scroll-wrap{
+  /* --- 日付タブ --- */
+  .date-strip{
+    display:flex;
+    gap:8px;
+    padding:16px 20px 4px;
     overflow-x:auto;
-    padding:0 20px 32px;
     -webkit-overflow-scrolling:touch;
   }
-  table{
-    border-collapse:collapse;
-    min-width:100%;
+  .date-card{
+    all:unset;
+    flex-shrink:0;
+    width:54px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding:10px 0 9px;
+    border:1.4px solid var(--paper-line);
+    border-radius:14px;
+    background:#fff;
+    cursor:pointer;
   }
-  th, td{
-    text-align:center;
-    padding:0;
-  }
-  thead th{
-    padding:10px 4px 8px;
-    font-weight:500;
-    background:var(--paper);
-  }
-  thead th.time-col{ left:0; z-index:3; }
-  .day-num{
-    font-family:'Shippori Mincho', serif;
-    font-size:16px;
-    display:block;
-  }
-  .weekday{
+  .date-card .wd{
     font-size:10.5px;
     color:var(--ink-soft);
-    display:block;
-    margin-top:1px;
   }
-  .weekday.sat{color:#6E8FA3;}
-  .weekday.sun{color:#B36B5E;}
-
-  td.time-col{
-    position:sticky;
-    left:0;
-    background:var(--paper);
-    font-size:12px;
-    color:var(--ink-soft);
-    padding:0 12px 0 0;
-    white-space:nowrap;
-    border-right:1px solid var(--paper-line);
-    z-index:2;
-  }
-  tbody tr{border-top:1px solid var(--paper-line);}
-
-  .cell{
-    width:52px;
-    height:46px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .mark{
-    width:22px;
-    height:22px;
-    border-radius:var(--radius-brush);
-  }
-  .mark.available{border:1.8px solid var(--plum); background:transparent;}
-  .mark.booked{
-    background:transparent;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:var(--booked);
-    font-size:16px;
+  .date-card .wd.sat{ color:#6E8FA3; }
+  .date-card .wd.sun{ color:#B36B5E; }
+  .date-card .num{
+    font-family:'Shippori Mincho', serif;
+    font-size:17px;
     font-weight:700;
+    color:var(--ink);
   }
-  .mark.closed::after{content:"";}
+  .date-card .dot{
+    width:5px; height:5px;
+    border-radius:50%;
+    background:var(--plum);
+  }
+  .date-card .dot.none{ background:transparent; }
+  .date-card.selected{
+    background:var(--plum);
+    border-color:var(--plum);
+  }
+  .date-card.selected .wd,
+  .date-card.selected .num{ color:#fff; }
+  .date-card.selected .dot{ background:#fff; }
+  .date-card.full{ opacity:.4; }
 
-  button.slot-btn{
+  /* --- 時間リスト --- */
+  .time-section{
+    padding:18px 20px 0;
+  }
+  .time-section-label{
+    font-family:'Shippori Mincho', serif;
+    font-size:15px;
+    font-weight:700;
+    margin:0 0 12px;
+  }
+  .time-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .time-slot-btn{
     all:unset;
     display:flex;
     align-items:center;
-    justify-content:center;
-    width:100%;
-    height:100%;
+    gap:10px;
+    padding:14px 16px;
+    border:1.4px solid var(--paper-line);
+    border-radius:12px;
+    background:#fff;
+    font-size:15px;
+    color:var(--ink);
     cursor:pointer;
   }
-  button.slot-btn:active .mark.available{
+  .time-slot-btn .mark{
+    width:16px;
+    height:16px;
+    border-radius:var(--radius-brush);
+    border:1.8px solid var(--plum);
+    flex-shrink:0;
+  }
+  .time-slot-btn.selected{
+    background:var(--plum-soft);
+    border-color:var(--plum);
+  }
+  .time-slot-btn.selected .mark{
+    background:var(--plum);
+  }
+  .time-slot-btn:active{
     background:var(--plum-soft);
   }
-  button.slot-btn.selected .mark.available{
-    background:var(--plum);
+
+  .empty-day{
+    padding:36px 20px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
   }
 
   .status-bar{
@@ -224,11 +230,6 @@
   </div>
 </header>
 
-<div class="legend">
-  <span><i class="dot avail"></i>空きあり</span>
-  <span><i class="dot booked"></i>ご予約済み</span>
-  <span>ー 休業日</span>
-</div>
 <div class="steps" id="stepsBar"></div>
 
 <div id="content">
@@ -247,6 +248,8 @@ const DAYS_PER_VIEW = 7;
 let rangeStart = new Date();
 rangeStart.setHours(0,0,0,0);
 let selected = null;
+let currentData = null;
+let selectedDate = null;
 
 const urlParams = new URLSearchParams(location.search);
 const menuIds = urlParams.get('menu_ids') || urlParams.get('menu_id');
@@ -276,6 +279,11 @@ function toDateStr(d){
   return `${y}-${m}-${day}`;
 }
 
+function availableSlotsFor(dateStr){
+  const dayAvailability = currentData.availability[dateStr] || {};
+  return currentData.time_slots.filter(slot => dayAvailability[slot] === 'available');
+}
+
 async function loadAvailability(){
   const content = document.getElementById('content');
   content.innerHTML = '<div class="loading">読み込み中…</div>';
@@ -284,57 +292,95 @@ async function loadAvailability(){
     const excludeParam = modifyBookingId ? `&exclude_booking_id=${modifyBookingId}` : '';
     const res = await fetch(`${API_BASE}/api/availability?start_date=${toDateStr(rangeStart)}&days=${DAYS_PER_VIEW}${durationParam}${excludeParam}`);
     if(!res.ok) throw new Error('failed');
-    const data = await res.json();
-    render(data);
+    currentData = await res.json();
+    render();
   }catch(e){
     content.innerHTML = '<div class="error">空き状況を取得できませんでした。<br>時間をおいて再度お試しください。</div>';
   }
 }
 
-function render(data){
-  const { time_slots, dates, availability } = data;
+function render(){
+  const { dates } = currentData;
 
   const first = dates[0], last = dates[dates.length-1];
   document.getElementById('monthLabel').textContent =
     `${first.date.slice(0,7).replace('-','年')}月 ${first.day}日〜${last.day}日`;
 
-  let html = '<div class="scroll-wrap"><table><thead><tr><th class="time-col"></th>';
-  for(const d of dates){
+  // 選択中の日付が今回の期間に含まれていなければ、空きがある最初の日を自動選択
+  const stillInRange = dates.some(d => d.date === selectedDate);
+  if(!stillInRange){
+    const firstAvailable = dates.find(d => availableSlotsFor(d.date).length > 0);
+    selectedDate = firstAvailable ? firstAvailable.date : dates[0].date;
+  }
+  selected = null;
+  document.getElementById('statusBar').classList.remove('show');
+
+  renderDateStrip();
+  renderTimeList();
+}
+
+function renderDateStrip(){
+  const { dates } = currentData;
+  let html = '<div class="date-strip" id="dateStrip">';
+  dates.forEach(d => {
     const wd = d.weekday;
     const cls = wd === '土' ? 'sat' : (wd === '日' ? 'sun' : '');
-    html += `<th><span class="day-num">${d.day}</span><span class="weekday ${cls}">${wd}</span></th>`;
-  }
-  html += '</tr></thead><tbody>';
+    const hasSlots = availableSlotsFor(d.date).length > 0;
+    const isSelected = d.date === selectedDate;
+    html += `<button class="date-card ${isSelected ? 'selected' : ''} ${hasSlots ? '' : 'full'}" data-date="${d.date}">
+        <span class="wd ${cls}">${wd}</span>
+        <span class="num">${d.day}</span>
+        <span class="dot ${hasSlots ? '' : 'none'}"></span>
+      </button>`;
+  });
+  html += '</div>';
 
-  for(const slot of time_slots){
-    html += `<tr><td class="time-col">${slot}</td>`;
-    for(const d of dates){
-      const status = availability[d.date][slot];
-      if(status === 'closed'){
-        html += `<td><div class="cell">ー</div></td>`;
-      }else if(status === 'booked'){
-        html += `<td><div class="cell"><div class="mark booked">✕</div></div></td>`;
-      }else if(status === 'too_late'){
-        html += `<td><div class="cell"><div class="mark booked" style="opacity:.5;">✕</div></div></td>`;
-      }else{
-        html += `<td><div class="cell"><button class="slot-btn" data-date="${d.date}" data-time="${slot}" data-day="${d.day}" data-weekday="${d.weekday}"><div class="mark available"></div></button></div></td>`;
-      }
-    }
-    html += '</tr>';
-  }
-  html += '</tbody></table></div>';
+  document.getElementById('content').innerHTML = html + '<div class="time-section"><p class="time-section-label" id="timeSectionLabel"></p><div class="time-list" id="timeList"></div></div>';
 
-  document.getElementById('content').innerHTML = html;
-
-  document.querySelectorAll('.slot-btn').forEach(btn=>{
+  document.querySelectorAll('.date-card').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      document.querySelectorAll('.slot-btn.selected').forEach(b=>b.classList.remove('selected'));
+      selectedDate = btn.dataset.date;
+      selected = null;
+      document.getElementById('statusBar').classList.remove('show');
+      document.querySelectorAll('.date-card').forEach(b=>b.classList.remove('selected'));
       btn.classList.add('selected');
+      renderTimeList();
+    });
+  });
+}
+
+function renderTimeList(){
+  const dateInfo = currentData.dates.find(d => d.date === selectedDate);
+  const label = dateInfo ? `${dateInfo.day}日（${dateInfo.weekday}）の空き時間` : '';
+  document.getElementById('timeSectionLabel').textContent = label;
+
+  const slots = availableSlotsFor(selectedDate);
+  const listEl = document.getElementById('timeList');
+  const existingEmpty = document.getElementById('emptyDayMsg');
+  if(existingEmpty) existingEmpty.remove();
+
+  if(slots.length === 0){
+    listEl.innerHTML = '';
+    listEl.insertAdjacentHTML('afterend', '<div class="empty-day" id="emptyDayMsg">この日は空きがありません。他の日をお選びください。</div>');
+    return;
+  }
+
+  listEl.innerHTML = slots.map(slot => `
+    <button class="time-slot-btn" data-time="${slot}">
+      <span class="mark"></span>${slot}
+    </button>
+  `).join('');
+
+  document.querySelectorAll('.time-slot-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.time-slot-btn.selected').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      const dInfo = currentData.dates.find(d => d.date === selectedDate);
       selected = {
-        date: btn.dataset.date,
+        date: selectedDate,
         time: btn.dataset.time,
-        day: btn.dataset.day,
-        weekday: btn.dataset.weekday
+        day: dInfo.day,
+        weekday: dInfo.weekday
       };
       showStatusBar();
     });
