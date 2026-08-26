@@ -346,6 +346,21 @@ class Database:
         conn.close()
         return results
 
+        def reorder_menus(self, menu_ids: list) -> bool:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            for index, menu_id in enumerate(menu_ids):
+                cursor.execute('UPDATE menus SET sort_order = ? WHERE id = ?', (index, menu_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error reordering menus: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def delete_menu(self, menu_id: int):
         conn = self.get_connection()
         cursor = conn.cursor()
