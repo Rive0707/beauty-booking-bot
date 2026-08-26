@@ -145,6 +145,13 @@ async function loadMenus(){
   }
 }
 
+function formatMenuPrice(m) {
+  var hasTilde = /[〜～~～]/g.test(m.name) || m.name.indexOf("~RANGE~") !== -1;
+  var cleanName = m.name.replace("~RANGE~", "").replace(/[〜～~～]/g, "").trim();
+  var priceStr = "฿" + Number(m.price).toLocaleString() + (hasTilde ? "〜" : "");
+  return { name: cleanName, priceStr: priceStr };
+}
+
 const selectedMenus = new Map();
 
 function render(menus){
