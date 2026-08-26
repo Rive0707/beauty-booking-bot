@@ -1693,6 +1693,12 @@ async def delete_menu(menu_id: int):
     db.delete_menu(menu_id)
     return {"status": "ok"}
 
+@app.put("/api/menus/reorder")
+async def api_reorder_menus(data: MenuReorderRequest):
+    if db.reorder_menus(data.menu_ids):
+        return {"status": "ok"}
+    return JSONResponse({"error": "並び替えに失敗しました"}, status_code=500)
+
 @app.put("/api/menus/{menu_id}")
 async def update_menu_endpoint(menu_id: int, data: MenuUpdateRequest):
     if db.update_menu(menu_id, data.name, data.price, data.duration_minutes):
