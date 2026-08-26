@@ -115,18 +115,61 @@ class Database:
 
         # 7. 臨時休業日テーブル
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS closed_days ...
+            CREATE TABLE IF NOT EXISTS closed_days (
+                closed_date TEXT PRIMARY KEY,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         ''')
 
         # 8. 時間枠ブロックテーブル（予約不可枠）
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS blocked_slots ...
+            CREATE TABLE IF NOT EXISTS blocked_slots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                block_date TEXT NOT NULL,
+                block_time TEXT NOT NULL,
+                reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(block_date, block_time)
+            )
         ''')
 
         # 9. 顧客メモテーブル
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS customer_notes ...
+            CREATE TABLE IF NOT EXISTS customer_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         ''')
+
+        # ★ 既存データベースのカラム自動マイグレーション（カラム不足による500エラー防止）
+        cursor.execute("PRAGMA table_info(bookings)")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        if "shop_name" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN shop_name TEXT DEFAULT 'URU SALON'")
+
+        if "last_visit_date" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN last_visit_date TEXT")
+
+        if "reminder_7d_sent" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_7d_sent INTEGER DEFAULT 0")
+
+        if "reminder_3d_sent" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_3d_sent INTEGER DEFAULT 0")
+
+        # ★ booking_menus テーブルのカラム自動マイグレーション
+        cursor.execute("PRAGMA table_info(booking_menus)")
+        bm_columns = [column[1] for column in cursor.fetchall()]
+
+        if "sort_order" not in bm_columns:
+            cursor.execute("ALTER TABLE booking_menus ADD COLUMN sort_order INTEGER DEFAULT 0")
+
+        conn.commit()
+        conn.close()
+        logger.info("Database initialized successfully")
 
         # ★ 既存データベースのカラム自動マイグレーション（カラム不足による500エラー防止）
         cursor.execute("PRAGMA table_info(bookings)")
