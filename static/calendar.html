@@ -396,7 +396,6 @@ function renderDateStrip(){
 }
 
 // 追加読み込み処理（関数の外に配置）
-let isLoadingMore = false;
 async function loadMoreDays(){
   if(isLoadingMore) return;
   isLoadingMore = true;
@@ -409,7 +408,11 @@ async function loadMoreDays(){
       const stripEl = document.getElementById('dateStrip');
       const savedScroll = stripEl ? stripEl.scrollLeft : 0;
       currentData = await res.json();
-      renderDateStrip();
+      
+      // 全体の再描画（ヘッダーの年月計算も含む）を実行
+      render();
+      
+      // スクロール位置を保持
       const newStripEl = document.getElementById('dateStrip');
       if(newStripEl) newStripEl.scrollLeft = savedScroll;
     }
