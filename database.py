@@ -559,7 +559,8 @@ class Database:
             conn.close()
 
     def update_booking(self, booking_id: int, booking_date: str = None,
-                       booking_time: str = None, menu_id: int = None):
+                       booking_time: str = None, menu_id: int = None,
+                       menu_ids: list = None):
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -572,10 +573,19 @@ class Database:
             if menu_id:
                 cursor.execute('UPDATE bookings SET menu_id = ? WHERE id = ?',
                                (menu_id, booking_id))
+            # ★ 複数メニュー対応：中間テーブルを置き換え更新
+            if menu_ids is not None:
+                cursor.execute('DELETE FROM booking_menus WHERE booking_id = ?', (booking_id,))
+                for idx, m_id in enumerate(menu_ids):
+                    cursor.execute('''
+                        INSERT INTO booking_menus (booking_id, menu_id, sort_order)
+                        VALUES (?, ?, ?)
+                    ''', (booking_id, m_id, idx))
             conn.commit()
             logger.info(f"Booking updated: {booking_id}")
         except Exception as e:
             logger.error(f"Error updating booking: {e}")
+            conn.rollback()
         finally:
             conn.close()
 
