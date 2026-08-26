@@ -955,6 +955,7 @@ function renderMenus() {
         var karteBtn = '<button class="icon-btn" title="カルテ" onclick="event.stopPropagation(); showCustomerHistory(&quot;' + b.user_id + '&quot;)">📋</button>';
 
         // ★ 複数メニューの名称を取得・生成する処理
+        var menuNameStr = "";
         if (b.menu_names) {
           menuNameStr = b.menu_names;
         } else if (b.menu_ids && Array.isArray(b.menu_ids)) {
