@@ -131,6 +131,12 @@ class Database:
         if "last_visit_date" not in columns:
             cursor.execute("ALTER TABLE bookings ADD COLUMN last_visit_date TEXT")
 
+        if "reminder_7d_sent" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_7d_sent INTEGER DEFAULT 0")
+
+        if "reminder_3d_sent" not in columns:
+            cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_3d_sent INTEGER DEFAULT 0")
+
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
