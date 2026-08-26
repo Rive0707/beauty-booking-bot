@@ -77,6 +77,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS booking_menus (
                 booking_id INTEGER NOT NULL,
                 menu_id INTEGER NOT NULL,
+                sort_order INTEGER DEFAULT 0,
                 PRIMARY KEY (booking_id, menu_id),
                 FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
                 FOREIGN KEY (menu_id) REFERENCES menus(id) ON DELETE CASCADE
