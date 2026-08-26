@@ -367,12 +367,24 @@ function render(){
 function renderDateStrip(){
   const { dates } = currentData;
   let html = '<div class="date-strip" id="dateStrip">';
+  
+  let lastMonth = null;
+
   dates.forEach(d => {
+    const dObj = new Date(d.date + 'T00:00:00');
+    const currentMonth = dObj.getMonth() + 1;
+    
+    // 月が変わる最初の日（またはリストの最初）に月を表示
+    const showMonthPrefix = lastMonth !== null && lastMonth !== currentMonth;
+    lastMonth = currentMonth;
+
     const wd = d.weekday;
     const cls = wd === '土' ? 'sat' : (wd === '日' ? 'sun' : '');
     const hasSlots = availableSlotsFor(d.date).length > 0;
     const isSelected = d.date === selectedDate;
+
     html += `<button class="date-card ${isSelected ? 'selected' : ''} ${hasSlots ? '' : 'full'}" data-date="${d.date}">
+        ${showMonthPrefix ? `<span class="month-prefix">${currentMonth}/</span>` : ''}
         <span class="wd ${cls}">${wd}</span>
         <span class="num">${d.day}</span>
         <span class="dot ${hasSlots ? '' : 'none'}"></span>
@@ -383,7 +395,7 @@ function renderDateStrip(){
   // 1. 先に画面へHTMLを書き出す
   document.getElementById('content').innerHTML = html + '<div class="time-section"><p class="time-section-label" id="timeSectionLabel"></p><div class="time-list" id="timeList"></div></div>';
 
-  // 2. 画面に描画された「後」に要素を取得してイベントを付与する
+  // 2. 画面に描画された「後」に要素を取得してスクロールイベントを付与する
   const stripEl = document.getElementById('dateStrip');
   if (stripEl) {
     stripEl.addEventListener('scroll', ()=>{
@@ -393,7 +405,7 @@ function renderDateStrip(){
     });
   }
 
-  // 3. 日付ボタンのクリックイベントを設定
+  // 3. 日付カードのクリックイベントを設定
   document.querySelectorAll('.date-card').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       selectedDate = btn.dataset.date;
