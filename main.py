@@ -1341,7 +1341,7 @@ function renderMenus() {
         else { toast("エラーが発生しました"); }
     }
 
-    async　function editBooking(id) {
+    async function editBooking(id) {
         var b = bookings.find(function(x){ return x.id === id; }); if (!b) return;
         editingId = id;
         var c = customers.find(function(x){ return x.user_id === b.user_id; });
