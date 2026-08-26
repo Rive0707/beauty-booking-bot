@@ -168,8 +168,6 @@ class Database:
             cursor.execute("ALTER TABLE booking_menus ADD COLUMN sort_order INTEGER DEFAULT 0")
 
         conn.commit()
-        conn.close()
-        logger.info("Database initialized successfully")
 
         # ★ 既存データベースのカラム自動マイグレーション（カラム不足による500エラー防止）
         cursor.execute("PRAGMA table_info(bookings)")
