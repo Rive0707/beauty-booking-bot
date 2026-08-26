@@ -522,58 +522,61 @@ def get_dashboard_html():
     </div>
   </div>
 
-<!-- 新規・編集モーダル -->
-<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title" id="modal-title">予約を登録</span>
-      <button class="icon-btn" onclick="closeModal()" style="width:32px;height:32px;">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label>既存のお客様から選ぶ</label>
-        <input type="text" id="form-customer-input" list="customer-list" placeholder="名前または電話番号を入力..." oninput="onCustomerInput()">
-        <datalist id="customer-list"></datalist>
-        <div id="customer-info-badge" style="display:none; margin-top:6px; padding:6px 10px; background:#e8f4fd; border-radius:6px; font-size:12px; color:#007aff; font-weight:500;"></div>
+    <!-- 新規・編集モーダル -->
+    <div class="form-group">
+      <label>店舗 <span class="req">*</span></label>
+      <div class="radio-row">
+        <label><input type="radio" name="form-shop" value="URU SALON" checked> URU SALON</label>
+        <label><input type="radio" name="form-shop" value="CUTMAN"> CUTMAN</label>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>お客様名 <span class="req">*</span></label><input type="text" id="form-name" placeholder="山田 花子"></div>
-        <div class="form-group"><label>電話番号</label><input type="tel" id="form-phone" placeholder="090-1234-5678" oninput="formatPhone(this)"></div>
+    </div>
+    
+    <div class="form-group">
+      <label>既存のお客様から選ぶ</label>
+      <input type="text" id="form-customer-input" list="customer-list" placeholder="名前または電話番号を入力..." oninput="onCustomerInput()">
+      <datalist id="customer-list"></datalist>
+      <div id="customer-info-badge" style="display:none; margin-top:6px; padding:6px 10px; background:#e8f4fd; border-radius:6px; font-size:12px; color:#007aff; font-weight:500;"></div>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group"><label>お客様名 <span class="req">*</span></label><input type="text" id="form-name" placeholder="山田 花子"></div>
+      <div class="form-group"><label>電話番号</label><input type="tel" id="form-phone" placeholder="090-1234-5678" oninput="formatPhone(this)"></div>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group"><label>日付 <span class="req">*</span></label><input type="date" id="form-date"></div>
+      <div class="form-group"><label>時間 <span class="req">*</span></label><select id="form-time"><option value="">選択</option></select></div>
+    </div>
+    
+    <div class="form-group">
+      <label>前回来店日 <span style="font-size:11px; color:#8e8e93;">（次回予約特典・日数計算用）</span></label>
+      <input type="date" id="form-last-visit-date">
+    </div>
+    
+    <div class="form-group">
+      <label>メニュー <span class="req">*</span></label>
+      <div id="form-menu-container" style="max-height: 150px; overflow-y: auto; border: 1px solid #d1d1d6; border-radius: 10px; padding: 10px; background: #fff;"></div>
+    </div>
+    
+    <div class="form-group"><label>メモ</label><textarea id="form-memo" placeholder="要望・注意事項など"></textarea></div>
+    
+    <!-- 来店完了・カルテ記録モーダル -->
+    <div class="modal-overlay" id="modal-complete-booking" onclick="if(event.target===this)closeCompleteBookingModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">来店完了・カルテ記録</span>
+          <button class="icon-btn" onclick="closeCompleteBookingModal()" style="width:32px;height:32px;">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group"><label>お客さま</label><input type="text" id="complete-customer-name" readonly style="background:#f2f2f7;"></div>
+          <div class="form-group"><label>施術内容・カルテメモ</label><textarea id="complete-notes" rows="4" placeholder="例: アッシュ8トーン、オキシ6%、サイド少し長め"></textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="closeCompleteBookingModal()">キャンセル</button>
+          <button class="btn btn-primary" onclick="submitCompleteBooking()">来店完了として保存</button>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>日付 <span class="req">*</span></label><input type="date" id="form-date"></div>
-        <div class="form-group"><label>時間 <span class="req">*</span></label><select id="form-time"><option value="">選択</option></select></div>
-      </div>
-      <div class="form-group">
-  <label>メニュー <span class="req">*</span></label>
-  <div id="form-menu-container" style="max-height: 150px; overflow-y: auto; border: 1px solid #d1d1d6; border-radius: 10px; padding: 10px; background: #fff;"></div>
-</div>
-      <div class="form-group"><label>メモ</label><textarea id="form-memo" placeholder="要望・注意事項など"></textarea></div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal()">キャンセル</button>
-      <button class="btn btn-primary" onclick="submitBooking()">登録する</button>
-    </div>
-  </div>
-</div>
-
-<!-- 来店完了・カルテ記録モーダル -->
-<div class="modal-overlay" id="modal-complete-booking" onclick="if(event.target===this)closeCompleteBookingModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">来店完了・カルテ記録</span>
-      <button class="icon-btn" onclick="closeCompleteBookingModal()" style="width:32px;height:32px;">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group"><label>お客さま</label><input type="text" id="complete-customer-name" readonly style="background:#f2f2f7;"></div>
-      <div class="form-group"><label>施術内容・カルテメモ</label><textarea id="complete-notes" rows="4" placeholder="例: アッシュ8トーン、オキシ6%、サイド少し長め"></textarea></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeCompleteBookingModal()">キャンセル</button>
-      <button class="btn btn-primary" onclick="submitCompleteBooking()">来店完了として保存</button>
-    </div>
-  </div>
-</div>
 
 <!-- 来店履歴・カルテ閲覧モーダル -->
 <div class="modal-overlay" id="modal-customer-history" onclick="if(event.target===this)closeCustomerHistoryModal()">
