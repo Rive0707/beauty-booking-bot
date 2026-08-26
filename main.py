@@ -1762,16 +1762,24 @@ function renderMenus() {
     dormantList.forEach(function(item) {
       var c = item.customer;
       var isLine = !c.user_id.startsWith("manual_");
+      var customerName = c.name || "(名前未登録)";
       var tr = document.createElement("tr");
 
       tr.innerHTML = "<td>" + (isLine ? "<span class='status-badge status-confirmed'>LINE</span>" : "<span class='status-badge' style='background:#e5e5ea;'>手動</span>") + "</td>" +
-        "<td style='font-weight:500'>" + escapeHtml(c.name || "(名前未登録)") + "</td>" +
+        "<td style='font-weight:500'>" + escapeHtml(customerName) + "</td>" +
         "<td>" + c.last_visit.replace(/-/g, "/") + "</td>" +
         "<td><b style='color:#e65100;'>" + item.diffDays + "日ぶり</b></td>" +
         "<td>" +
-          "<button class='btn' style='font-size:12px; padding:4px 8px; margin-right:6px;' onclick='copyDormantText(\"" + escapeHtml(c.name) + "\")'>📋 文章コピー</button>" +
+          "<button class='btn btn-copy' style='font-size:12px; padding:4px 8px; margin-right:6px;'>📋 文章コピー</button>" +
           (isLine ? "<button class='btn btn-primary' style='font-size:12px; padding:4px 8px;' onclick='openLineOfficialChat()'>💬 チャットを開く</button>" : "<span style='font-size:12px; color:#8e8e93;'>LINE未連携</span>") +
         "</td>";
+
+      // エラー回避のため、ボタンのクリックイベントをここで紐付け
+      var copyBtn = tr.querySelector(".btn-copy");
+      if (copyBtn) {
+        copyBtn.onclick = function() { copyDormantText(customerName); };
+      }
+
       tbody.appendChild(tr);
     });
 
