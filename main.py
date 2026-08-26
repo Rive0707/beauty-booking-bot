@@ -245,7 +245,7 @@ def handle_follow(event):
 # Web管理画面 HTML生成
 # ===============================
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, dependencies=[Depends(verify_admin)])
 async def dashboard():
     return HTMLResponse(content=get_dashboard_html())
 
