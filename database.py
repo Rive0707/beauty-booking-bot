@@ -477,7 +477,11 @@ class Database:
         finally:
             conn.close()
     def is_slot_available(self, booking_date: str, booking_time: str, exclude_booking_id: int = None) -> bool:
-        """その日時が他の予約と重複していないか確認（1件＝60分埋まる前提）"""
+        """その日時が他の予約・ブロックと重複していないか確認（1件＝60分埋まる前提）"""
+        # ブロックチェック
+        if self.is_slot_blocked(booking_date, booking_time):
+            return False
+
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
