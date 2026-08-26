@@ -1403,37 +1403,6 @@ function renderMenus() {
     document.getElementById("history-empty").style.display = histories.length ? "none" : "block";
   }
 
-    async function addMenu() {
-        var name = document.getElementById("menu-name").value.trim();
-        var price = parseInt(document.getElementById("menu-price").value);
-        var duration = parseInt(document.getElementById("menu-duration").value);
-        var isRange = document.getElementById("menu-is-range").checked;
-    
-        if (!name || isNaN(price) || isNaN(duration)) { 
-          toast("全項目を入力してください"); 
-          return; 
-        }
-        
-        // チェックボックスがONの場合、名前の末尾に「〜」を付与して保存
-        if (isRange) {
-          name = name + "〜";
-        }
-    
-        var res = await fetch("/api/menus", { 
-          method: "POST", 
-          headers: {"Content-Type":"application/json"}, 
-          body: JSON.stringify({name: name, price: price, duration_minutes: duration}) 
-        });
-    
-        if (res.ok) {
-          toast("メニューを追加しました");
-          document.getElementById("menu-name").value = "";
-          document.getElementById("menu-price").value = "";
-          document.getElementById("menu-duration").value = "";
-          document.getElementById("menu-is-range").checked = false;
-          loadData();
-        }
-      }
   async function deleteMenu(id) {
     if (!confirm("このメニューを削除しますか？")) return;
     var res = await fetch("/api/menus/" + id, {method: "DELETE"}); if (res.ok) loadData();
