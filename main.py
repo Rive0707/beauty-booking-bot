@@ -1522,15 +1522,24 @@ function renderMenus() {
   }
 
   async function loadData() {
+    var today = fmtDate(new Date());
+    var rangeEnd = new Date(); rangeEnd.setDate(rangeEnd.getDate() + 30);
     var results = await Promise.all([
       fetch("/api/bookings/all").then(function(r){ return r.json(); }),
       fetch("/api/history").then(function(r){ return r.json(); }),
       fetch("/api/customers").then(function(r){ return r.json(); }),
       fetch("/api/menus").then(function(r){ return r.json(); }),
-      fetch("/api/closed-days").then(function(r){ return r.json(); }).catch(function(){ return {closed_days:[]}; })
+      fetch("/api/closed-days").then(function(r){ return r.json(); }).catch(function(){ return {closed_days:[]}; }),
+      fetch("/api/blocked-slots?start_date=" + today + "&end_date=" + fmtDate(rangeEnd)).then(function(r){ return r.json(); }).catch(function(){ return []; })
     ]);
     bookings = results[0]; histories = results[1]; customers = results[2]; menus = results[3].menus || [];
     holidays = (results[4] && results[4].closed_days) ? results[4].closed_days : [];
+    var blockedArray = results[5] || [];
+    window.blockedSlots = {};
+    blockedArray.forEach(function(b){
+      if (!window.blockedSlots[b.block_date]) window.blockedSlots[b.block_date] = [];
+      window.blockedSlots[b.block_date].push({ time: b.block_time, id: b.id, reason: b.reason });
+    });
     populateMenus(); populateCustomers(); updateStats(); renderBoard(); renderList(); renderHistory(); renderMenus(); renderCustomers(); renderHolidays(); renderReport();
   }
 
