@@ -118,9 +118,12 @@
 </head>
 <body>
 
-<header>
-  <h1>メニューを選択</h1>
-  <p class="sub">ご希望の施術内容をお選びください</p>
+<header style="display: flex; align-items: center; justify-content: space-between;">
+  <div>
+    <h1>メニューを選択</h1>
+    <p class="sub">ご希望の施術内容をお選びください</p>
+  </div>
+  <button onclick="if(window.liff && liff.isInClient()){ liff.closeWindow(); }" style="all:unset; font-size:12.5px; color:var(--ink-soft); cursor:pointer; padding:4px 8px; border:1px solid var(--paper-line); border-radius:8px; background:#fff;">✕ 閉じる</button>
 </header>
 
 <div class="steps"><span class="cur">① メニュー</span> ・ ② 日時 ・ ③ お客様情報</div>
