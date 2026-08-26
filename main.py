@@ -175,6 +175,11 @@ class ClosedDayRequest(BaseModel):
 class CompleteBookingRequest(BaseModel):
     notes: Optional[str] = None
 
+class BlockSlotRequest(BaseModel):
+    block_date: str
+    block_time: str
+    reason: Optional[str] = None
+
 class MonthlyReportQuery:
     def __init__(self, year: int, month: int):
         self.year = year
