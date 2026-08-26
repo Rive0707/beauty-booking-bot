@@ -314,10 +314,12 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
+            cursor.execute('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM menus')
+            next_order = cursor.fetchone()[0]
             cursor.execute('''
-                INSERT INTO menus (name, price, duration_minutes)
-                VALUES (?, ?, ?)
-            ''', (name, price, duration_minutes))
+                INSERT INTO menus (name, price, duration_minutes, sort_order)
+                VALUES (?, ?, ?, ?)
+            ''', (name, price, duration_minutes, next_order))
             conn.commit()
             menu_id = cursor.lastrowid
             logger.info(f"Menu added: {name} (ID: {menu_id})")
