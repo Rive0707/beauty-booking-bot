@@ -344,6 +344,24 @@ function renderDateStrip(){
     }
   });
 
+  let isLoadingMore = false;
+async function loadMoreDays(){
+  if(isLoadingMore) return;
+  isLoadingMore = true;
+  daysLoaded += LOAD_MORE_DAYS;
+  const durationParam = menuDuration ? `&duration_minutes=${menuDuration}` : '';
+  const excludeParam = modifyBookingId ? `&exclude_booking_id=${modifyBookingId}` : '';
+  const res = await fetch(`${API_BASE}/api/availability?start_date=${toDateStr(rangeStart)}&days=${daysLoaded}${durationParam}${excludeParam}`);
+  if(res.ok){
+    const stripEl = document.getElementById('dateStrip');
+    const savedScroll = stripEl.scrollLeft;
+    currentData = await res.json();
+    renderDateStrip();
+    document.getElementById('dateStrip').scrollLeft = savedScroll;
+  }
+  isLoadingMore = false;
+}
+
   document.getElementById('content').innerHTML = html + '<div class="time-section"><p class="time-section-label" id="timeSectionLabel"></p><div class="time-list" id="timeList"></div></div>';
 
   document.querySelectorAll('.date-card').forEach(btn=>{
