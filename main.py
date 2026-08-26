@@ -937,6 +937,18 @@ function renderMenus() {
       };
 
       var bs = dayBookings.filter(function(b){ return b.booking_time === time; });
+      var blockedSlot = window.blockedSlots && window.blockedSlots[date] ? window.blockedSlots[date].find(function(s){ return s.time === time; }) : null;
+      
+      if (blockedSlot) {
+        var blockCard = document.createElement("div");
+        blockCard.className = "booking-card";
+        blockCard.style.cssText = "border-left-color:#8e8e93; background:#f2f2f7; opacity:0.7; cursor:default;";
+        blockCard.innerHTML = '<div class="booking-name" style="color:#8e8e93;">🚫 予定あり（ブロック）</div>' +
+          '<div class="booking-meta"><span class="booking-tag">' + escapeHtml(blockedSlot.reason || "予約不可") + '</span></div>' +
+          '<div class="booking-actions"><button class="icon-btn danger" title="ブロック解除" onclick="event.stopPropagation(); unblockSlot(' + blockedSlot.id + ')">🗑</button></div>';
+        content.appendChild(blockCard);
+      }
+      
       bs.forEach(function(b) {
         var c = customers.find(function(x){ return x.user_id === b.user_id; });
         var card = document.createElement("div");
