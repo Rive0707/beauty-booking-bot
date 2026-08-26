@@ -423,6 +423,22 @@ def get_dashboard_html():
     <div id="customer-empty" class="empty" style="display:none;">お客様が登録されていません</div>
   </div>
 
+  <!-- 休眠・追客パネル -->
+  <div class="panel" id="panel-dormant">
+    <div class="toolbar" style="gap:10px;">
+      <button class="btn btn-primary" id="btn-dormant-60" onclick="filterDormant(60, 89)">2ヶ月以上 (60日〜)</button>
+      <button class="btn" id="btn-dormant-90" onclick="filterDormant(90, 179)">3ヶ月以上 (90日〜)</button>
+      <button class="btn" id="btn-dormant-180" onclick="filterDormant(180, 9999)">半年以上 (180日〜)</button>
+    </div>
+    <table class="data-table" style="margin-top:12px;">
+      <thead>
+        <tr><th>種別</th><th>お名前</th><th>最終来店日</th><th>経過日数</th><th style="width:220px;">操作 (無料チャット)</th></tr>
+      </thead>
+      <tbody id="dormant-body"></tbody>
+    </table>
+    <div id="dormant-empty" class="empty" style="display:none;">該当するお客様はいません</div>
+  </div>
+
   <!-- 臨時休業日管理 -->
   <div class="panel" id="panel-holidays">
     <div style="display:grid; grid-template-columns: 280px 1fr; gap: 20px;">
