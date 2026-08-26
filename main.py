@@ -1043,6 +1043,12 @@ function renderMenus() {
           '<div class="booking-meta">' +
             '<span class="booking-tag" style="' + shopBadgeStyle + '">' + shopLabel + '</span>' +
             '<span class="booking-tag">' + escapeHtml(menuNameStr) + '</span>' +
+            lineBadge +
+            lastVisitTagHtml +
+            (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') +
+          '</div>' +
+            '<span class="booking-tag" style="' + shopBadgeStyle + '">' + shopLabel + '</span>' +
+            '<span class="booking-tag">' + escapeHtml(menuNameStr) + '</span>' +
             lastVisitTagHtml +
             (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') +
           '</div>' +
