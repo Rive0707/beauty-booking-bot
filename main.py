@@ -1578,7 +1578,7 @@ function renderMenus() {
 
 @app.get("/api/bookings/all")
 async def api_get_all_bookings():
-    """予約一覧を複数メニュー名（menu_names）も含めて取得する"""
+    """予約一覧を複数メニュー名（menu_names）・店舗名・前回来店日も含めて取得する"""
     conn = db.get_connection()
     cursor = conn.cursor()
     
@@ -1586,6 +1586,8 @@ async def api_get_all_bookings():
         SELECT 
             b.id,
             b.user_id,
+            b.shop_name,
+            b.last_visit_date,
             b.booking_date,
             b.booking_time,
             b.status,
@@ -1610,7 +1612,6 @@ async def api_get_all_bookings():
     result = []
     for r in rows:
         d = dict(r)
-        # 後方互換性のため、1つ目のメニュー情報も残しつつ、複数メニュー名（menu_names）をセット
         d["menu_name"] = d.get("menu_names") or "メニューなし"
         result.append(d)
         
