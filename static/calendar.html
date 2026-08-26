@@ -486,10 +486,6 @@ document.getElementById('jumpDate').addEventListener('change', (e)=>{
   selectedDate = e.target.value;
   loadAvailability();
 });
-document.getElementById('nextWeek').addEventListener('click', ()=>{
-  rangeStart.setDate(rangeStart.getDate() + DAYS_PER_VIEW);
-  loadAvailability();
-});
 
 (async function init(){
   try{
