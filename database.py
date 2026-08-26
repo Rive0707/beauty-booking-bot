@@ -56,6 +56,11 @@ class Database:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+            try:
+            cursor.execute("ALTER TABLE menus ADD COLUMN sort_order INTEGER DEFAULT 0")
+            cursor.execute("UPDATE menus SET sort_order = id")
+        except sqlite3.OperationalError:
+            pass
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS bookings (
