@@ -150,6 +150,7 @@ class ManualBookingRequest(BaseModel):
 
 class DashboardBookingCreate(BaseModel):
     customer_name: str
+    shop_name: Optional[str] = "URU SALON"
     phone: Optional[str] = None
     booking_date: str
     booking_time: str
