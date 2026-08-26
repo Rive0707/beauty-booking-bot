@@ -477,7 +477,7 @@ def get_dashboard_html():
     <div class="stats" style="margin-top:16px;">
       <div class="stat-card">
         <div class="stat-label">月間売上</div>
-        <div class="stat-value" id="r-revenue">¥0</div>
+        <div class="stat-value" id="r-revenue">฿0</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">予約総数</div>
@@ -489,7 +489,7 @@ def get_dashboard_html():
       </div>
       <div class="stat-card">
         <div class="stat-label">平均単価</div>
-        <div class="stat-value" id="r-avg">¥0</div>
+        <div class="stat-value" id="r-avg">฿0</div>
       </div>
     </div>
 
