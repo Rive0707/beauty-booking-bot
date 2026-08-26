@@ -419,27 +419,32 @@ async function loadMoreDays(){
 
 function renderTimeList(){
   const dateInfo = currentData.dates.find(d => d.date === selectedDate);
-  const label = dateInfo ? `${dateInfo.day}日（${dateInfo.weekday}）の空き時間` : '';
+  const label = dateInfo ? `${dateInfo.day}日（${dateInfo.weekday}）の時間帯` : '';
   document.getElementById('timeSectionLabel').textContent = label;
 
-  const slots = availableSlotsFor(selectedDate);
+  const dayAvailability = currentData.availability[selectedDate] || {};
   const listEl = document.getElementById('timeList');
-  const existingEmpty = document.getElementById('emptyDayMsg');
-  if(existingEmpty) existingEmpty.remove();
 
-  if(slots.length === 0){
-    listEl.innerHTML = '';
-    listEl.insertAdjacentHTML('afterend', '<div class="empty-day" id="emptyDayMsg">この日は空きがありません。他の日をお選びください。</div>');
-    return;
-  }
+  listEl.innerHTML = currentData.time_slots.map(slot => {
+    const status = dayAvailability[slot];
+    const isAvailable = status === 'available';
 
-  listEl.innerHTML = slots.map(slot => `
-    <button class="time-slot-btn" data-time="${slot}">
-      <span class="mark"></span>${slot}
-    </button>
-  `).join('');
+    if (isAvailable) {
+      return `
+        <button class="time-slot-btn" data-time="${slot}">
+          <span class="mark"></span>${slot}
+        </button>
+      `;
+    } else {
+      return `
+        <button class="time-slot-btn disabled" disabled>
+          <span class="mark">✕</span>${slot} <span style="font-size:12px; margin-left:auto; color:var(--ink-soft);">受付不可</span>
+        </button>
+      `;
+    }
+  }).join('');
 
-  document.querySelectorAll('.time-slot-btn').forEach(btn=>{
+  document.querySelectorAll('.time-slot-btn:not(.disabled)').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.time-slot-btn.selected').forEach(b=>b.classList.remove('selected'));
       btn.classList.add('selected');
