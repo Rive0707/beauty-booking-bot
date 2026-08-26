@@ -1047,11 +1047,6 @@ function renderMenus() {
             lastVisitTagHtml +
             (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') +
           '</div>' +
-            '<span class="booking-tag" style="' + shopBadgeStyle + '">' + shopLabel + '</span>' +
-            '<span class="booking-tag">' + escapeHtml(menuNameStr) + '</span>' +
-            lastVisitTagHtml +
-            (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') +
-          '</div>' +
           '<div class="booking-actions">' + completeBtn + karteBtn +
             '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
             '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
