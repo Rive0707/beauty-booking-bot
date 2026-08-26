@@ -469,10 +469,12 @@ document.getElementById('confirmBtn').addEventListener('click', async ()=>{
   window.location.href = `booking-form.html?${params.toString()}`;
 });
 
-document.getElementById('prevWeek').addEventListener('click', ()=>{
-  rangeStart.setDate(rangeStart.getDate() - DAYS_PER_VIEW);
-  const today = new Date(); today.setHours(0,0,0,0);
-  if(rangeStart < today) rangeStart = today;
+document.getElementById('jumpDate').min = toDateStr(new Date());
+document.getElementById('jumpDate').addEventListener('change', (e)=>{
+  if(!e.target.value) return;
+  rangeStart = new Date(e.target.value + 'T00:00:00');
+  daysLoaded = INITIAL_DAYS;
+  selectedDate = e.target.value;
   loadAvailability();
 });
 document.getElementById('nextWeek').addEventListener('click', ()=>{
