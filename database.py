@@ -341,7 +341,7 @@ class Database:
     def get_all_menus(self):
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM menus')
+        cursor.execute('SELECT * FROM menus ORDER BY sort_order ASC, id ASC')
         results = cursor.fetchall()
         conn.close()
         return results
