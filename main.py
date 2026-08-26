@@ -1360,6 +1360,13 @@ function renderMenus() {
         else { toast("エラーが発生しました"); }
     }
 
+    async function unblockSlot(slotId) {
+        if (!confirm("この時間枠のブロックを解除しますか？")) return;
+        var res = await fetch("/api/blocked-slots/" + slotId, { method: "DELETE" });
+        if (res.ok) { toast("ブロックを解除しました"); loadData(); }
+        else { toast("解除に失敗しました"); }
+    }
+
     async function submitBlockSlot() {
         var date = document.getElementById("form-date").value;
         var time = document.getElementById("form-time").value;
