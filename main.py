@@ -2058,7 +2058,8 @@ async def api_create_booking(data: DashboardBookingCreate):
         db.save_customer_profile(user_id, data.customer_name, phone=data.phone)
     
     # 複数メニューID（配列）を渡して保存
-    booking_id = db.add_booking(user_id, data.booking_date, data.booking_time, data.menu_ids, data.notes)
+    booking_id = db.add_booking(user_id, data.booking_date, data.booking_time, data.menu_ids, data.notes,
+                                 shop_name=data.shop_name)
     if booking_id:
         db.add_booking_history(booking_id, "created", user_id, after_date=data.booking_date, after_time=data.booking_time, note="手動登録")
         
