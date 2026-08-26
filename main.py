@@ -1153,10 +1153,10 @@ function renderMenus() {
         "<td>" + (c.phone || "-") + "</td>" +
         "<td>" + (c.last_visit ? String(c.last_visit).replace(/-/g, "/") : "-") + "</td>" +
         "<td><div class='row-actions' style='opacity:1;'>" +
-          (isLine ? "<button class='icon-btn' title='LINEチャットを開く(無料)' onclick='openLineOfficialChat()'>💬</button>" : "<button class='icon-btn' title='LINE連携' onclick='openCustomerMergeModal(\"" + id + "\")'>🔗</button>") +
-          "<button class='icon-btn' title='来店履歴・カルテ' onclick='showCustomerHistory(\"" + id + "\")'>📋</button>" +
-          "<button class='icon-btn' title='編集' onclick='openCustomerEditModal(\"" + id + "\")'>✏️</button>" +
-          "<button class='icon-btn danger' title='削除' onclick='deleteCustomer(\"" + id + "\")'>🗑️</button>" +
+          (isLine ? "<button class='icon-btn' title='LINEチャットを開く(無料)' onclick='openLineOfficialChat()'>💬</button>" : "<button class='icon-btn' title='LINE連携' onclick='openCustomerMergeModal(\\"" + id + "\\")'>🔗</button>") +
+          "<button class='icon-btn' title='来店履歴・カルテ' onclick='showCustomerHistory(\\"" + id + "\\")'>📋</button>" +
+          "<button class='icon-btn' title='編集' onclick='openCustomerEditModal(\\"" + id + "\\")'>✏️</button>" +
+          "<button class='icon-btn danger' title='削除' onclick='deleteCustomer(\\"" + id + "\\")'>🗑️</button>" +
         "</div></td>";
       body.appendChild(tr);
     });
