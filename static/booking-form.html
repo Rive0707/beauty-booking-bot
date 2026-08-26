@@ -334,23 +334,32 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       if(!res.ok) throw new Error('failed');
   
       // 予約成功時：画面を完了UIに差し替え
+// 予約成功時：画面を完了UIに切り替えて1秒後に自動で閉じる
+      btn.textContent = '予約が完了しました';
       document.body.innerHTML = `
-        <div style="padding: 40px 20px; text-align: center;">
-          <div style="font-size: 40px; margin-bottom: 12px;">🎉</div>
+        <div style="padding: 50px 20px; text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
           <h2 style="font-family:'Shippori Mincho', serif; font-size: 22px; color: var(--ink); margin-bottom: 8px;">ご予約が完了しました</h2>
-          <p style="font-size: 13px; color: var(--ink-soft); margin-bottom: 24px;">ご予約ありがとうございます。<br>メッセージをご確認ください。</p>
+          <p style="font-size: 13px; color: var(--ink-soft); margin-bottom: 24px;">LINEに予約完了メッセージをお送りしました。<br>画面を自動で閉じます…</p>
           
           <div style="background: #fff; border: 1px solid var(--paper-line); border-radius: 14px; padding: 16px; text-align: left; margin-bottom: 24px;">
             <p style="font-size: 11px; color: var(--ink-soft); margin: 0 0 4px;">ご予約内容</p>
-            <p style="font-family:'Shippori Mincho', serif; font-weight: 700; font-size: 16px; margin: 0 0 6px;">${escapeHtml(bookingInfo.menu_name)}</p>
+            <p style="font-family:'Shippori Mincho', serif; font-weight: 700; font-size: 16px; margin: 0 0 6px;">${escapeHtml(bookingInfo.menu_name || '')}</p>
             <p style="font-size: 13.5px; color: var(--plum); font-weight: 700; margin: 0;">${bookingInfo.date}（${bookingInfo.weekday}）${bookingInfo.time}〜</p>
           </div>
-  
-          <button onclick="if(window.liff && liff.isInClient()){ liff.closeWindow(); }" style="all:unset; background: var(--plum); color: #fff; width: 100%; padding: 13px; border-radius: 10px; font-weight: 700; font-size: 14.5px; cursor: pointer;">
-            画面を閉じる
+          
+          <button onclick="if(window.liff && liff.isInClient && liff.isInClient()){ liff.closeWindow(); }" style="all:unset; background: var(--plum); color: #fff; width: 100%; padding: 13px; border-radius: 10px; font-weight: 700; font-size: 14.5px; cursor: pointer;">
+            画面を今すぐ閉じる
           </button>
         </div>
       `;
+
+      // 1秒後に自動でLINE画面を閉じる
+      setTimeout(() => {
+        if (window.liff && liff.isInClient && liff.isInClient()) {
+          liff.closeWindow();
+        }
+      }, 1000);
   
     } catch(e) {
       showToast('予約の確定に失敗しました。時間をおいて再度お試しください。');
