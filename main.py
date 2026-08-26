@@ -1702,7 +1702,7 @@ function renderMenus() {
   var currentDormantMin = 60;
   var currentDormantMax = 89;
 
-  function filterDormant(minDays, maxDays) {
+function filterDormant(minDays, maxDays) {
     currentDormantMin = minDays;
     currentDormantMax = maxDays;
     
