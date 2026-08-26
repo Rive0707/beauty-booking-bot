@@ -1349,9 +1349,10 @@ function renderMenus() {
         var b = bookings.find(function(x){ return x.id === id; }); if (!b) return;
         editingId = id;
         var c = customers.find(function(x){ return x.user_id === b.user_id; });
-        document.getElementById("modal-title").textContent = "予約を編集";
         
-        // 店舗選択のラジオボタンをセット
+        var titleEl = document.getElementById("modal-title");
+        if (titleEl) titleEl.textContent = "予約を編集";
+        
         var shopRadio = document.querySelector('input[name="form-shop"][value="' + (b.shop_name || "URU SALON") + '"]');
         if (shopRadio) shopRadio.checked = true;
 
@@ -1359,7 +1360,10 @@ function renderMenus() {
         document.getElementById("form-phone").value = c ? c.phone : "";
         document.getElementById("form-date").value = b.booking_date;
         document.getElementById("form-time").value = b.booking_time;
-        document.getElementById("form-last-visit-date").value = b.last_visit_date || ""; // ★ 前回来店日
+        
+        var lastVisitInput = document.getElementById("form-last-visit-date");
+        if (lastVisitInput) lastVisitInput.value = b.last_visit_date || "";
+        
         document.getElementById("form-memo").value = b.notes || "";
     
         document.querySelectorAll('input[name="form-menu-item"]').forEach(function(cb) {
