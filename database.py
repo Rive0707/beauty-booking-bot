@@ -122,6 +122,16 @@ class Database:
             )
         ''')
 
+        # 8. 顧客メモテーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customer_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # ★ 既存データベースのカラム自動マイグレーション（カラム不足による500エラー防止）
         cursor.execute("PRAGMA table_info(bookings)")
         columns = [column[1] for column in cursor.fetchall()]
