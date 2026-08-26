@@ -123,16 +123,6 @@ class BookingCreateFromLiffRequest(BaseModel):
     birthdate: Optional[str] = None
     phone: Optional[str] = None
 
-class DashboardBookingCreate(BaseModel):
-    customer_name: str
-    shop_name: Optional[str] = "URU SALON"
-    phone: Optional[str] = None
-    booking_date: str
-    booking_time: str
-    menu_ids: list[int]
-    notes: Optional[str] = None
-    existing_user_id: Optional[str] = None
-
 class RescheduleRequest(BaseModel):
     user_id: str
     booking_id: int
