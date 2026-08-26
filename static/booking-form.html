@@ -213,6 +213,13 @@
 </div>
 
 <script>
+function escapeHtml(str){
+  if(!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+  
 const LIFF_ID = '2011089217-uEvBgkD3'; // 本番用LIFF ID
 const API_BASE = window.location.origin;
 const params = new URLSearchParams(location.search);
