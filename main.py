@@ -761,16 +761,69 @@ function renderMenus() {
     menus.forEach(function(m) {
       var info = formatMenuPrice(m);
       var tr = document.createElement("tr");
-      tr.innerHTML = "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td>" +
+      tr.dataset.menuId = m.id;
+      tr.innerHTML = "<td class='drag-handle' style='cursor:grab; text-align:center; color:#c7c7cc; touch-action:none; user-select:none;'>⠿</td>" +
+                     "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td>" +
                      "<td>" + info.priceStr + "</td>" +
                      "<td>" + m.duration_minutes + "分</td>" +
                      "<td style='text-align:center; white-space:nowrap;'>" +
                        "<button class='icon-btn' title='編集' onclick='openMenuEditModal(" + m.id + ")' style='margin-right:6px;'>✏️</button>" +
                        "<button class='icon-btn danger' title='削除' onclick='deleteMenu(" + m.id + ")'>🗑️</button>" +
                      "</td>";
+      tr.querySelector(".drag-handle").addEventListener("pointerdown", function(e){ startMenuDrag(e, tr); });
       tbody.appendChild(tr);
     });
     document.getElementById("menu-empty").style.display = menus.length ? "none" : "block";
+  }
+
+  function startMenuDrag(e, tr) {
+    e.preventDefault();
+    tr.classList.add("dragging");
+    tr.style.opacity = "0.5";
+
+    function onMove(ev) {
+      var y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      var after = getMenuDragAfterElement(tr.parentNode, y);
+      if (after == null) { tr.parentNode.appendChild(tr); }
+      else { tr.parentNode.insertBefore(tr, after); }
+    }
+    function onUp() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      tr.classList.remove("dragging");
+      tr.style.opacity = "";
+      finishMenuReorder();
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }
+
+  function getMenuDragAfterElement(container, y) {
+    var rows = Array.prototype.slice.call(container.querySelectorAll("tr:not(.dragging)"));
+    var result = { offset: -Infinity, element: null };
+    rows.forEach(function(row) {
+      var box = row.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > result.offset) { result = { offset: offset, element: row }; }
+    });
+    return result.element;
+  }
+
+  async function finishMenuReorder() {
+    var tbody = document.getElementById("menu-body");
+    var newOrder = Array.prototype.slice.call(tbody.querySelectorAll("tr")).map(function(tr){ return parseInt(tr.dataset.menuId, 10); });
+    var res = await fetch("/api/menus/reorder", {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ menu_ids: newOrder })
+    });
+    if (res.ok) {
+      menus.sort(function(a, b){ return newOrder.indexOf(a.id) - newOrder.indexOf(b.id); });
+      toast("並び順を変更しました");
+    } else {
+      toast("並び替えに失敗しました");
+      loadData();
+    }
   }
 
   async function addMenu() {
