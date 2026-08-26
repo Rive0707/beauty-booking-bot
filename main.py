@@ -1925,7 +1925,12 @@ async def api_get_availability(start_date: str, days: int = 7, duration_minutes:
                 day_availability[slot] = "closed"
                 continue
 
-            # 4. 既存予約との重複チェック（施術時間範囲が被っているか）
+            # 4. ブロック枠チェック
+            if blocked_dict.get(d_str, []) and slot in blocked_dict[d_str]:
+                day_availability[slot] = "blocked"
+                continue
+
+            # 5. 既存予約との重複チェック（施術時間範囲が被っているか）
             is_overlap = False
             for b_start, b_end in day_booked_spans:
                 # 枠の「開始〜終了」が既存予約の「開始〜終了」と重なっているか判定
