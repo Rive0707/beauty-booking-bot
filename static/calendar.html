@@ -337,6 +337,13 @@ function renderDateStrip(){
   });
   html += '</div>';
 
+    const stripEl = document.getElementById('dateStrip');
+  stripEl.addEventListener('scroll', ()=>{
+    if(stripEl.scrollLeft + stripEl.clientWidth >= stripEl.scrollWidth - 80){
+      loadMoreDays();
+    }
+  });
+
   document.getElementById('content').innerHTML = html + '<div class="time-section"><p class="time-section-label" id="timeSectionLabel"></p><div class="time-list" id="timeList"></div></div>';
 
   document.querySelectorAll('.date-card').forEach(btn=>{
