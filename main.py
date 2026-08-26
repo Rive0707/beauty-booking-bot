@@ -964,8 +964,42 @@ function renderMenus() {
         // データベースから取得した "カラー〜" などの表記から「〜」を取り除く処理
         menuNameStr = menuNameStr.replace(/~RANGE~/g, "").replace(/[〜～~～]/g, "").trim();
 
+        // 店舗バッジ (URU SALON / CUTMAN)
+        var isCutman = (b.shop_name === "CUTMAN");
+        var shopBadgeStyle = isCutman ? "background:#e3f2fd; color:#1565c0; font-weight:bold;" : "background:#fce4ec; color:#c2185b; font-weight:bold;";
+        var shopLabel = isCutman ? "CUTMAN" : "URU SALON";
+
+        // 前回来店日・日数経過バッジ
+        var lastVisitTagHtml = '';
+        var lastVisitStr = b.last_visit_date || (b.notes && b.notes.match(/(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2})/)? [0]);
+        if (lastVisitStr) {
+          var bDate = new Date(b.booking_date + "T00:00:00");
+          var vDate = lastVisitStr.includes("-") 
+            ? new Date(lastVisitStr + "T00:00:00")
+            : new Date(bDate.getFullYear(), parseInt(lastVisitStr.split("/")[0], 10) - 1, parseInt(lastVisitStr.split("/")[1], 10));
+          if (vDate > bDate) vDate.setFullYear(vDate.getFullYear() - 1);
+
+          var diffDays = Math.round((bDate - vDate) / (1000 * 60 * 60 * 24));
+          var displayDate = (vDate.getMonth() + 1) + "/" + vDate.getDate();
+
+          if (!isNaN(diffDays) && diffDays >= 0) {
+            var tagBg = '#e8f5e9', tagColor = '#2e7d32', rangeText = '1ヶ月以内';
+            if (diffDays > 30 && diffDays <= 60) {
+              tagBg = '#fff8e1'; tagColor = '#f57f17'; rangeText = '2ヶ月以内';
+            } else if (diffDays > 60) {
+              tagBg = '#ffebee'; tagColor = '#c62828'; rangeText = '2ヶ月超';
+            }
+            lastVisitTagHtml = '<span class="booking-tag" style="background:' + tagBg + '; color:' + tagColor + '; font-weight:bold;">前回 ' + displayDate + ' (' + diffDays + '日ぶり・' + rangeText + ')</span>';
+          }
+        }
+
         card.innerHTML = '<div class="booking-name">' + (c ? c.name : b.user_id) + (b.status === "completed" ? ' <span style="font-size:11px;color:#8e8e93;">(来店済)</span>' : "") + '</div>' +
-          '<div class="booking-meta"><span class="booking-tag">' + escapeHtml(menuNameStr) + '</span>' + (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') + '</div>' +
+          '<div class="booking-meta">' +
+            '<span class="booking-tag" style="' + shopBadgeStyle + '">' + shopLabel + '</span>' +
+            '<span class="booking-tag">' + escapeHtml(menuNameStr) + '</span>' +
+            lastVisitTagHtml +
+            (b.notes ? '<span class="booking-tag">' + escapeHtml(b.notes) + '</span>' : '') +
+          '</div>' +
           '<div class="booking-actions">' + completeBtn + karteBtn +
             '<button class="icon-btn" title="編集" onclick="event.stopPropagation(); editBooking(' + b.id + ')">✏️</button>' +
             '<button class="icon-btn danger" title="削除" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">🗑</button>' +
