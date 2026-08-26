@@ -2152,16 +2152,21 @@ async def api_monthly_report(year: int, month: int):
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    # 基本サマリー
+    # 基本サマリー（複数メニュー対応：booking_menus経由で合計金額を計算）
     cursor.execute("""
         SELECT 
             COUNT(*) as total_bookings,
-            SUM(CASE WHEN status != 'cancelled' THEN 1 ELSE 0 END) as active_bookings,
-            SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_bookings,
-            SUM(CASE WHEN status = 'completed' THEN m.price ELSE 0 END) as revenue,
-            AVG(CASE WHEN status = 'completed' THEN m.price END) as avg_price
+            SUM(CASE WHEN b.status != 'cancelled' THEN 1 ELSE 0 END) as active_bookings,
+            SUM(CASE WHEN b.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_bookings,
+            SUM(CASE WHEN b.status = 'completed' THEN COALESCE(bm_total.menu_total, 0) ELSE 0 END) as revenue,
+            AVG(CASE WHEN b.status = 'completed' THEN COALESCE(bm_total.menu_total, 0) END) as avg_price
         FROM bookings b
-        LEFT JOIN menus m ON b.menu_id = m.id
+        LEFT JOIN (
+            SELECT booking_id, SUM(m.price) as menu_total
+            FROM booking_menus bm
+            JOIN menus m ON bm.menu_id = m.id
+            GROUP BY booking_id
+        ) bm_total ON b.id = bm_total.booking_id
         WHERE b.booking_date >= ? AND b.booking_date <= ?
     """, (start_date, end_date))
     row = cursor.fetchone()
@@ -2187,11 +2192,12 @@ async def api_monthly_report(year: int, month: int):
             (summary["cancelled_bookings"] / total * 100), 1
         ) if total else 0.0
     
-    # メニュー別売上ランキング
+    # メニュー別売上ランキング（複数メニュー対応）
     cursor.execute("""
         SELECT m.name, COUNT(*) as count, SUM(m.price) as revenue
         FROM bookings b
-        JOIN menus m ON b.menu_id = m.id
+        JOIN booking_menus bm ON b.id = bm.booking_id
+        JOIN menus m ON bm.menu_id = m.id
         WHERE b.booking_date >= ? AND b.booking_date <= ? AND b.status = 'completed'
         GROUP BY m.id
         ORDER BY revenue DESC
@@ -2208,12 +2214,17 @@ async def api_monthly_report(year: int, month: int):
     """, (start_date, end_date))
     time_stats = [dict(r) for r in cursor.fetchall()]
     
-    # 顧客ランキング（来店回数）
+    # 顧客ランキング（複数メニュー対応：1予約あたりの合計金額で集計）
     cursor.execute("""
-        SELECT c.name, COUNT(*) as visits, SUM(m.price) as total_spent
+        SELECT c.name, COUNT(DISTINCT b.id) as visits, SUM(bm_total.menu_total) as total_spent
         FROM bookings b
         JOIN customers c ON b.user_id = c.user_id
-        JOIN menus m ON b.menu_id = m.id
+        JOIN (
+            SELECT booking_id, SUM(m.price) as menu_total
+            FROM booking_menus bm
+            JOIN menus m ON bm.menu_id = m.id
+            GROUP BY booking_id
+        ) bm_total ON b.id = bm_total.booking_id
         WHERE b.booking_date >= ? AND b.booking_date <= ? AND b.status = 'completed'
         GROUP BY b.user_id
         ORDER BY visits DESC
