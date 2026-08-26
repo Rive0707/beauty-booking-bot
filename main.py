@@ -2114,8 +2114,8 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     
     new_date = data.booking_date or booking["booking_date"]
     new_time = data.booking_time or booking["booking_time"]
-
-    # データベースの予約情報を上書き更新
+    
+    # 1. bookings テーブルの更新
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -2131,7 +2131,7 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
         booking_id
     ))
     
-    # メニューIDの更新処理（配列で送られてきた場合）
+    # 2. 複数メニュー（booking_menus）の更新
     if data.menu_ids:
         cursor.execute("DELETE FROM booking_menus WHERE booking_id = ?", (booking_id,))
         for m_id in data.menu_ids:
@@ -2140,11 +2140,11 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     conn.commit()
     conn.close()
 
+    # 3. 履歴追加
     db.add_booking_history(booking_id, "modified", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"], after_date=new_date, after_time=new_time)
     
-    # 日時（日付または時間）に変更があった場合のみ LINE 通知を送る
+    # 4. 日時が変更された場合のみ LINE 送信
     is_date_changed = (booking["booking_date"] != new_date) or (booking["booking_time"] != new_time)
-    
     user_id = booking["user_id"]
     if is_date_changed and user_id and not user_id.startswith("manual_"):
         line_handler.send_text(user_id, f"""📝 ご予約日時が変更されました
