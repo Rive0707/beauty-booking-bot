@@ -973,6 +973,12 @@ function renderMenus() {
 
         var karteBtn = '<button class="icon-btn" title="カルテ" onclick="event.stopPropagation(); showCustomerHistory(&quot;' + b.user_id + '&quot;)">📋</button>';
 
+        // LINE連携状況バッジ
+        var isLineLinked = b.user_id && !b.user_id.startsWith("manual_");
+        var lineBadge = isLineLinked 
+          ? '<span class="booking-tag" style="background:#e8f5e9; color:#2e7d32;">✅ LINE連携済</span>' 
+          : '<span class="booking-tag" style="background:#fff3e0; color:#e65100;">🔗 LINE未連携</span>';
+
         // ★ 複数メニューの名称を取得・生成する処理
         var menuNameStr = "";
         if (b.menu_names) {
