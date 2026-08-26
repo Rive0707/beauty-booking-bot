@@ -346,7 +346,7 @@ class Database:
         conn.close()
         return results
 
-        def reorder_menus(self, menu_ids: list) -> bool:
+    def reorder_menus(self, menu_ids: list) -> bool:
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
