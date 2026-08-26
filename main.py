@@ -1574,7 +1574,43 @@ function renderMenus() {
 
 @app.get("/api/bookings/all")
 async def api_get_all_bookings():
-    return [dict(r) for r in db.get_all_bookings_with_details()]
+    """予約一覧を複数メニュー名（menu_names）も含めて取得する"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    query = """
+        SELECT 
+            b.id,
+            b.user_id,
+            b.booking_date,
+            b.booking_time,
+            b.status,
+            b.notes,
+            c.name AS customer_name,
+            c.phone AS customer_phone,
+            GROUP_CONCAT(m.name, ' + ') AS menu_names,
+            SUM(m.duration_minutes) AS total_duration,
+            SUM(m.price) AS total_price
+        FROM bookings b
+        LEFT JOIN customers c ON b.user_id = c.user_id
+        LEFT JOIN booking_menus bm ON b.id = bm.booking_id
+        LEFT JOIN menus m ON bm.menu_id = m.id
+        GROUP BY b.id
+        ORDER BY b.booking_date ASC, b.booking_time ASC
+    """
+    
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    result = []
+    for r in rows:
+        d = dict(r)
+        # 後方互換性のため、1つ目のメニュー情報も残しつつ、複数メニュー名（menu_names）をセット
+        d["menu_name"] = d.get("menu_names") or "メニューなし"
+        result.append(d)
+        
+    return result
 
 @app.get("/api/history")
 async def api_get_history(limit: int = 50):
