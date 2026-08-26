@@ -138,6 +138,13 @@ class Database:
         if "reminder_3d_sent" not in columns:
             cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_3d_sent INTEGER DEFAULT 0")
 
+        # ★ booking_menus テーブルのカラム自動マイグレーション
+        cursor.execute("PRAGMA table_info(booking_menus)")
+        bm_columns = [column[1] for column in cursor.fetchall()]
+
+        if "sort_order" not in bm_columns:
+            cursor.execute("ALTER TABLE booking_menus ADD COLUMN sort_order INTEGER DEFAULT 0")
+
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
