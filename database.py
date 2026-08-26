@@ -69,6 +69,8 @@ class Database:
                 user_id TEXT NOT NULL,
                 booking_time TEXT NOT NULL,
                 menu_id INTEGER NOT NULL,
+                shop_name TEXT DEFAULT 'URU SALON',
+                last_visit_date TEXT,
                 notes TEXT,
                 status TEXT DEFAULT 'confirmed',
                 reminder_sent INTEGER DEFAULT 0,
