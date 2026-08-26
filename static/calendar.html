@@ -216,6 +216,23 @@
     color:var(--ink-soft);
     font-size:13px;
   }
+  
+  /* 予約不可（✕）スロットのスタイル */
+  .time-slot-btn.disabled {
+    opacity: 0.45;
+    background: #f2f2f7;
+    cursor: not-allowed;
+    border-color: var(--paper-line);
+  }
+  .time-slot-btn.disabled .mark {
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-soft);
+    font-size: 14px;
+    font-weight: 700;
+  }
 </style>
 </head>
 <body>
