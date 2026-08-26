@@ -167,9 +167,84 @@ class Database:
         if "sort_order" not in bm_columns:
             cursor.execute("ALTER TABLE booking_menus ADD COLUMN sort_order INTEGER DEFAULT 0")
 
+        # ★ customer_notes テーブルがなければ作成（B項も同時に対応）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customer_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
+
+    # === ブロック枠（予約不可）メソッド ===
+    def add_blocked_slot(self, block_date: str, block_time: str, reason: str = None) -> bool:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO blocked_slots (block_date, block_time, reason)
+                VALUES (?, ?, ?)
+            ''', (block_date, block_time, reason))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error adding blocked slot: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def get_blocked_slots_in_range(self, start_date_str: str, end_date_str: str):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM blocked_slots
+            WHERE block_date >= ? AND block_date <= ?
+            ORDER BY block_date, block_time
+        ''', (start_date_str, end_date_str))
+        results = cursor.fetchall()
+        conn.close()
+        return results
+
+    def get_blocked_slots_by_date(self, block_date: str):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM blocked_slots WHERE block_date = ? ORDER BY block_time
+        ''', (block_date,))
+        results = cursor.fetchall()
+        conn.close()
+        return results
+
+    def delete_blocked_slot(self, slot_id: int) -> bool:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('DELETE FROM blocked_slots WHERE id = ?', (slot_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting blocked slot: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def is_slot_blocked(self, block_date: str, block_time: str) -> bool:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) as cnt FROM blocked_slots
+            WHERE block_date = ? AND block_time = ?
+        ''', (block_date, block_time))
+        row = cursor.fetchone()
+        conn.close()
+        return row["cnt"] > 0
+
+    def add_booking_history(self, booking_id: int, action: str, user_id: str = None,
 
     def add_booking_history(self, booking_id: int, action: str, user_id: str = None,
                           before_date: str = None, before_time: str = None,
