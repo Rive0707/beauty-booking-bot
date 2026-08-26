@@ -1698,6 +1698,85 @@ function renderMenus() {
 
   loadData();
   setInterval(checkAndReloadData, 15000);
+
+  var currentDormantMin = 60;
+  var currentDormantMax = 89;
+
+  function filterDormant(minDays, maxDays) {
+    currentDormantMin = minDays;
+    currentDormantMax = maxDays;
+    
+    // ボタンのスタイル切り替え
+    [60, 90, 180].forEach(function(d){
+      var btn = document.getElementById("btn-dormant-" + d);
+      if(btn) {
+        if(d === minDays) { btn.className = "btn btn-primary"; }
+        else { btn.className = "btn"; }
+      }
+    });
+    renderDormant();
+  }
+
+  function copyDormantText(name) {
+    var text = (name || "お客様") + " 様\n\nこんにちは！いつもご来店ありがとうございます。\n前回のご来店から少しお時間が経ちましたが、髪の状態はいかがでしょうか？\nまたのご来店を心よりお待ちしております✂️";
+    navigator.clipboard.writeText(text).then(function() {
+      toast("メッセージ定型文をコピーしました！");
+    });
+  }
+
+  function renderDormant() {
+    var tbody = document.getElementById("dormant-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var todayStr = fmtDate(today);
+
+    // 今後（今日以降）の確定予約を持っているユーザーIDのセットを作成（除外用）
+    var activeUserIds = new Set();
+    bookings.forEach(function(b) {
+      if (b.booking_date >= todayStr && b.status === "confirmed") {
+        activeUserIds.add(b.user_id);
+      }
+    });
+
+    var dormantList = [];
+
+    customers.forEach(function(c) {
+      // 今後の予約があるお客様は除外
+      if (activeUserIds.has(c.user_id)) return;
+      if (!c.last_visit) return; // 来店履歴なしは除外
+
+      var vDate = new Date(c.last_visit + "T00:00:00");
+      var diffDays = Math.floor((today - vDate) / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= currentDormantMin && diffDays <= currentDormantMax) {
+        dormantList.push({ customer: c, diffDays: diffDays });
+      }
+    });
+
+    // 経過日数が長い順にソート
+    dormantList.sort(function(a,b){ return b.diffDays - a.diffDays; });
+
+    dormantList.forEach(function(item) {
+      var c = item.customer;
+      var isLine = !c.user_id.startsWith("manual_");
+      var tr = document.createElement("tr");
+
+      tr.innerHTML = "<td>" + (isLine ? "<span class='status-badge status-confirmed'>LINE</span>" : "<span class='status-badge' style='background:#e5e5ea;'>手動</span>") + "</td>" +
+        "<td style='font-weight:500'>" + escapeHtml(c.name || "(名前未登録)") + "</td>" +
+        "<td>" + c.last_visit.replace(/-/g, "/") + "</td>" +
+        "<td><b style='color:#e65100;'>" + item.diffDays + "日ぶり</b></td>" +
+        "<td>" +
+          "<button class='btn' style='font-size:12px; padding:4px 8px; margin-right:6px;' onclick='copyDormantText(\"" + escapeHtml(c.name) + "\")'>📋 文章コピー</button>" +
+          (isLine ? "<button class='btn btn-primary' style='font-size:12px; padding:4px 8px;' onclick='openLineOfficialChat()'>💬 チャットを開く</button>" : "<span style='font-size:12px; color:#8e8e93;'>LINE未連携</span>") +
+        "</td>";
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("dormant-empty").style.display = dormantList.length ? "none" : "block";
+  }
 </script>
 </body>
 </html>
