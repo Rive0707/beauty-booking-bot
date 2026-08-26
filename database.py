@@ -64,6 +64,8 @@ class Database:
                 notes TEXT,
                 status TEXT DEFAULT 'confirmed',
                 reminder_sent INTEGER DEFAULT 0,
+                reminder_7d_sent INTEGER DEFAULT 0,
+                reminder_3d_sent INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES customers(user_id),
                 FOREIGN KEY (menu_id) REFERENCES menus(id)
