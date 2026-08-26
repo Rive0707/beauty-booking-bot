@@ -2067,28 +2067,27 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     new_date = data.booking_date or booking["booking_date"]
     new_time = data.booking_time or booking["booking_time"]
     
-    # 1. bookings テーブルの更新
+    # 1. bookings テーブルの基本情報更新
+    db.update_booking(
+        booking_id,
+        booking_date=new_date,
+        booking_time=new_time,
+        menu_ids=data.menu_ids
+    )
+    
+    # 2. その他のカラム（shop_name / last_visit_date / notes）を更新
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE bookings 
-        SET booking_date = ?, booking_time = ?, shop_name = ?, last_visit_date = ?, notes = ?
+        SET shop_name = ?, last_visit_date = ?, notes = ?
         WHERE id = ?
     """, (
-        new_date, 
-        new_time, 
         data.shop_name or booking["shop_name"] or "URU SALON", 
         data.last_visit_date if data.last_visit_date is not None else booking["last_visit_date"], 
         data.notes if data.notes is not None else booking["notes"], 
         booking_id
     ))
-    
-    # 2. 複数メニュー（booking_menus）の更新
-    if data.menu_ids:
-        cursor.execute("DELETE FROM booking_menus WHERE booking_id = ?", (booking_id,))
-        for m_id in data.menu_ids:
-            cursor.execute("INSERT INTO booking_menus (booking_id, menu_id) VALUES (?, ?)", (booking_id, m_id))
-            
     conn.commit()
     conn.close()
 
