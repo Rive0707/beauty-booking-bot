@@ -148,18 +148,6 @@ class ManualBookingRequest(BaseModel):
     note: Optional[str] = None
     existing_user_id: Optional[str] = None
 
-class BookingUpdateRequest(BaseModel):
-    booking_date: Optional[str] = None
-    booking_time: Optional[str] = None
-    menu_id: Optional[int] = None
-    menu_ids: Optional[list[int]] = None
-    shop_name: Optional[str] = None
-    last_visit_date: Optional[str] = None
-    notes: Optional[str] = None
-    customer_name: Optional[str] = None
-    phone: Optional[str] = None
-    existing_user_id: Optional[str] = None
-
 class DashboardBookingCreate(BaseModel):
     customer_name: str
     phone: Optional[str] = None
@@ -2096,8 +2084,6 @@ async def api_create_booking(data: DashboardBookingCreate):
         return {"id": booking_id, "status": "ok"}
     return JSONResponse({"error": "failed"}, status_code=500)
 
-
-@app.put("/api/bookings/{booking_id}")
 class BookingUpdateRequest(BaseModel):
     booking_date: Optional[str] = None
     booking_time: Optional[str] = None
