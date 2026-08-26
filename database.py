@@ -3,7 +3,7 @@ SQLiteデータベース管理
 顧客、予約、メニュー、来店履歴を管理
 """
 
-from typing import Optional, List
+from typing import Optional
 import os
 import sqlite3
 from datetime import datetime, date, timedelta
