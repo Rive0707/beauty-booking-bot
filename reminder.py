@@ -87,7 +87,6 @@ class ReminderScheduler:
 
 📅 予約日時: {booking_date} {booking_time}
 🎨 メニュー: {menu_name}
-📍 予約ID: {booking_id}
 
 ◆ ご来店前の確認事項
 ✅ 事前に予約内容をご確認ください。
