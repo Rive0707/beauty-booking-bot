@@ -395,7 +395,7 @@ class Database:
         return True
 
     def add_booking(self, user_id: str, booking_date: str, booking_time: str,
-                    menu_ids: list, notes: str = None) -> int:
+                    menu_ids: list, notes: str = None, shop_name: str = "URU SALON") -> int:
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
@@ -404,9 +404,9 @@ class Database:
             # ① 既存の bookings テーブルには「最初のメニューID」を入れる（後方互換）
             primary_menu_id = menu_ids[0] if menu_ids else 1
             cursor.execute('''
-                INSERT INTO bookings (booking_date, user_id, booking_time, menu_id, notes, status)
-                VALUES (?, ?, ?, ?, ?, 'confirmed')
-            ''', (booking_date, user_id, booking_time, primary_menu_id, notes))
+                INSERT INTO bookings (booking_date, user_id, booking_time, menu_id, notes, status, shop_name)
+                VALUES (?, ?, ?, ?, ?, 'confirmed', ?)
+            ''', (booking_date, user_id, booking_time, primary_menu_id, notes, shop_name))
             booking_id = cursor.lastrowid
             
             # ② 新しい中間テーブル booking_menus に、選択したすべてのメニューを登録
