@@ -321,14 +321,29 @@ async function loadAvailability(){
 function render(){
   const { dates } = currentData;
 
-  const first = dates[0], last = dates[dates.length-1];
-  document.getElementById('monthLabel').textContent =
-    `${first.date.slice(0,7).replace('-','年')}月 ${first.day}日〜${last.day}日`;
+  const firstDate = new Date(dates[0].date + 'T00:00:00');
+  const lastDate = new Date(dates[dates.length-1].date + 'T00:00:00');
+  
+  const fY = firstDate.getFullYear();
+  const fM = String(firstDate.getMonth() + 1).padStart(2, '0');
+  const fD = String(firstDate.getDate()).padStart(2, '0');
+  
+  const lY = lastDate.getFullYear();
+  const lM = String(lastDate.getMonth() + 1).padStart(2, '0');
+  const lD = String(lastDate.getDate()).padStart(2, '0');
 
-  // 選択中の日付が今回の期間に含まれていなければ、空きがある最初の日を自動選択
+  if (fY === lY && fM === lM) {
+    document.getElementById('monthLabel').textContent = `${fY}年${fM}月 ${fD}日〜${lD}日`;
+  } else if (fY === lY) {
+    document.getElementById('monthLabel').textContent = `${fY}年${fM}月${fD}日〜${lM}月${lD}日`;
+  } else {
+    document.getElementById('monthLabel').textContent = `${fY}年${fM}月${fD}日〜${lY}年${lM}月${lD}日`;
+  }
+
+  // 選択中の日付判定
   const stillInRange = dates.some(d => d.date === selectedDate);
   if(!stillInRange){
-    const firstAvailable = dates.find(d => availableSlotsFor(d.date).length > 0);
+    const firstAvailable = dates.find(d => (currentData.availability[d.date] && Object.values(currentData.availability[d.date]).includes('available')));
     selectedDate = firstAvailable ? firstAvailable.date : dates[0].date;
   }
   selected = null;
