@@ -244,7 +244,9 @@
 <script>
 const LIFF_ID = '2011089217-uEvBgkD3'; // 本番用LIFF ID
 const API_BASE = window.location.origin;
-const DAYS_PER_VIEW = 7;
+const INITIAL_DAYS = 14;
+const LOAD_MORE_DAYS = 14;
+let daysLoaded = INITIAL_DAYS;
 let rangeStart = new Date();
 rangeStart.setHours(0,0,0,0);
 let selected = null;
