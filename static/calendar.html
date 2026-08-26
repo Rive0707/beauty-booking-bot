@@ -337,12 +337,12 @@ function renderDateStrip(){
   });
   html += '</div>';
 
-  // ① 先にHTMLを出力する
+  // 1. 先に画面へHTMLを書き出す
   document.getElementById('content').innerHTML = html + '<div class="time-section"><p class="time-section-label" id="timeSectionLabel"></p><div class="time-list" id="timeList"></div></div>';
 
-  // ② 出力後にスクロールイベントを設定する
+  // 2. 画面に描画された「後」に要素を取得してイベントを付与する
   const stripEl = document.getElementById('dateStrip');
-  if(stripEl){
+  if (stripEl) {
     stripEl.addEventListener('scroll', ()=>{
       if(stripEl.scrollLeft + stripEl.clientWidth >= stripEl.scrollWidth - 80){
         loadMoreDays();
@@ -350,7 +350,7 @@ function renderDateStrip(){
     });
   }
 
-  // 日付カードのクリックイベント
+  // 3. 日付ボタンのクリックイベントを設定
   document.querySelectorAll('.date-card').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       selectedDate = btn.dataset.date;
@@ -363,7 +363,7 @@ function renderDateStrip(){
   });
 }
 
-// 関数の外に独立して配置
+// 追加読み込み処理（関数の外に配置）
 let isLoadingMore = false;
 async function loadMoreDays(){
   if(isLoadingMore) return;
