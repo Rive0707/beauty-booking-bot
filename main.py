@@ -232,6 +232,10 @@ def handle_postback(event):
     
     if action == "cancel_booking":
         line_handler.cancel_booking(user_id, params.get("booking_id"))
+    elif action == "confirm_no_change":
+        booking_id = params.get("booking_id")
+        reminder_scheduler.confirm_no_change(int(booking_id))
+        line_handler.send_text(user_id, "承知いたしました。ご来店をお待ちしております。")
 
 @handler.add(FollowEvent)
 def handle_follow(event):
