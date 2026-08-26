@@ -245,8 +245,6 @@ class Database:
         return row["cnt"] > 0
 
     def add_booking_history(self, booking_id: int, action: str, user_id: str = None,
-
-    def add_booking_history(self, booking_id: int, action: str, user_id: str = None,
                           before_date: str = None, before_time: str = None,
                           after_date: str = None, after_time: str = None, note: str = None):
         conn = self.get_connection()
