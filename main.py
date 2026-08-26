@@ -1514,10 +1514,10 @@ function renderMenus() {
       var data = await res.json();
 
       // サマリー
-      document.getElementById("r-revenue").textContent = "¥" + (data.summary.revenue || 0).toLocaleString();
+      document.getElementById("r-revenue").textContent = "฿" + (data.summary.revenue || 0).toLocaleString();
       document.getElementById("r-total").textContent = (data.summary.total_bookings || 0).toLocaleString();
       document.getElementById("r-cancel").textContent = (data.summary.cancellation_rate || 0) + "%";
-      document.getElementById("r-avg").textContent = "¥" + (data.summary.avg_price || 0).toLocaleString();
+      document.getElementById("r-avg").textContent = "฿" + (data.summary.avg_price || 0).toLocaleString();
 
       // メニュー別
       var mBody = document.getElementById("report-menu-body");
@@ -1527,7 +1527,7 @@ function renderMenus() {
           var tr = document.createElement("tr");
           tr.innerHTML = "<td>" + escapeHtml(m.name) + "</td>" +
             "<td style='text-align:right'>" + m.count + "</td>" +
-            "<td style='text-align:right'>¥" + (m.revenue || 0).toLocaleString() + "</td>";
+            "<td style='text-align:right'>" + (m.revenue || 0).toLocaleString() + "</td>";
           mBody.appendChild(tr);
         });
       } else {
@@ -1542,7 +1542,7 @@ function renderMenus() {
           var tr = document.createElement("tr");
           tr.innerHTML = "<td>" + escapeHtml(c.name) + "</td>" +
             "<td style='text-align:right'>" + c.visits + "回</td>" +
-            "<td style='text-align:right'>¥" + (c.total_spent || 0).toLocaleString() + "</td>";
+            "<td style='text-align:right'>฿" + (c.total_spent || 0).toLocaleString() + "</td>";
           cBody.appendChild(tr);
         });
       } else {
