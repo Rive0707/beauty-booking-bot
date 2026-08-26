@@ -431,15 +431,22 @@ function renderTimeList(){
 
   listEl.innerHTML = currentData.time_slots.map(slot => {
     const status = dayAvailability[slot];
-    const isAvailable = status === 'available';
 
-    if (isAvailable) {
+    if (status === 'available') {
       return `
         <button class="time-slot-btn" data-time="${slot}">
           <span class="mark"></span>${slot}
         </button>
       `;
+    } else if (status === 'closed') {
+      // 定休日・臨時休業日の表示
+      return `
+        <button class="time-slot-btn disabled" disabled>
+          <span class="mark">ー</span>${slot} <span style="font-size:12px; margin-left:auto; color:var(--ink-soft);">定休日</span>
+        </button>
+      `;
     } else {
+      // 予約不可（既に予約あり / 過去時間など）の表示
       return `
         <button class="time-slot-btn disabled" disabled>
           <span class="mark">✕</span>${slot} <span style="font-size:12px; margin-left:auto; color:var(--ink-soft);">受付不可</span>
