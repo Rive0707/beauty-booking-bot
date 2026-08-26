@@ -11,7 +11,7 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import os
 import uuid
 import logging
