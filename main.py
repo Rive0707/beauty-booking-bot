@@ -1360,6 +1360,19 @@ function renderMenus() {
         else { toast("エラーが発生しました"); }
     }
 
+    async function submitBlockSlot() {
+        var date = document.getElementById("form-date").value;
+        var time = document.getElementById("form-time").value;
+        if (!date || !time) return;
+        var res = await fetch("/api/blocked-slots", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ block_date: date, block_time: time, reason: "手動ブロック" })
+        });
+        if (res.ok) { toast("ブロックしました"); closeModal(); loadData(); }
+        else { toast("ブロックに失敗しました（既にブロックまたは予約あり）"); }
+    }
+
     async function editBooking(id) {
         var b = bookings.find(function(x){ return x.id === id; }); if (!b) return;
         editingId = id;
