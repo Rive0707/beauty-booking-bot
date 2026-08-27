@@ -874,6 +874,7 @@ function renderMenus() {
     var price = parseInt(document.getElementById("menu-price").value);
     var duration = parseInt(document.getElementById("menu-duration").value);
     var isRange = document.getElementById("menu-is-range").checked;
+    var shopName = document.querySelector('input[name="menu-shop"]:checked').value;
 
     if (!name || isNaN(price) || isNaN(duration)) { toast("全項目を入力してください"); return; }
     
@@ -882,7 +883,7 @@ function renderMenus() {
       name = name + " ~RANGE~";
     }
 
-    var res = await fetch("/api/menus", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({name: name, price: price, duration_minutes: duration}) });
+    var res = await fetch("/api/menus", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({name: name, price: price, duration_minutes: duration, shop_name: shopName}) });
     if (res.ok) {
       toast("メニューを追加しました");
       document.getElementById("menu-name").value = "";
