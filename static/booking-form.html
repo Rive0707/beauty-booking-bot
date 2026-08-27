@@ -320,11 +320,9 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
 
   const menuIdsArray = bookingInfo.menu_ids.split(',').map(id => parseInt(id, 10));
 
-  const shopNameVal = document.querySelector('input[name="shop_name"]:checked')?.value || 'URU SALON';
-
   const payload = {
     user_id: liffUserId,
-    shop_name: shopNameVal,
+    shop_name: bookingInfo.shop_name,
     menu_ids: menuIdsArray,
     booking_date: bookingInfo.date,
     booking_time: bookingInfo.time,
