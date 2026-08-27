@@ -162,11 +162,21 @@
 <script>
 const LIFF_ID = '2011089217-uEvBgkD3'; // 本番用LIFF ID
 const API_BASE = window.location.origin;
+let selectedShop = null;
+
+function selectShop(shopName){
+  selectedShop = shopName;
+  document.getElementById('shopList').style.display = 'none';
+  document.getElementById('list').style.display = 'block';
+  document.getElementById('stepsBar').innerHTML = '✓ 店舗 ・ <span class="cur">② メニュー</span> ・ ③ 日時 ・ ④ お客様情報';
+  loadMenus();
+}
 
 async function loadMenus(){
   const list = document.getElementById('list');
+  list.innerHTML = '<div class="loading">読み込み中…</div>';
   try{
-    const res = await fetch(`${API_BASE}/api/menus`);
+    const res = await fetch(`${API_BASE}/api/menus?shop_name=${encodeURIComponent(selectedShop)}`);
     if(!res.ok) throw new Error('failed');
     const data = await res.json();
     render(data.menus);
