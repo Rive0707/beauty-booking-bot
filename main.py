@@ -1948,7 +1948,7 @@ async def api_reorder_menus(data: MenuReorderRequest):
 
 @app.put("/api/menus/{menu_id}")
 async def update_menu_endpoint(menu_id: int, data: MenuUpdateRequest):
-    if db.update_menu(menu_id, data.name, data.price, data.duration_minutes):
+    if db.update_menu(menu_id, data.name, data.price, data.duration_minutes, data.shop_name):
         return {"status": "ok"}
     return JSONResponse({"error": "更新に失敗しました"}, status_code=500)
 
