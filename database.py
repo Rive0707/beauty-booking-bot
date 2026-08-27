@@ -155,30 +155,12 @@ class Database:
         if "last_visit_date" not in columns:
             cursor.execute("ALTER TABLE bookings ADD COLUMN last_visit_date TEXT")
 
-        if "reminder_7d_sent" not in columns:
-            cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_7d_sent INTEGER DEFAULT 0")
-
-        if "reminder_3d_sent" not in columns:
-            cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_3d_sent INTEGER DEFAULT 0")
-
-        # ★ booking_menus テーブルのカラム自動マイグレーション
-        cursor.execute("PRAGMA table_info(booking_menus)")
-        bm_columns = [column[1] for column in cursor.fetchall()]
-
-        if "sort_order" not in bm_columns:
-            cursor.execute("ALTER TABLE booking_menus ADD COLUMN sort_order INTEGER DEFAULT 0")
+        cursor.execute("PRAGMA table_info(menus)")
+        menu_columns = [column[1] for column in cursor.fetchall()]
+        if "shop_name" not in menu_columns:
+            cursor.execute("ALTER TABLE menus ADD COLUMN shop_name TEXT DEFAULT 'URU SALON'")
 
         conn.commit()
-
-        # ★ 既存データベースのカラム自動マイグレーション（カラム不足による500エラー防止）
-        cursor.execute("PRAGMA table_info(bookings)")
-        columns = [column[1] for column in cursor.fetchall()]
-
-        if "shop_name" not in columns:
-            cursor.execute("ALTER TABLE bookings ADD COLUMN shop_name TEXT DEFAULT 'URU SALON'")
-
-        if "last_visit_date" not in columns:
-            cursor.execute("ALTER TABLE bookings ADD COLUMN last_visit_date TEXT")
 
         if "reminder_7d_sent" not in columns:
             cursor.execute("ALTER TABLE bookings ADD COLUMN reminder_7d_sent INTEGER DEFAULT 0")
