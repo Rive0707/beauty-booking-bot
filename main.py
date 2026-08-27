@@ -102,11 +102,13 @@ class MenuAddRequest(BaseModel):
     name: str
     price: int
     duration_minutes: int
+    shop_name: Optional[str] = "URU SALON"
 
 class MenuUpdateRequest(BaseModel):
     name: str
     price: int
     duration_minutes: int
+    shop_name: Optional[str] = None
 
 class MenuReorderRequest(BaseModel):
     menu_ids: List[int]
