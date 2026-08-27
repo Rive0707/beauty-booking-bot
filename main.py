@@ -1927,12 +1927,12 @@ async def api_send_direct_message(data: DirectMessageRequest):
     return {"status": "ok"}
 
 @app.get("/api/menus")
-async def api_get_menus():
-    return {"menus": [dict(r) for r in db.get_all_menus()]}
+async def api_get_menus(shop_name: Optional[str] = None):
+    return {"menus": [dict(r) for r in db.get_all_menus(shop_name)]}
 
 @app.post("/api/menus")
 async def add_menu(data: MenuAddRequest):
-    menu_id = db.add_menu(data.name, data.price, data.duration_minutes)
+    menu_id = db.add_menu(data.name, data.price, data.duration_minutes, data.shop_name)
     return {"status": "ok", "menu_id": menu_id}
 
 @app.delete("/api/menus/{menu_id}")
