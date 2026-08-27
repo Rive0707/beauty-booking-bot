@@ -1674,10 +1674,12 @@ function renderMenus() {
     document.getElementById("edit-menu-price").value = m.price;
     document.getElementById("edit-menu-duration").value = m.duration_minutes;
     document.getElementById("edit-menu-is-range").checked = hasTilde;
+    var shopRadio = document.querySelector('input[name="edit-menu-shop"][value="' + (m.shop_name || 'URU SALON') + '"]');
+    if (shopRadio) shopRadio.checked = true;
 
     document.getElementById("modal-menu-edit").classList.add("open");
-  }
-
+    }
+    
   function closeMenuEditModal() {
     document.getElementById("modal-menu-edit").classList.remove("open");
     editingMenuId = null;
@@ -1700,10 +1702,11 @@ function renderMenus() {
       name = name + "〜";
     }
 
+    var editShopRadio = document.querySelector('input[name="edit-menu-shop"]:checked');
     var res = await fetch("/api/menus/" + editingMenuId, {
       method: "PUT",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ name: name, price: price, duration_minutes: duration })
+      body: JSON.stringify({ name: name, price: price, duration_minutes: duration, shop_name: editShopRadio ? editShopRadio.value : null })
     });
 
     if (res.ok) {
