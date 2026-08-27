@@ -448,10 +448,16 @@ class Database:
         conn.close()
         return result
 
-    def get_all_menus(self):
+    def get_all_menus(self, shop_name: str = None):
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM menus ORDER BY sort_order ASC, id ASC')
+        if shop_name:
+            cursor.execute(
+                "SELECT * FROM menus WHERE shop_name = ? OR shop_name = 'BOTH' ORDER BY sort_order ASC, id ASC",
+                (shop_name,)
+            )
+        else:
+            cursor.execute('SELECT * FROM menus ORDER BY sort_order ASC, id ASC')
         results = cursor.fetchall()
         conn.close()
         return results
