@@ -230,7 +230,9 @@ const bookingInfo = {
   date: params.get('date'),
   time: params.get('time'),
   day: params.get('day'),
-  weekday: params.get('weekday')
+  weekday: params.get('weekday'),
+  shop_name: params.get('shop_name') || 'URU SALON'
+};
 };
 
 document.getElementById('summary').innerHTML = `
