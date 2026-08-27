@@ -815,6 +815,7 @@ function renderMenus() {
       tr.dataset.menuId = m.id;
       tr.innerHTML = "<td class='drag-handle' style='cursor:grab; text-align:center; color:#c7c7cc; touch-action:none; user-select:none;'>⠿</td>" +
                      "<td style='font-weight:500'>" + escapeHtml(info.name) + "</td>" +
+                     "<td>" + (m.shop_name === 'BOTH' ? '両方' : escapeHtml(m.shop_name || 'URU SALON')) + "</td>" +
                      "<td>" + info.priceStr + "</td>" +
                      "<td>" + m.duration_minutes + "分</td>" +
                      "<td style='text-align:center; white-space:nowrap;'>" +
