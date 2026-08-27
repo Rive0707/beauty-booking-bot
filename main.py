@@ -474,6 +474,14 @@ def get_dashboard_html():
         <div class="form-group"><label>メニュー名 <span class="req">*</span></label><input type="text" id="menu-name" placeholder="カット"></div>
         <div class="form-group"><label>料金（B） <span class="req">*</span></label><input type="number" id="menu-price" placeholder="500"><label style="display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; cursor:pointer;"><input type="checkbox" id="menu-is-range" style="width:14px; height:14px;"> 料金に「〜」を表示する（例: ฿1,200〜）</label></div>
         <div class="form-group"><label>時間（分） <span class="req">*</span></label><input type="number" id="menu-duration" placeholder="60"></div>
+        <div class="form-group">
+          <label>対象店舗 <span class="req">*</span></label>
+          <div style="display:flex; gap:16px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:400;"><input type="radio" name="menu-shop" value="URU SALON" checked> URU SALON</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:400;"><input type="radio" name="menu-shop" value="CUTMAN"> CUTMAN</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:400;"><input type="radio" name="menu-shop" value="BOTH"> 両方</label>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="addMenu()" style="width:100%; justify-content:center;">追加する</button>
       </div>
       <div>
