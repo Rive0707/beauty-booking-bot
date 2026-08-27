@@ -238,6 +238,7 @@ const bookingInfo = {
 document.getElementById('summary').innerHTML = `
   <p class="menu">${bookingInfo.menu_name || 'メニュー未選択'}</p>
   <p class="dt">${bookingInfo.date || ''}（${bookingInfo.weekday || ''}）${bookingInfo.time || ''}〜</p>
+  <p class="dt" style="margin-top:4px;">📍 ${escapeHtml(bookingInfo.shop_name)}</p>
 `;
 
 // 誕生日プルダウンの初期化
