@@ -572,7 +572,8 @@ document.getElementById('confirmBtn').addEventListener('click', async ()=>{
     date: selected.date,
     time: selected.time,
     day: selected.day,
-    weekday: selected.weekday
+    weekday: selected.weekday,
+    shop_name: shopName
   });
   window.location.href = `booking-form.html?${params.toString()}`;
 });
