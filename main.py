@@ -714,6 +714,14 @@ def get_dashboard_html():
         </label>
       </div>
       <div class="form-group"><label>時間（分） <span class="req">*</span></label><input type="number" id="edit-menu-duration"></div>
+      <div class="form-group">
+        <label>対象店舗 <span class="req">*</span></label>
+        <div style="display:flex; gap:16px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400;"><input type="radio" name="edit-menu-shop" value="URU SALON"> URU SALON</label>
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400;"><input type="radio" name="edit-menu-shop" value="CUTMAN"> CUTMAN</label>
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400;"><input type="radio" name="edit-menu-shop" value="BOTH"> 両方</label>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeMenuEditModal()">キャンセル</button>
