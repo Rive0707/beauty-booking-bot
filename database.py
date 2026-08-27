@@ -888,16 +888,16 @@ class Database:
         finally:
             conn.close()
 
-    def update_menu(self, menu_id: int, name: str, price: int, duration_minutes: int):
+    def update_menu(self, menu_id: int, name: str, price: int, duration_minutes: int, shop_name: str = None):
         """メニュー情報の更新"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE menus 
-                SET name = ?, price = ?, duration_minutes = ?
+                SET name = ?, price = ?, duration_minutes = ?, shop_name = COALESCE(?, shop_name)
                 WHERE id = ?
-            """, (name, price, duration_minutes, menu_id))
+            """, (name, price, duration_minutes, shop_name, menu_id))
             conn.commit()
             conn.close()
             return True
