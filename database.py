@@ -47,6 +47,7 @@ class Database:
                 price INTEGER NOT NULL,
                 duration_minutes INTEGER NOT NULL,
                 sort_order INTEGER DEFAULT 0,
+                shop_name TEXT DEFAULT 'URU SALON',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
