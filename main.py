@@ -486,7 +486,7 @@ def get_dashboard_html():
       </div>
       <div>
             <table class="data-table">
-              <thead><tr><th>メニュー名</th><th>料金</th><th>時間</th><th style="width:90px; text-align:center;">操作</th></tr></thead>
+              <thead><tr><th>メニュー名</th><th>店舗</th><th>料金</th><th>時間</th><th style="width:90px; text-align:center;">操作</th></tr></thead>
               <tbody id="menu-body"></tbody>
             </table>
         <div id="menu-empty" class="empty" style="display:none;">メニューが登録されていません</div>
