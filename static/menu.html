@@ -245,7 +245,8 @@ function goToCalendar(){
 
   const params = new URLSearchParams({
     menu_ids: menuIds,
-    menu_name: menuNames
+    menu_name: menuNames,
+    shop_name: selectedShop
   });
   window.location.href = `calendar.html?${params.toString()}`;
 }
