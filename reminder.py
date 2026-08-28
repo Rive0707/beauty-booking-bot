@@ -71,7 +71,7 @@ class ReminderScheduler:
             logger.error(f"Error in check_and_send_reminders: {e}")
     
     def send_reminder(self, user_id: str, booking_id: int, booking_date: str, 
-                     booking_time: str, menu_id: int, days_label: str = ""):
+                     booking_time: str, menu_id: int, days_label: str = "", shop_name: str = "URU SALON"):
         """リマインドメッセージ送信"""
         try:
             menu = self.db.get_menu(menu_id)
