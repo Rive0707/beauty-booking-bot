@@ -156,7 +156,7 @@ class LineHandler:
         customer = self.db.get_customer(user_id)
         customer_name = customer["name"] if (customer and customer["name"]) else user_id[:10] + "..."
         
-        self.send_text(user_id, f"✅ 予約ID: {booking_id} のご予約をキャンセルしました。")
+        self.send_text(user_id, f"❌{booking['booking_date']} {booking['booking_time']} のご予約をキャンセルしました。")
         self.notify_owner(
             f"❌ 予約キャンセルがありました\n\n"
             f"お客様: {customer_name}\n"
