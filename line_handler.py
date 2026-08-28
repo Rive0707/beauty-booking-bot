@@ -106,11 +106,14 @@ class LineHandler:
                     if m:
                         menu_name = m['name']
 
+                menu_name = row['menu_names'] if (row and row['menu_names']) else '不明'
+
                 actions = []
                 if self.liff_id:
                     reschedule_url = (
                         f"https://liff.line.me/{self.liff_id}?"
                         f"modify_booking_id={booking_id}&menu_name={quote(menu_name)}"
+                        f"&shop_name={quote(booking['shop_name'] or 'URU SALON')}"
                     )
                     actions.append(URIAction(label="📝 日時を変更する", uri=reschedule_url))
                 actions.append(PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"))
