@@ -219,15 +219,15 @@ def handle_message(event):
         except Exception:
             pass
 
-    # コマンド判定
-    if text in ["予約", "予約する"]:
-        line_handler.start_booking(user_id)
-    elif text in ["予約確認", "マイページ", "履歴"]:
+    # コマンド判定（「確認」「マイページ」「履歴」などの単語が含まれていればマイページを表示）
+    if any(k in text for k in ["予約確認", "マイページ", "履歴", "確認"]):
         line_handler.show_my_page(user_id)
+    elif any(k in text for k in ["予約", "予約する"]):
+        line_handler.start_booking(user_id)
     elif user_id == OWNER_USER_ID:
         handle_owner_command(user_id, text)
     else:
-        # すでに名前が登録されている場合は、何も自動返信せず会話をスルーする（勝手に上書きもされない）
+        # すでに名前が登録されている場合は、何も自動返信せず会話をスルーする
         pass
 
 @handler.add(PostbackEvent)
