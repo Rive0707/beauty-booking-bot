@@ -108,6 +108,7 @@ class ReminderScheduler:
                 reschedule_url = (
                     f"https://liff.line.me/{self.liff_id}?"
                     f"modify_booking_id={booking_id}&menu_id={menu_id}&menu_name={quote(menu_name)}"
+                    f"&shop_name={quote(shop_name)}"
                 )
                 actions.append(URIAction(label="📝 予約変更", uri=reschedule_url))
             actions.append(PostbackAction(label="✅ 予約変更なし", data=f"action=confirm_no_change&booking_id={booking_id}"))
