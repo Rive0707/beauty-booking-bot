@@ -85,13 +85,12 @@ class LineHandler:
                 booking_id = booking['id']
                 shop_name = booking['shop_name'] if 'shop_name' in booking.keys() and booking['shop_name'] else 'URU SALON'
                 
-                # 複数メニュー対応の名称・ID・合計時間を取得
+                # 複数メニュー対応の名称・IDを取得
                 conn = self.db.get_connection()
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT GROUP_CONCAT(m.name, ' + ') as menu_names,
-                           GROUP_CONCAT(bm.menu_id) as menu_ids,
-                           SUM(m.duration_minutes) as total_duration
+                           GROUP_CONCAT(bm.menu_id) as menu_ids
                     FROM booking_menus bm
                     JOIN menus m ON bm.menu_id = m.id
                     WHERE bm.booking_id = ?
@@ -102,7 +101,6 @@ class LineHandler:
 
                 menu_name = row['menu_names'] if (row and row['menu_names']) else '不明'
                 menu_ids_str = row['menu_ids'] if (row and row['menu_ids']) else ''
-                total_duration = row['total_duration'] if (row and row['total_duration']) else 60
 
                 actions = []
                 if self.liff_id:
@@ -110,7 +108,7 @@ class LineHandler:
                         f"https://liff.line.me/{self.liff_id}?"
                         f"modify_booking_id={booking_id}&menu_name={quote(menu_name)}"
                         f"&shop_name={quote(shop_name)}"
-                        f"&menu_ids={menu_ids_str}&duration={total_duration}"
+                        f"&menu_ids={menu_ids_str}"
                     )
                     actions.append(URIAction(label="📝 日時を変更する", uri=reschedule_url))
                 actions.append(PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"))
