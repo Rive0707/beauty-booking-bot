@@ -34,7 +34,9 @@ class ReminderScheduler:
             # 今後7日間の予約を取得
             upcoming_bookings = self.db.get_upcoming_bookings(days_ahead=7)
             
-            today = date.today()
+            # タイ時間（Asia/Bangkok）を基準に「今」を判定する
+            now_local = datetime.now(ZoneInfo("Asia/Bangkok"))
+            today = now_local.date()
             
             for booking in upcoming_bookings:
                 booking_id = booking[0]
@@ -51,6 +53,20 @@ class ReminderScheduler:
                 except:
                     logger.error(f"Invalid date format: {booking_date_str}")
                     continue
+
+                # ★ 予約の日時（日付＋時刻）がすでに過ぎていたら、リマインドを送らず送信済み扱いにする
+                try:
+                    booking_datetime = datetime.strptime(
+                        f"{booking_date_str} {booking_time}", "%Y-%m-%d %H:%M"
+                    ).replace(tzinfo=ZoneInfo("Asia/Bangkok"))
+                    if booking_datetime <= now_local:
+                        if not reminder_3d_sent:
+                            self.db.mark_reminder_3d_sent(booking_id)
+                        if not reminder_7d_sent:
+                            self.db.mark_reminder_7d_sent(booking_id)
+                        continue
+                except ValueError:
+                    logger.error(f"Invalid time format for booking {booking_id}: {booking_date_str} {booking_time}")
                 
                 # 予約日と今日の差分
                 days_until_booking = (booking_date - today).days
@@ -58,7 +74,6 @@ class ReminderScheduler:
                 # 残り日数に応じて、7日前・3日前のリマインドを「1回のチェックにつき1通だけ」送る
                 # （サーバーが一時停止していても、次に動いた時に取りこぼさず送れるよう <= で判定）
                 shop_name = booking["shop_name"] if "shop_name" in booking.keys() else "URU SALON"
-
                 if days_until_booking <= 3 and not reminder_3d_sent:
                     self.send_reminder(user_id, booking_id, booking_date_str, booking_time, menu_id, days_label=f"あと{days_until_booking}日", shop_name=shop_name)
                     self.db.mark_reminder_3d_sent(booking_id)
