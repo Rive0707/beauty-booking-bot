@@ -68,28 +68,30 @@ class LineHandler:
         else:
             self.send_text(user_id, "予約画面のURLが設定されていません。")
 
-    def show_my_page(self, user_id: str):
+    def show_my_page(self, user_id: str, reply_token: str = None):
         """マイページ・予約確認"""
         customer = self.db.get_customer(user_id)
-        
-        # 修正：'confirmed' に限定せず、キャンセル済(cancelled)以外の予約を取得
-        all_bookings = self.db.get_bookings_by_user(user_id)
-        bookings = [b for b in all_bookings if b.get('status') != 'cancelled']
+        bookings = self.db.get_bookings_by_user(user_id, 'confirmed')
         
         if not customer:
-            self.send_text(user_id, "登録情報が見つかりません")
+            self._reply_or_push(user_id, reply_token, [TextSendMessage(text="登録情報が見つかりません")])
             return
 
-        # 次回予約の表示
+        messages = []
+
+        # 次回予約の表示（reply_messageは1回につき最大5件までなので、そのまま上限に一致）
         if bookings:
             for booking in bookings[:5]:
                 booking_id = booking['id']
+                shop_name = booking['shop_name'] if 'shop_name' in booking.keys() and booking['shop_name'] else 'URU SALON'
                 
-                # 複数メニュー対応の名称取得
+                # 複数メニュー対応の名称・ID・合計時間を取得
                 conn = self.db.get_connection()
                 cursor = conn.cursor()
                 cursor.execute('''
-                    SELECT GROUP_CONCAT(m.name, ' + ') as menu_names
+                    SELECT GROUP_CONCAT(m.name, ' + ') as menu_names,
+                           GROUP_CONCAT(bm.menu_id) as menu_ids,
+                           SUM(m.duration_minutes) as total_duration
                     FROM booking_menus bm
                     JOIN menus m ON bm.menu_id = m.id
                     WHERE bm.booking_id = ?
@@ -99,21 +101,16 @@ class LineHandler:
                 conn.close()
 
                 menu_name = row['menu_names'] if (row and row['menu_names']) else '不明'
-
-                # もし中間テーブルからメニュー名が引けなかった場合のフォールバック（旧表記・手動登録用）
-                if menu_name == '不明' and booking.get('menu_id'):
-                    m = self.db.get_menu(booking['menu_id'])
-                    if m:
-                        menu_name = m['name']
-
-                menu_name = row['menu_names'] if (row and row['menu_names']) else '不明'
+                menu_ids_str = row['menu_ids'] if (row and row['menu_ids']) else ''
+                total_duration = row['total_duration'] if (row and row['total_duration']) else 60
 
                 actions = []
                 if self.liff_id:
                     reschedule_url = (
                         f"https://liff.line.me/{self.liff_id}?"
                         f"modify_booking_id={booking_id}&menu_name={quote(menu_name)}"
-                        f"&shop_name={quote(booking['shop_name'] or 'URU SALON')}"
+                        f"&shop_name={quote(shop_name)}"
+                        f"&menu_ids={menu_ids_str}&duration={total_duration}"
                     )
                     actions.append(URIAction(label="📝 日時を変更する", uri=reschedule_url))
                 actions.append(PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"))
@@ -123,9 +120,25 @@ class LineHandler:
                     text=f"メニュー: {menu_name}\n予約ID: {booking_id}",
                     actions=actions
                 )
-                self.send_template_message(user_id, template)
+                messages.append(TemplateSendMessage(alt_text="ご予約内容", template=template))
         else:
-            self.send_text(user_id, "現在ご予約はありません。「予約する」ボタンからご予約ができます。")
+            messages.append(TextSendMessage(text="現在ご予約はありません。「予約する」ボタンからご予約ができます。"))
+
+        self._reply_or_push(user_id, reply_token, messages)
+
+    def _reply_or_push(self, user_id: str, reply_token: str, messages: list):
+        """reply_tokenがあれば無料のreply APIで、無ければ従来通りpushで送信"""
+        if reply_token:
+            try:
+                self.line_bot_api.reply_message(reply_token, messages)
+                return
+            except Exception as e:
+                logger.error(f"Error replying, falling back to push: {e}")
+        for msg in messages:
+            try:
+                self.line_bot_api.push_message(user_id, msg)
+            except Exception as e:
+                logger.error(f"Error pushing message: {e}")
 
     def cancel_booking(self, user_id: str, booking_id: str):
         """予約キャンセル"""
