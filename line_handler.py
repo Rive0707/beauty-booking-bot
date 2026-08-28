@@ -71,7 +71,10 @@ class LineHandler:
     def show_my_page(self, user_id: str):
         """マイページ・予約確認"""
         customer = self.db.get_customer(user_id)
-        bookings = self.db.get_bookings_by_user(user_id, 'confirmed')
+        
+        # 修正：'confirmed' に限定せず、キャンセル済(cancelled)以外の予約を取得
+        all_bookings = self.db.get_bookings_by_user(user_id)
+        bookings = [b for b in all_bookings if b.get('status') != 'cancelled']
         
         if not customer:
             self.send_text(user_id, "登録情報が見つかりません")
@@ -96,6 +99,12 @@ class LineHandler:
                 conn.close()
 
                 menu_name = row['menu_names'] if (row and row['menu_names']) else '不明'
+
+                # もし中間テーブルからメニュー名が引けなかった場合のフォールバック（旧表記・手動登録用）
+                if menu_name == '不明' and booking.get('menu_id'):
+                    m = self.db.get_menu(booking['menu_id'])
+                    if m:
+                        menu_name = m['name']
 
                 actions = []
                 if self.liff_id:
