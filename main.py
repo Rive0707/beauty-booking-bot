@@ -221,8 +221,8 @@ def handle_message(event):
             pass
 
     # コマンド判定（「確認」という文字が含まれていればマイページを表示）
-    if any(k in text for k in ["予約確認", "マイページ", "履歴", "確認"]):
-        line_handler.show_my_page(user_id)
+    if any(k in text for k in ["予約確認"]):
+        line_handler.show_my_page(user_id, reply_token=event.reply_token)
     elif any(k in text for k in ["予約", "予約する"]):
         line_handler.start_booking(user_id)
     elif user_id == OWNER_USER_ID:
