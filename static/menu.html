@@ -164,6 +164,21 @@ const LIFF_ID = '2011089217-uEvBgkD3'; // 本番用LIFF ID
 const API_BASE = window.location.origin;
 let selectedShop = null;
 
+// ★ 予約変更モード：LINEの「日時を変更する」ボタンから来た場合は、
+//   店舗・メニュー選択を飛ばして直接カレンダーへ転送する
+const incomingParams = new URLSearchParams(location.search);
+const incomingModifyId = incomingParams.get('modify_booking_id');
+if (incomingModifyId) {
+  const forwardParams = new URLSearchParams({
+    modify_booking_id: incomingModifyId,
+    menu_ids: incomingParams.get('menu_ids') || incomingParams.get('menu_id') || '',
+    menu_name: incomingParams.get('menu_name') || '',
+    shop_name: incomingParams.get('shop_name') || 'URU SALON',
+    duration: incomingParams.get('duration') || ''
+  });
+  window.location.href = `calendar.html?${forwardParams.toString()}`;
+}
+
 function selectShop(shopName){
   selectedShop = shopName;
   document.getElementById('shopList').style.display = 'none';
