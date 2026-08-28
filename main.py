@@ -209,10 +209,10 @@ def handle_message(event):
     # 現在の顧客情報を取得
     customer = db.get_customer(user_id)
     
-    # 【修正】sqlite3.Row には .get() が無いため、辞書型に変換して安全に判定
-    customer_dict = dict(customer) if customer else None
+    # ★ 修正: エラー落ちする get() を使わず、安全に名前を取得する
+    customer_name = customer["name"] if customer else None
     
-    if not customer_dict or not customer_dict.get("name"):
+    if not customer or not customer_name:
         try:
             profile = line_bot_api.get_profile(user_id)
             init_name = text if len(text) <= 20 else profile.display_name
@@ -220,7 +220,7 @@ def handle_message(event):
         except Exception:
             pass
 
-    # コマンド判定（エラー落ちせず、ここへ到達するようになります）
+    # コマンド判定（「確認」という文字が含まれていればマイページを表示）
     if any(k in text for k in ["予約確認", "マイページ", "履歴", "確認"]):
         line_handler.show_my_page(user_id)
     elif any(k in text for k in ["予約", "予約する"]):
@@ -228,7 +228,7 @@ def handle_message(event):
     elif user_id == OWNER_USER_ID:
         handle_owner_command(user_id, text)
     else:
-        # すでに名前が登録されている場合は、何も自動返信せず会話をスルーする
+        # すでに名前が登録されている場合はスルー
         pass
 
 @handler.add(PostbackEvent)
