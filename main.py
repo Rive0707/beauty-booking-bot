@@ -209,17 +209,18 @@ def handle_message(event):
     # 現在の顧客情報を取得
     customer = db.get_customer(user_id)
     
-    # ★ 名前が「未登録・空欄」の場合のみ、LINEの表示名を取得して初期セットする
-    if not customer or not customer.get("name"):
+    # 【修正】sqlite3.Row には .get() が無いため、辞書型に変換して安全に判定
+    customer_dict = dict(customer) if customer else None
+    
+    if not customer_dict or not customer_dict.get("name"):
         try:
             profile = line_bot_api.get_profile(user_id)
-            # 送信されたテキストか、LINEの表示名をセット（1回きり）
             init_name = text if len(text) <= 20 else profile.display_name
             db.save_customer_profile(user_id, name=init_name)
         except Exception:
             pass
 
-    # コマンド判定（「確認」「マイページ」「履歴」などの単語が含まれていればマイページを表示）
+    # コマンド判定（エラー落ちせず、ここへ到達するようになります）
     if any(k in text for k in ["予約確認", "マイページ", "履歴", "確認"]):
         line_handler.show_my_page(user_id)
     elif any(k in text for k in ["予約", "予約する"]):
