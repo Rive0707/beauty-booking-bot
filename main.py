@@ -2308,8 +2308,15 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     conn.commit()
     conn.close()
 
-    # 2.5 お客様の名前・電話番号を修正（入力し間違えた場合の訂正用）
-    if data.customer_name or data.phone:
+    # 2.5 予約の紐づけ先を別の既存顧客に付け替える（間違えて別人として登録してしまった場合の訂正用）
+    if data.existing_user_id and data.existing_user_id != booking["user_id"]:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE bookings SET user_id = ? WHERE id = ?", (data.existing_user_id, booking_id))
+        conn.commit()
+        conn.close()
+    elif data.customer_name or data.phone:
+        # 付け替えではなく、名前の打ち間違いなどの単純な訂正
         db.update_customer(
             booking["user_id"],
             name=data.customer_name if data.customer_name else None,
