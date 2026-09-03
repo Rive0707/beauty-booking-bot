@@ -382,7 +382,12 @@ class Database:
     def get_all_customers(self):
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM customers')
+        cursor.execute('''
+            SELECT c.*, MAX(vh.visited_date) as last_visit
+            FROM customers c
+            LEFT JOIN visit_history vh ON c.user_id = vh.user_id
+            GROUP BY c.user_id
+        ''')
         results = cursor.fetchall()
         conn.close()
         return results
