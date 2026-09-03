@@ -2183,6 +2183,9 @@ async def api_reschedule_booking(data: RescheduleRequest):
     if not booking or booking["user_id"] != data.user_id:
         return JSONResponse({"error": "予約が見つかりません"}, status_code=404)
 
+    if booking["status"] != "confirmed":
+        return JSONResponse({"error": "この予約はすでにキャンセルされているため、変更できません。お手数ですが新規でご予約をお願いいたします。"}, status_code=409)
+
     if not db.is_slot_available(data.booking_date, data.booking_time, exclude_booking_id=data.booking_id):
         return JSONResponse({"error": "この日時は既にご予約が入っています"}, status_code=409)
 
