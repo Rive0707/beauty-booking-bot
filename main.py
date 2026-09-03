@@ -215,8 +215,7 @@ def handle_message(event):
     if not customer or not customer_name:
         try:
             profile = line_bot_api.get_profile(user_id)
-            init_name = text if len(text) <= 20 else profile.display_name
-            db.save_customer_profile(user_id, name=init_name)
+            db.save_customer_profile(user_id, name=profile.display_name)
         except Exception:
             pass
 
