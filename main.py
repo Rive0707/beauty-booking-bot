@@ -2294,6 +2294,14 @@ async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateReques
     conn.commit()
     conn.close()
 
+    # 2.5 お客様の名前・電話番号を修正（入力し間違えた場合の訂正用）
+    if data.customer_name or data.phone:
+        db.update_customer(
+            booking["user_id"],
+            name=data.customer_name if data.customer_name else None,
+            phone=data.phone if data.phone else None
+        )
+
     # 3. 履歴追加
     db.add_booking_history(booking_id, "modified", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"], after_date=new_date, after_time=new_time)
     
