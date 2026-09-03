@@ -1446,6 +1446,19 @@ function renderMenus() {
         var shopRadio = document.querySelector('input[name="form-shop"][value="' + (b.shop_name || "URU SALON") + '"]');
         if (shopRadio) shopRadio.checked = true;
 
+        // ★ 現在の紐づけ先を検索欄に反映（変更しなければそのまま、検索して別の人を選べば付け替えできる）
+        selectedUserId = b.user_id;
+        var lastVisitLabel = c && c.last_visit ? "最終来店: " + c.last_visit.replace(/-/g, "/") : "来店履歴なし";
+        var custLabel = c ? ((c.name || "(名前なし)") + " (" + (c.phone ? maskPhone(c.phone) : "電話なし") + ") [" + lastVisitLabel + "]") : "";
+        document.getElementById("form-customer-input").value = custLabel;
+        var badge = document.getElementById("customer-info-badge");
+        if (c) {
+          badge.style.display = "block";
+          badge.innerHTML = "👤 <b>" + c.name + "</b> 様 | TEL: " + (c.phone || "未登録") + " | 最終来店: <b>" + (c.last_visit ? c.last_visit.replace(/-/g, "/") : "なし") + "</b>";
+        } else {
+          badge.style.display = "none";
+        }
+
         document.getElementById("form-name").value = c ? c.name : "";
         document.getElementById("form-phone").value = c ? c.phone : "";
         document.getElementById("form-date").value = b.booking_date;
