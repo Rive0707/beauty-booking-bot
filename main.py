@@ -2273,6 +2273,7 @@ class BookingUpdateRequest(BaseModel):
     notes: Optional[str] = None
     customer_name: Optional[str] = None
     phone: Optional[str] = None
+    existing_user_id: Optional[str] = None
 
 @app.put("/api/bookings/{booking_id}")
 async def api_update_booking_endpoint(booking_id: int, data: BookingUpdateRequest):
