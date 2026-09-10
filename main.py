@@ -219,10 +219,10 @@ def handle_message(event):
         except Exception:
             pass
 
-    # コマンド判定（「確認」という文字が含まれていればマイページを表示）
-    if text in (k in text for k in ["予約確認"]):
+    # コマンド判定（完全一致のみ反応。「予約外」「ご予約ありがとうございました」等の文章に誤反応しないようにするため）
+    if text in ["予約確認", "マイページ", "履歴"]:
         line_handler.show_my_page(user_id, reply_token=event.reply_token)
-    elif text in (k in text for k in ["予約", "予約する"]):
+    elif text in ["予約", "予約する"]:
         line_handler.start_booking(user_id)
     elif user_id == OWNER_USER_ID:
         handle_owner_command(user_id, text)
