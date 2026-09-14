@@ -398,6 +398,13 @@ class Database:
         conn.close()
         return results
 
+    def set_richmenu_hidden(self, user_id: str, hidden: bool):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE customers SET richmenu_hidden = ? WHERE user_id = ?", (1 if hidden else 0, user_id))
+        conn.commit()
+        conn.close()
+
     def update_customer(self, user_id: str, name: str = None, phone: str = None):
         conn = self.get_connection()
         cursor = conn.cursor()
