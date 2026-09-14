@@ -18,3 +18,6 @@ CLOSED_WEEKDAYS = [1, 2]  # 火曜・水曜定休
 # この時間を超えるメニューは営業終了時間までに完了しない可能性があります
 # 例：最大メニューが120分なら 120 に設定してください
 LAST_BOOKING_BUFFER_MINUTES = 120
+
+# スパム/迷惑ユーザー非表示用のダミーリッチメニューID
+DUMMY_RICH_MENU_ID = "richmenu-adcf2ca7496311995065689f581da8ac"
