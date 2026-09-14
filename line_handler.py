@@ -9,7 +9,7 @@ from linebot.models import (
     PostbackAction,
     URIAction,
     FlexSendMessage,
-    MessageAction
+    MessageAction,
 )
 from urllib.parse import quote
 import logging
