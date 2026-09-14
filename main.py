@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent
+from linebot.models import MessageEvent, TextMessage, PostbackEvent, FollowEvent ,MessageAction
 from pydantic import BaseModel
 from typing import Optional, List
 from config import DUMMY_RICH_MENU_ID
