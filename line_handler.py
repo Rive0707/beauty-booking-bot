@@ -8,7 +8,8 @@ from linebot.models import (
     ButtonsTemplate,
     PostbackAction,
     URIAction,
-    FlexSendMessage
+    FlexSendMessage,
+    MessageAction
 )
 from urllib.parse import quote
 import logging
@@ -104,13 +105,7 @@ class LineHandler:
 
                 actions = []
                 if self.liff_id:
-                    reschedule_url = (
-                        f"https://liff.line.me/{self.liff_id}?"
-                        f"modify_booking_id={booking_id}&menu_name={quote(menu_name)}"
-                        f"&shop_name={quote(shop_name)}"
-                        f"&menu_ids={menu_ids_str}"
-                    )
-                    actions.append(URIAction(label="📝 日時を変更する", uri=reschedule_url))
+                actions.append(MessageAction(label="🏪 別店舗希望", text="別店舗希望"))
                 actions.append(PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"))
 
                 template = ButtonsTemplate(
