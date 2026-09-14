@@ -2481,3 +2481,26 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+from linebot.models import RichMenu, RichMenuSize, RichMenuArea, RichMenuBounds, TextMessage as RMTextMessage
+
+@app.get("/api/admin/create-dummy-richmenu")
+async def create_dummy_richmenu():
+    """一度だけ実行：非表示用ダミーリッチメニューを作成する"""
+    from linebot.models import MessageAction
+    rich_menu = RichMenu(
+        size=RichMenuSize(width=2500, height=843),
+        selected=False,
+        name="非表示用ダミー",
+        chat_bar_text="メニュー",
+        areas=[
+            RichMenuArea(
+                bounds=RichMenuBounds(x=0, y=0, width=2500, height=843),
+                action=MessageAction(text="ありがとうございました")
+            )
+        ]
+    )
+    rich_menu_id = line_bot_api.create_rich_menu(rich_menu=rich_menu)
+    with open("static/dummy_richmenu.png", "rb") as f:
+        line_bot_api.set_rich_menu_image(rich_menu_id, "image/png", f)
+    return {"rich_menu_id": rich_menu_id}
