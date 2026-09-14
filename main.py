@@ -2356,6 +2356,24 @@ async def api_delete_booking(booking_id: int):
     db.add_booking_history(booking_id, "cancelled", booking["user_id"], before_date=booking["booking_date"], before_time=booking["booking_time"])
     return {"status": "ok"}
 
+@app.post("/api/customers/{user_id}/hide-richmenu")
+async def hide_richmenu(user_id: str):
+    try:
+        line_bot_api.link_rich_menu_to_user(user_id, DUMMY_RICH_MENU_ID)
+        db.set_richmenu_hidden(user_id, True)
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/api/customers/{user_id}/restore-richmenu")
+async def restore_richmenu(user_id: str):
+    try:
+        line_bot_api.unlink_rich_menu_from_user(user_id)
+        db.set_richmenu_hidden(user_id, False)
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 # ===============================
 # オーナーコマンド & ヘルスチェック
 # ===============================
