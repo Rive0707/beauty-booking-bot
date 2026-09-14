@@ -105,7 +105,7 @@ class LineHandler:
 
                 actions = []
                 if self.liff_id:
-                actions.append(MessageAction(label="🏪 別店舗希望", text="別店舗希望"))
+                    actions.append(MessageAction(label="🏪 別店舗希望", text="別店舗希望"))
                 actions.append(PostbackAction(label="❌ キャンセルする", data=f"action=cancel_booking&booking_id={booking_id}"))
 
                 template = ButtonsTemplate(
