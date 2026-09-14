@@ -161,6 +161,11 @@ class Database:
         if "shop_name" not in menu_columns:
             cursor.execute("ALTER TABLE menus ADD COLUMN shop_name TEXT DEFAULT 'URU SALON'")
 
+        cursor.execute("PRAGMA table_info(customers)")
+        customer_columns = [column[1] for column in cursor.fetchall()]
+        if "richmenu_hidden" not in customer_columns:
+            cursor.execute("ALTER TABLE customers ADD COLUMN richmenu_hidden INTEGER DEFAULT 0")
+
         conn.commit()
 
         if "reminder_7d_sent" not in columns:
