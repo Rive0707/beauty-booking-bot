@@ -220,15 +220,32 @@ def handle_message(event):
         except Exception:
             pass
 
-    # コマンド判定（完全一致のみ反応。「予約外」「ご予約ありがとうございました」等の文章に誤反応しないようにするため）
-    if text in ["予約確認", "マイページ", "履歴"]:
-        line_handler.show_my_page(user_id, reply_token=event.reply_token)
-    elif text in ["予約", "予約する"]:
+    # コマンド判定
+    if text in ["予約", "予約する"]:
         line_handler.start_booking(user_id)
+    elif text in ["予約確認", "マイページ", "履歴"]:
+        line_handler.show_my_page(user_id)
+    elif text in ["キャンセル", "予約キャンセル", "きゃんせる"]:
+        # 直近の今後の確定予約を取得して自動キャンセル処理
+        upcoming = db.get_bookings_by_user(user_id, status='confirmed')
+        if upcoming:
+            target_booking = upcoming[0]
+            booking_id = target_booking['id']
+            b_date = target_booking['booking_date']
+            b_time = target_booking['booking_time']
+
+            # データベースの予約をキャンセル
+            db.cancel_booking(booking_id)
+            db.add_booking_history(booking_id, "cancelled", user_id, before_date=b_date, before_time=b_time)
+
+            # お客さんへの通知メッセージ
+            msg = f"❌ ご予約のキャンセルが完了しました。\n\n📅 日時: {b_date} {b_time}\n\nまたのご利用を心よりお待ちしております。"
+            line_handler.send_text(user_id, msg)
+        else:
+            line_handler.send_text(user_id, "現在、キャンセル対象となる確定ご予約は見つかりませんでした。")
     elif user_id == OWNER_USER_ID:
         handle_owner_command(user_id, text)
     else:
-        # すでに名前が登録されている場合はスルー
         pass
 
 @handler.add(PostbackEvent)
