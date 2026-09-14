@@ -1211,6 +1211,17 @@ function renderMenus() {
     if (res.ok) { toast("お客様を削除しました"); loadData(); } else { toast(data.error || "削除に失敗しました"); }
   }
 
+　async function hideRichmenu(userId) {
+    if (!confirm("このお客様のメニューを非表示にしますか？")) return;
+    var res = await fetch("/api/customers/" + encodeURIComponent(userId) + "/hide-richmenu", { method: "POST" });
+    if (res.ok) { toast("メニューを非表示にしました"); loadData(); } else { toast("失敗しました"); }
+  }
+
+  async function restoreRichmenu(userId) {
+    var res = await fetch("/api/customers/" + encodeURIComponent(userId) + "/restore-richmenu", { method: "POST" });
+    if (res.ok) { toast("メニュー表示を元に戻しました"); loadData(); } else { toast("失敗しました"); }
+  }
+
 /* --- ④ カルテ（過去履歴・メモ）の表示 統合版 --- */
   var currentHistoryUserId = null;
   var visitNotesMap = {};
