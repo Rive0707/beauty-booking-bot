@@ -35,6 +35,7 @@ class Database:
                 gender TEXT,
                 birthdate TEXT,
                 phone TEXT,
+                richmenu_hidden INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
