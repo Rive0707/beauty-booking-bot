@@ -1216,6 +1216,11 @@ function renderMenus() {
     if (res.ok) { toast("メニューを非表示にしました"); loadData(); } else { toast("失敗しました"); }
   }
 
+　async function restoreRichmenu(userId) {
+    var res = await fetch("/api/customers/" + encodeURIComponent(userId) + "/restore-richmenu", { method: "POST" });
+    if (res.ok) { toast("メニュー表示を元に戻しました"); loadData(); } else { toast("失敗しました"); }
+  }
+
   async function restoreRichmenu(userId) {
     var res = await fetch("/api/customers/" + encodeURIComponent(userId) + "/restore-richmenu", { method: "POST" });
     if (res.ok) { toast("メニュー表示を元に戻しました"); loadData(); } else { toast("失敗しました"); }
